@@ -1815,7 +1815,7 @@ class FecOpenapiAPIs:
             params["api_key"] = api_key
         return self._make_request("GET", url, params=params if params else None, headers=self.get_headers())
 
-    def get_v1_elections(self, page: Optional[int] = None, per_page: Optional[int] = None, state: Optional[str] = None, district: Optional[str] = None, cycle: int, office: str, election_full: Optional[bool] = None, sort: Optional[str] = None, sort_hide_null: Optional[bool] = None, sort_null_only: Optional[bool] = None, sort_nulls_last: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
+    def get_v1_elections(self, cycle: int, office: str, page: Optional[int] = None, per_page: Optional[int] = None, state: Optional[str] = None, district: Optional[str] = None, election_full: Optional[bool] = None, sort: Optional[str] = None, sort_hide_null: Optional[bool] = None, sort_null_only: Optional[bool] = None, sort_nulls_last: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
         """get_v1_elections operation"""
         url = f"{self._base_url}/v1/elections/"
         params = {}
@@ -1873,7 +1873,7 @@ class FecOpenapiAPIs:
             params["api_key"] = api_key
         return self._make_request("GET", url, params=params if params else None, headers=self.get_headers())
 
-    def get_v1_elections_summary(self, state: Optional[str] = None, district: Optional[str] = None, cycle: int, office: str, election_full: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
+    def get_v1_elections_summary(self, cycle: int, office: str, state: Optional[str] = None, district: Optional[str] = None, election_full: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
         """get_v1_elections_summary operation"""
         url = f"{self._base_url}/v1/elections/summary/"
         params = {}
@@ -2731,7 +2731,7 @@ class FecOpenapiAPIs:
             params["api_key"] = api_key
         return self._make_request("GET", url, params=params if params else None, headers=self.get_headers())
 
-    def get_v1_schedules_schedule_a_by_size_by_candidate(self, page: Optional[int] = None, per_page: Optional[int] = None, candidate_id: List[str], cycle: List[int], election_full: Optional[bool] = None, sort: Optional[List[str]] = None, sort_hide_null: Optional[bool] = None, sort_null_only: Optional[bool] = None, sort_nulls_last: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
+    def get_v1_schedules_schedule_a_by_size_by_candidate(self, candidate_id: List[str], cycle: List[int], page: Optional[int] = None, per_page: Optional[int] = None, election_full: Optional[bool] = None, sort: Optional[List[str]] = None, sort_hide_null: Optional[bool] = None, sort_null_only: Optional[bool] = None, sort_nulls_last: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
         """get_v1_schedules_schedule_a_by_size_by_candidate operation"""
         url = f"{self._base_url}/v1/schedules/schedule_a/by_size/by_candidate/"
         params = {}
@@ -2783,7 +2783,7 @@ class FecOpenapiAPIs:
             params["api_key"] = api_key
         return self._make_request("GET", url, params=params if params else None, headers=self.get_headers())
 
-    def get_v1_schedules_schedule_a_by_state_by_candidate(self, page: Optional[int] = None, per_page: Optional[int] = None, candidate_id: List[str], cycle: List[int], election_full: Optional[bool] = None, sort: Optional[List[str]] = None, sort_hide_null: Optional[bool] = None, sort_null_only: Optional[bool] = None, sort_nulls_last: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
+    def get_v1_schedules_schedule_a_by_state_by_candidate(self, candidate_id: List[str], cycle: List[int], page: Optional[int] = None, per_page: Optional[int] = None, election_full: Optional[bool] = None, sort: Optional[List[str]] = None, sort_hide_null: Optional[bool] = None, sort_null_only: Optional[bool] = None, sort_nulls_last: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
         """get_v1_schedules_schedule_a_by_state_by_candidate operation"""
         url = f"{self._base_url}/v1/schedules/schedule_a/by_state/by_candidate/"
         params = {}
@@ -2807,7 +2807,7 @@ class FecOpenapiAPIs:
             params["api_key"] = api_key
         return self._make_request("GET", url, params=params if params else None, headers=self.get_headers())
 
-    def get_v1_schedules_schedule_a_by_state_by_candidate_totals(self, page: Optional[int] = None, per_page: Optional[int] = None, candidate_id: List[str], cycle: List[int], election_full: Optional[bool] = None, sort: Optional[List[str]] = None, sort_hide_null: Optional[bool] = None, sort_null_only: Optional[bool] = None, sort_nulls_last: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
+    def get_v1_schedules_schedule_a_by_state_by_candidate_totals(self, candidate_id: List[str], cycle: List[int], page: Optional[int] = None, per_page: Optional[int] = None, election_full: Optional[bool] = None, sort: Optional[List[str]] = None, sort_hide_null: Optional[bool] = None, sort_null_only: Optional[bool] = None, sort_nulls_last: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
         """get_v1_schedules_schedule_a_by_state_by_candidate_totals operation"""
         url = f"{self._base_url}/v1/schedules/schedule_a/by_state/by_candidate/totals/"
         params = {}
@@ -3839,7 +3839,7 @@ class FecOpenapiAPIs:
             params["api_key"] = api_key
         return self._make_request("GET", url, params=params if params else None, headers=self.get_headers())
 
-    def get_v1_state_election_office(self, page: Optional[int] = None, per_page: Optional[int] = None, state: str, sort: Optional[str] = None, sort_hide_null: Optional[bool] = None, sort_null_only: Optional[bool] = None, sort_nulls_last: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
+    def get_v1_state_election_office(self, state: str, page: Optional[int] = None, per_page: Optional[int] = None, sort: Optional[str] = None, sort_hide_null: Optional[bool] = None, sort_null_only: Optional[bool] = None, sort_nulls_last: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
         """get_v1_state_election_office operation"""
         url = f"{self._base_url}/v1/state-election-office/"
         params = {}
@@ -3860,7 +3860,7 @@ class FecOpenapiAPIs:
             params["api_key"] = api_key
         return self._make_request("GET", url, params=params if params else None, headers=self.get_headers())
 
-    def get_v1_totals_by_entity(self, page: Optional[int] = None, per_page: Optional[int] = None, cycle: int, sort: Optional[str] = None, sort_hide_null: Optional[bool] = None, sort_null_only: Optional[bool] = None, sort_nulls_last: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
+    def get_v1_totals_by_entity(self, cycle: int, page: Optional[int] = None, per_page: Optional[int] = None, sort: Optional[str] = None, sort_hide_null: Optional[bool] = None, sort_null_only: Optional[bool] = None, sort_nulls_last: Optional[bool] = None, api_key: Optional[str] = None) -> requests.Response:
         """get_v1_totals_by_entity operation"""
         url = f"{self._base_url}/v1/totals/by_entity/"
         params = {}
