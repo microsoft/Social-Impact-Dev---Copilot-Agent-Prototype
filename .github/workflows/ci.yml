@@ -35,13 +35,11 @@ jobs:
         uses: astral-sh/ruff-action@v1
         with:
           args: format --check .
-          version: latest
 
       - name: Ruff lint
         uses: astral-sh/ruff-action@v1
         with:
           args: check .
-          version: latest
 
       - name: Ty type check
         run: uv run ty check .
