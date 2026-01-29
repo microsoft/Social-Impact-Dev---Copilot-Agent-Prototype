@@ -6,15 +6,34 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 
+[tool.uv.workspace]
+members = [
+  "packages/*",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
     "ruff>=0.14.14",
     "ty>=0.0.14",
+    "fec-api-client",
+    "openapi-python-client>=0.28.1",
+    "openapi-client-python>=1.0.0",
 ]
+
+[tool.uv.sources]
+fec-api-client = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["packages"]
+addopts = ["--import-mode=importlib"]
 
 [tool.ruff]
 line-length = 100
+exclude = ["packages/fec-api-client/src/fec_api_client/generated/**"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[tool.ty.src]
+exclude = ["packages/fec-api-client/src/fec_api_client/generated/**"]

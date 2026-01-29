@@ -1,0 +1,14 @@
+[project]
+name = "fec-api-client"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx",
+]
+
+[project.scripts]
+fec-generate-client = "fec_api_client.tools.generate_client:main"
+
+[build-system]
+requires = ["uv_build>=0.9.27,<0.10.0"]
+build-backend = "uv_build"
