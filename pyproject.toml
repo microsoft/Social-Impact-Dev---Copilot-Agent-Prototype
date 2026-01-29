@@ -17,12 +17,14 @@ dev = [
     "ruff>=0.14.14",
     "ty>=0.0.14",
     "fec-api-client",
+    "services",
     "openapi-python-client>=0.28.1",
     "openapi-client-python>=1.0.0",
 ]
 
 [tool.uv.sources]
 fec-api-client = { workspace = true }
+services = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["packages"]
