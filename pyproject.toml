@@ -12,3 +12,9 @@ dev = [
     "ruff>=0.14.14",
     "ty>=0.0.14",
 ]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
