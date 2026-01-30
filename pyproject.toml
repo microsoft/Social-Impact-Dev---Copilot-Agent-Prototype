@@ -20,6 +20,7 @@ dev = [
     "services",
     "openapi-python-client>=0.28.1",
     "openapi-client-python>=1.0.0",
+    "azure-functions>=1.17.0",
 ]
 
 [tool.uv.sources]
