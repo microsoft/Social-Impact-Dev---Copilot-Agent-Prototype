@@ -39,3 +39,8 @@ select = ["E", "F", "I", "UP"]
 
 [tool.ty.src]
 exclude = ["packages/fec-api-client/src/fec_api_client/generated/**"]
+
+[tool.pyright]
+exclude = ["packages/fec-api-client/src/fec_api_client/generated/**"]
+venvPath = "."
+venv = ".venv"
