@@ -6,7 +6,7 @@
       "value": "mystorageaccount"
     },
     "containerName": {
-      "value": "data"
+      "value": "fec-filings"
     },
     "storageSku": {
       "value": "Standard_LRS"

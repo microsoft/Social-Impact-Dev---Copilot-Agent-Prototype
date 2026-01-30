@@ -4,7 +4,9 @@ param location string = resourceGroup().location
 @description('The name of the function app')
 param functionAppName string
 
-@description('The name of the storage account for function runtime')
+@description('The name of the storage account for function runtime (3-24 chars, lowercase letters and numbers only)')
+@minLength(3)
+@maxLength(24)
 param functionStorageAccountName string
 
 @description('The name of the App Service Plan')

@@ -1,11 +1,13 @@
 @description('The location for all resources')
 param location string = resourceGroup().location
 
-@description('The name of the storage account')
+@description('The name of the storage account (3-24 chars, lowercase letters and numbers only)')
+@minLength(3)
+@maxLength(24)
 param storageAccountName string
 
 @description('The name of the blob container')
-param containerName string = 'data'
+param containerName string = 'fec-filings'
 
 @description('The SKU for the storage account')
 @allowed([
