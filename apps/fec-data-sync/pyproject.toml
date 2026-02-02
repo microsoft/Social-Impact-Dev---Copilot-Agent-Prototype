@@ -1,0 +1,13 @@
+[project]
+name = "fec-data-sync"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "azure-functions>=1.17.0",
+    "fec-api-client",
+    "services",
+]
+
+[tool.uv.sources]
+fec-api-client = { path = "../../packages/fec-api-client" }
+services = { path = "../../packages/services" }
