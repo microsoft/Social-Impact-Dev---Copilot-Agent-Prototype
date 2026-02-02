@@ -13,3 +13,6 @@ temp/
 
 # OS
 .DS_Store
+
+# Azure Functions
+local.settings.json
