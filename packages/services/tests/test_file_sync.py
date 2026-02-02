@@ -113,9 +113,7 @@ class TestFileSyncService:
             per_page=100,
         )
 
-    def test_download_skips_existing_blob(
-        self, sync_service, mock_blob_service, mock_http_client
-    ):
+    def test_download_skips_existing_blob(self, sync_service, mock_blob_service, mock_http_client):
         mock_blob_service.exists.return_value = True
         result = sync_service._download_and_store_file(
             "https://example.com/file.csv",
@@ -125,9 +123,7 @@ class TestFileSyncService:
         assert result is False
         mock_http_client.get.assert_not_called()
 
-    def test_download_stores_new_file(
-        self, sync_service, mock_blob_service, mock_http_client
-    ):
+    def test_download_stores_new_file(self, sync_service, mock_blob_service, mock_http_client):
         mock_blob_service.exists.return_value = False
         mock_response = Mock()
         mock_response.content = b"csv,data"
@@ -201,7 +197,8 @@ class TestFileSyncService:
 
         # Verify metadata was saved
         save_calls = [
-            c for c in mock_blob_service.upload_bytes.call_args_list
+            c
+            for c in mock_blob_service.upload_bytes.call_args_list
             if c[0][0] == METADATA_BLOB_PATH
         ]
         assert len(save_calls) == 1
