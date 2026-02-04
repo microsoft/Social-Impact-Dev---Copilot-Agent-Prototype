@@ -1,0 +1,18 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "BLOB_CONNECTION_STRING": "<your-blob-storage-connection-string>",
+    "BLOB_ACCOUNT_URL": "https://<storage-account>.blob.core.windows.net",
+    "BLOB_CONTAINER_NAME": "fec-filings",
+    "MANIFEST_CONTAINER_NAME": "manifests",
+    "EMAIL_CONNECTION_STRING": "<your-azure-communication-services-connection-string>",
+    "EMAIL_SENDER_ADDRESS": "DoNotReply@<your-domain>.azurecomm.net",
+    "EMAIL_RECIPIENT_LIST": "recipient1@example.com,recipient2@example.com",
+    "AZURE_OPENAI_ENDPOINT": "https://<your-openai-resource>.openai.azure.com",
+    "AZURE_OPENAI_API_KEY": "<your-openai-api-key>",
+    "AZURE_OPENAI_DEPLOYMENT": "<your-chat-model-deployment-name>",
+    "AZURE_CLIENT_ID": "<optional-managed-identity-client-id>"
+  }
+}
