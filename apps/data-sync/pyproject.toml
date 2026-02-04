@@ -1,5 +1,5 @@
 [project]
-name = "fec-data-sync"
+name = "data-sync"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
@@ -9,5 +9,5 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-fec-api-client = { path = "../../packages/fec-api-client" }
-services = { path = "../../packages/services" }
+fec-api-client = { workspace = true }
+services = { workspace = true }
