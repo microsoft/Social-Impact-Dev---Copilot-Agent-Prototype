@@ -1,0 +1,215 @@
+from unittest.mock import MagicMock, patch
+
+import pytest
+from services import AzureEmailService, EmailMessage
+
+
+@pytest.fixture
+def mock_email_client():
+    with patch("services.email.EmailClient") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_default_credential():
+    with patch("services.email.DefaultAzureCredential") as mock:
+        yield mock
+
+
+# parse_recipient_list tests
+
+
+def test_parse_recipient_list_parses_comma_separated():
+    result = AzureEmailService.parse_recipient_list("a@example.com, b@example.com")
+    assert result == ["a@example.com", "b@example.com"]
+
+
+def test_parse_recipient_list_strips_whitespace():
+    result = AzureEmailService.parse_recipient_list("  a@example.com  ,  b@example.com  ")
+    assert result == ["a@example.com", "b@example.com"]
+
+
+def test_parse_recipient_list_filters_empty_entries():
+    result = AzureEmailService.parse_recipient_list("a@example.com,,b@example.com,")
+    assert result == ["a@example.com", "b@example.com"]
+
+
+def test_parse_recipient_list_returns_empty_for_empty_string():
+    result = AzureEmailService.parse_recipient_list("")
+    assert result == []
+
+
+def test_parse_recipient_list_returns_empty_for_whitespace():
+    result = AzureEmailService.parse_recipient_list("   ,   ,   ")
+    assert result == []
+
+
+# __init__ tests
+
+
+def test_init_with_connection_string(mock_email_client):
+    service = AzureEmailService(
+        connection_string="endpoint=https://test.communication.azure.com",
+        sender_address="sender@example.com",
+    )
+    mock_email_client.from_connection_string.assert_called_once_with(
+        "endpoint=https://test.communication.azure.com"
+    )
+    assert service.sender_address == "sender@example.com"
+
+
+def test_init_with_endpoint(mock_email_client, mock_default_credential):
+    _service = AzureEmailService(
+        endpoint="https://test.communication.azure.com",
+        sender_address="sender@example.com",
+    )
+    mock_default_credential.assert_called_once()
+    mock_email_client.assert_called_once_with(
+        "https://test.communication.azure.com",
+        mock_default_credential.return_value,
+    )
+
+
+def test_init_from_env_vars(mock_email_client, monkeypatch):
+    monkeypatch.setenv("EMAIL_CONNECTION_STRING", "endpoint=https://env.azure.com")
+    monkeypatch.setenv("EMAIL_SENDER_ADDRESS", "env@example.com")
+
+    service = AzureEmailService()
+    assert service.sender_address == "env@example.com"
+    mock_email_client.from_connection_string.assert_called_once()
+
+
+def test_init_raises_without_sender_address(mock_email_client):
+    with pytest.raises(ValueError, match="sender_address or EMAIL_SENDER_ADDRESS must be provided"):
+        AzureEmailService(connection_string="endpoint=https://test.azure.com")
+
+
+def test_init_raises_without_connection_string_or_endpoint():
+    with pytest.raises(ValueError, match="Either connection_string or endpoint must be provided"):
+        AzureEmailService(sender_address="sender@example.com")
+
+
+# send_email tests
+
+
+def test_send_email_success(mock_email_client):
+    mock_client = MagicMock()
+    mock_poller = MagicMock()
+    mock_poller.result.return_value = {"id": "message-123"}
+    mock_client.begin_send.return_value = mock_poller
+    mock_email_client.from_connection_string.return_value = mock_client
+
+    service = AzureEmailService(
+        connection_string="endpoint=https://test.azure.com",
+        sender_address="sender@example.com",
+    )
+
+    message = EmailMessage(
+        subject="Test Subject",
+        html_content="<p>Hello</p>",
+        plain_text_content="Hello",
+    )
+    result = service.send_email(["recipient@example.com"], message)
+
+    assert result.success is True
+    assert result.message_id == "message-123"
+    mock_client.begin_send.assert_called_once()
+
+
+def test_send_email_with_no_recipients(mock_email_client):
+    service = AzureEmailService(
+        connection_string="endpoint=https://test.azure.com",
+        sender_address="sender@example.com",
+    )
+
+    message = EmailMessage(subject="Test", html_content="<p>Hello</p>")
+    result = service.send_email([], message)
+
+    assert result.success is False
+    assert result.error == "No recipients provided"
+
+
+def test_send_email_handles_exception(mock_email_client):
+    mock_client = MagicMock()
+    mock_client.begin_send.side_effect = Exception("Connection failed")
+    mock_email_client.from_connection_string.return_value = mock_client
+
+    service = AzureEmailService(
+        connection_string="endpoint=https://test.azure.com",
+        sender_address="sender@example.com",
+    )
+
+    message = EmailMessage(subject="Test", html_content="<p>Hello</p>")
+    result = service.send_email(["recipient@example.com"], message)
+
+    assert result.success is False
+    assert result.error is not None
+    assert "Connection failed" in result.error
+
+
+# send_summary_email tests
+
+
+def test_send_summary_email_success(mock_email_client):
+    mock_client = MagicMock()
+    mock_poller = MagicMock()
+    mock_poller.result.return_value = {"id": "summary-123"}
+    mock_client.begin_send.return_value = mock_poller
+    mock_email_client.from_connection_string.return_value = mock_client
+
+    service = AzureEmailService(
+        connection_string="endpoint=https://test.azure.com",
+        sender_address="sender@example.com",
+    )
+
+    filings = [{"committee_name": "Test Committee", "file_number": "12345"}]
+    result = service.send_summary_email(
+        recipients=["recipient@example.com"],
+        filings=filings,
+        summary="Test summary",
+        file_urls=["https://storage.blob.core.windows.net/container/12345"],
+    )
+
+    assert result.success is True
+    assert result.message_id == "summary-123"
+
+
+def test_send_summary_email_with_no_recipients(mock_email_client):
+    service = AzureEmailService(
+        connection_string="endpoint=https://test.azure.com",
+        sender_address="sender@example.com",
+    )
+
+    result = service.send_summary_email(
+        recipients=[],
+        filings=[],
+        summary="Test summary",
+        file_urls=[],
+    )
+
+    assert result.success is False
+    assert result.error == "No recipients provided"
+
+
+def test_send_summary_email_builds_correct_subject(mock_email_client):
+    mock_client = MagicMock()
+    mock_poller = MagicMock()
+    mock_poller.result.return_value = {"id": "msg-123"}
+    mock_client.begin_send.return_value = mock_poller
+    mock_email_client.from_connection_string.return_value = mock_client
+
+    service = AzureEmailService(
+        connection_string="endpoint=https://test.azure.com",
+        sender_address="sender@example.com",
+    )
+
+    filings = [{"file_number": "1"}, {"file_number": "2"}, {"file_number": "3"}]
+    service.send_summary_email(
+        recipients=["recipient@example.com"],
+        filings=filings,
+        summary="Test",
+        file_urls=[],
+    )
+
+    call_args = mock_client.begin_send.call_args[0][0]
+    assert call_args["content"]["subject"] == "FEC Filing Update: 3 New File(s)"
