@@ -1,0 +1,190 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      deploy_email_function:
+        description: 'Deploy email update function'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DATA_SYNC_PATH: 'apps/data-sync'
+  EMAIL_UPDATE_PATH: 'apps/email-update'
+
+jobs:
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    outputs:
+      functionAppName: ${{ steps.deploy.outputs.functionAppName }}
+      emailFunctionAppName: ${{ steps.deploy.outputs.emailFunctionAppName }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Bicep
+        id: deploy
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
+          template: ./infra/main.bicep
+          parameters: >
+            environment=${{ github.event.inputs.environment || 'dev' }}
+            fecApiKey=${{ secrets.FEC_API_KEY }}
+            enableEmailFunction=${{ github.event.inputs.deploy_email_function || 'false' }}
+            emailConnectionString=${{ secrets.EMAIL_CONNECTION_STRING }}
+            emailSenderAddress=${{ vars.EMAIL_SENDER_ADDRESS }}
+            emailRecipientList=${{ vars.EMAIL_RECIPIENT_LIST }}
+            azureOpenAIEndpoint=${{ vars.AZURE_OPENAI_ENDPOINT }}
+            azureOpenAIApiKey=${{ secrets.AZURE_OPENAI_API_KEY }}
+            azureOpenAIDeployment=${{ vars.AZURE_OPENAI_DEPLOYMENT }}
+          failOnStdErr: false
+
+  deploy-data-sync:
+    name: Deploy Data Sync Function
+    runs-on: ubuntu-latest
+    needs: deploy-infrastructure
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv sync --no-dev
+          uv export --no-hashes -o ${{ env.DATA_SYNC_PATH }}/requirements.txt
+
+      - name: Build function package
+        run: |
+          cd ${{ env.DATA_SYNC_PATH }}
+
+          # Create .python_packages directory for dependencies
+          mkdir -p .python_packages/lib/site-packages
+
+          # Install workspace dependencies into function package
+          pip install --target .python_packages/lib/site-packages -r requirements.txt
+
+          # Copy local workspace packages
+          cp -r ../../packages/fec-api-client/src/fec_api_client .python_packages/lib/site-packages/
+          cp -r ../../packages/services/src/services .python_packages/lib/site-packages/
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Functions
+        uses: azure/functions-action@v1
+        with:
+          app-name: ${{ needs.deploy-infrastructure.outputs.functionAppName }}
+          package: ${{ env.DATA_SYNC_PATH }}
+          scm-do-build-during-deployment: false
+          enable-oryx-build: false
+
+  deploy-email-update:
+    name: Deploy Email Update Function
+    runs-on: ubuntu-latest
+    needs: deploy-infrastructure
+    if: ${{ github.event.inputs.deploy_email_function == 'true' }}
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv sync --no-dev
+          uv export --no-hashes -o ${{ env.EMAIL_UPDATE_PATH }}/requirements.txt
+
+      - name: Build function package
+        run: |
+          cd ${{ env.EMAIL_UPDATE_PATH }}
+
+          # Create .python_packages directory for dependencies
+          mkdir -p .python_packages/lib/site-packages
+
+          # Install workspace dependencies into function package
+          pip install --target .python_packages/lib/site-packages -r requirements.txt
+
+          # Copy local workspace packages
+          cp -r ../../packages/services/src/services .python_packages/lib/site-packages/
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Functions
+        uses: azure/functions-action@v1
+        with:
+          app-name: ${{ needs.deploy-infrastructure.outputs.emailFunctionAppName }}
+          package: ${{ env.EMAIL_UPDATE_PATH }}
+          scm-do-build-during-deployment: false
+          enable-oryx-build: false
