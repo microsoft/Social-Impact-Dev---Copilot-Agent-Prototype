@@ -16,3 +16,7 @@ temp/
 
 # Azure Functions
 local.settings.json
+
+# Bicep compiled output (keep .parameters.json files)
+infra/*.json
+!infra/*.parameters.json
