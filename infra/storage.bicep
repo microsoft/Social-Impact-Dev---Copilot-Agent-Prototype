@@ -33,6 +33,14 @@ param minimumTlsVersion string = 'TLS1_2'
 @description('Allow public access to blobs')
 param allowBlobPublicAccess bool = false
 
+@description('Container public access level')
+@allowed([
+  'None'
+  'Blob'
+  'Container'
+])
+param containerPublicAccess string = 'None'
+
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: storageAccountName
   location: location
@@ -85,7 +93,7 @@ resource container 'Microsoft.Storage/storageAccounts/blobServices/containers@20
   parent: blobService
   name: containerName
   properties: {
-    publicAccess: 'None'
+    publicAccess: containerPublicAccess
   }
 }
 
@@ -103,3 +111,6 @@ output accountUrl string = storageAccount.properties.primaryEndpoints.blob
 
 @description('The name of the blob container')
 output containerName string = container.name
+
+@description('The storage connection string')
+output connectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'

@@ -27,15 +27,38 @@ param applicationInsightsName string = '${functionAppName}-insights'
 @description('Enable Application Insights')
 param enableApplicationInsights bool = true
 
-@description('The FEC API key (stored in app settings)')
+@description('The blob storage connection string for trigger')
 @secure()
-param fecApiKey string
+param blobConnectionString string
 
-@description('The blob storage account URL for FEC filings data')
+@description('The blob storage account URL for document links')
 param blobAccountUrl string
 
 @description('The blob container name for FEC filings data')
 param blobContainerName string = 'fec-filings'
+
+@description('The manifest container name for trigger')
+param manifestContainerName string = 'manifests'
+
+@description('Azure Communication Services connection string')
+@secure()
+param emailConnectionString string
+
+@description('Email sender address')
+param emailSenderAddress string
+
+@description('Comma-separated list of email recipients')
+param emailRecipientList string
+
+@description('Azure OpenAI endpoint')
+param azureOpenAIEndpoint string
+
+@description('Azure OpenAI API key')
+@secure()
+param azureOpenAIApiKey string
+
+@description('Azure OpenAI deployment name')
+param azureOpenAIDeployment string
 
 @description('User-assigned managed identity client ID (optional)')
 param managedIdentityClientId string = ''
@@ -173,8 +196,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           value: enableApplicationInsights ? applicationInsights!.properties.ConnectionString : ''
         }
         {
-          name: 'FEC_API_KEY'
-          value: fecApiKey
+          name: 'BLOB_CONNECTION_STRING'
+          value: blobConnectionString
         }
         {
           name: 'BLOB_ACCOUNT_URL'
@@ -183,6 +206,34 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'BLOB_CONTAINER_NAME'
           value: blobContainerName
+        }
+        {
+          name: 'MANIFEST_CONTAINER_NAME'
+          value: manifestContainerName
+        }
+        {
+          name: 'EMAIL_CONNECTION_STRING'
+          value: emailConnectionString
+        }
+        {
+          name: 'EMAIL_SENDER_ADDRESS'
+          value: emailSenderAddress
+        }
+        {
+          name: 'EMAIL_RECIPIENT_LIST'
+          value: emailRecipientList
+        }
+        {
+          name: 'AZURE_OPENAI_ENDPOINT'
+          value: azureOpenAIEndpoint
+        }
+        {
+          name: 'AZURE_OPENAI_API_KEY'
+          value: azureOpenAIApiKey
+        }
+        {
+          name: 'AZURE_OPENAI_DEPLOYMENT'
+          value: azureOpenAIDeployment
         }
         {
           name: 'AZURE_CLIENT_ID'
