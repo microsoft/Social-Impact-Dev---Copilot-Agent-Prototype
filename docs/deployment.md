@@ -7,10 +7,10 @@ This guide covers local development setup and Azure deployment for the FEC Data 
 ### Prerequisites
 
 - Python 3.11+
-- [uv](https://docs.astral.sh/uv/) package manager
-- [Azure Functions Core Tools v4](https://docs.microsoft.com/en-us/azure/azure-functions/functions-run-local)
-- [Azurite](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azurite) (local storage emulator)
-- FEC API key from [api.open.fec.gov](https://api.open.fec.gov/developers/)
+- [uv][uv] package manager
+- [Azure Functions Core Tools v4][azure-func-tools]
+- [Azurite][azurite] (local storage emulator)
+- FEC API key from [api.open.fec.gov][fec-api]
 
 ### Setup
 
@@ -268,3 +268,9 @@ az functionapp restart --name <app-name> --resource-group <rg>
 # View deployment status
 az deployment group show --name main --resource-group <rg>
 ```
+
+<!-- Reference Links -->
+[uv]: https://docs.astral.sh/uv/
+[azure-func-tools]: https://docs.microsoft.com/en-us/azure/azure-functions/functions-run-local
+[azurite]: https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azurite
+[fec-api]: https://api.open.fec.gov/developers/
