@@ -62,9 +62,6 @@ param azureOpenAIDeployment string = ''
 ])
 param openAIModel string = 'gpt-4o-mini'
 
-@description('Enable email update function app')
-param enableEmailFunction bool = false
-
 @description('Enable role assignments (requires Owner or User Access Administrator role)')
 param enableRoleAssignments bool = true
 
@@ -92,8 +89,8 @@ module storage 'storage.bicep' = {
   }
 }
 
-// Azure Communication Services for email (only if email function enabled)
-module communicationServices 'communication-services.bicep' = if (enableEmailFunction) {
+// Azure Communication Services for email
+module communicationServices 'communication-services.bicep' = {
   name: 'communication-services-deployment'
   params: {
     communicationServicesName: '${baseName}-${environment}-acs'
@@ -101,8 +98,8 @@ module communicationServices 'communication-services.bicep' = if (enableEmailFun
   }
 }
 
-// Azure OpenAI for summaries (only if email function enabled)
-module openAI 'openai.bicep' = if (enableEmailFunction) {
+// Azure OpenAI for summaries
+module openAI 'openai.bicep' = {
   name: 'openai-deployment'
   params: {
     location: location
@@ -140,7 +137,7 @@ module roleAssignment 'role-assignment.bicep' = if (enableRoleAssignments) {
 }
 
 // Manifest storage container for email triggers
-module manifestStorage 'storage.bicep' = if (enableEmailFunction) {
+module manifestStorage 'storage.bicep' = {
   name: 'manifest-storage-deployment'
   params: {
     location: location
@@ -154,23 +151,21 @@ module manifestStorage 'storage.bicep' = if (enableEmailFunction) {
   dependsOn: [storage]
 }
 
-// Reference deployed resources to get secrets (only when email function enabled)
-resource storageAccountRef 'Microsoft.Storage/storageAccounts@2023-01-01' existing = if (enableEmailFunction) {
+// Reference deployed resources to get secrets
+resource storageAccountRef 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
   name: storage.outputs.storageAccountName
 }
 
-resource acsRef 'Microsoft.Communication/communicationServices@2023-04-01' existing = if (enableEmailFunction) {
-  #disable-next-line BCP318
+resource acsRef 'Microsoft.Communication/communicationServices@2023-04-01' existing = {
   name: communicationServices.outputs.communicationServicesName
 }
 
-resource openAIRef 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = if (enableEmailFunction) {
-  #disable-next-line BCP318
+resource openAIRef 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = {
   name: openAI.outputs.openAIName
 }
 
 // Email update function app
-module emailFunctionApp 'email-function-app.bicep' = if (enableEmailFunction) {
+module emailFunctionApp 'email-function-app.bicep' = {
   name: 'email-function-app-deployment'
   params: {
     location: location
@@ -180,31 +175,24 @@ module emailFunctionApp 'email-function-app.bicep' = if (enableEmailFunction) {
     appServicePlanSku: appServicePlanSku
     enableApplicationInsights: enableApplicationInsights
     logRetentionDays: logRetentionDays
-    #disable-next-line BCP422
     blobConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountRef.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${storageAccountRef.listKeys().keys[0].value}'
     blobAccountUrl: storage.outputs.accountUrl
     blobContainerName: containerName
     manifestContainerName: manifestContainerName
     // Use auto-generated values if not provided manually
-    #disable-next-line BCP422
     emailConnectionString: !empty(emailConnectionString) ? emailConnectionString : acsRef.listKeys().primaryConnectionString
-    #disable-next-line BCP318
     emailSenderAddress: !empty(emailSenderAddress) ? emailSenderAddress : communicationServices.outputs.senderAddress
     emailRecipientList: emailRecipientList
-    #disable-next-line BCP318
     azureOpenAIEndpoint: !empty(azureOpenAIEndpoint) ? azureOpenAIEndpoint : openAI.outputs.endpoint
-    #disable-next-line BCP422
     azureOpenAIApiKey: !empty(azureOpenAIApiKey) ? azureOpenAIApiKey : openAIRef.listKeys().key1
-    #disable-next-line BCP318
     azureOpenAIDeployment: !empty(azureOpenAIDeployment) ? azureOpenAIDeployment : openAI.outputs.deploymentName
   }
 }
 
 // Role assignment for email function app to access storage
-module emailRoleAssignment 'role-assignment.bicep' = if (enableEmailFunction && enableRoleAssignments) {
+module emailRoleAssignment 'role-assignment.bicep' = if (enableRoleAssignments) {
   name: 'email-role-assignment-deployment'
   params: {
-    #disable-next-line BCP318
     principalId: emailFunctionApp.outputs.functionAppPrincipalId
     storageAccountId: storage.outputs.storageAccountId
     roleName: 'Storage Blob Data Contributor'
@@ -237,25 +225,19 @@ output applicationInsightsInstrumentationKey string = functionApp.outputs.applic
 output logAnalyticsWorkspaceId string = functionApp.outputs.logAnalyticsWorkspaceId
 
 @description('The email function app name')
-#disable-next-line BCP318
-output emailFunctionAppName string = enableEmailFunction ? emailFunctionApp.outputs.functionAppName : ''
+output emailFunctionAppName string = emailFunctionApp.outputs.functionAppName
 
 @description('The email function app hostname')
-#disable-next-line BCP318
-output emailFunctionAppHostname string = enableEmailFunction ? emailFunctionApp.outputs.functionAppHostname : ''
+output emailFunctionAppHostname string = emailFunctionApp.outputs.functionAppHostname
 
 @description('The auto-generated email sender address')
-#disable-next-line BCP318
-output emailSenderAddress string = enableEmailFunction ? communicationServices.outputs.senderAddress : ''
+output emailSenderAddress string = communicationServices.outputs.senderAddress
 
 @description('The email domain')
-#disable-next-line BCP318
-output emailDomain string = enableEmailFunction ? communicationServices.outputs.emailDomain : ''
+output emailDomain string = communicationServices.outputs.emailDomain
 
 @description('The Azure OpenAI endpoint')
-#disable-next-line BCP318
-output azureOpenAIEndpoint string = enableEmailFunction ? openAI.outputs.endpoint : ''
+output azureOpenAIEndpoint string = openAI.outputs.endpoint
 
 @description('The Azure OpenAI deployment name')
-#disable-next-line BCP318
-output azureOpenAIDeployment string = enableEmailFunction ? openAI.outputs.deploymentName : ''
+output azureOpenAIDeployment string = openAI.outputs.deploymentName

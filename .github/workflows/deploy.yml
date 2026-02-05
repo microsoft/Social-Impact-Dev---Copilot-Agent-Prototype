@@ -59,7 +59,6 @@ jobs:
           parameters: >
             environment=${{ github.event.inputs.environment || 'dev' }}
             fecApiKey=${{ secrets.FEC_API_KEY }}
-            enableEmailFunction=true
             emailConnectionString=${{ secrets.EMAIL_CONNECTION_STRING || '' }}
             emailSenderAddress=${{ vars.EMAIL_SENDER_ADDRESS || '' }}
             emailRecipientList=${{ vars.EMAIL_RECIPIENT_LIST }}
