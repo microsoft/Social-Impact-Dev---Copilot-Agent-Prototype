@@ -1,4 +1,4 @@
-.PHONY: help install lint test build azurite-start azurite-stop run-data-sync run-email-update clean
+.PHONY: help install lint test build azurite-start azurite-stop run-data-sync run-email-update clean az-register-providers
 
 VENV_PATH := $(shell pwd)/.venv/bin
 AZURITE_CONN := DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;
@@ -16,6 +16,9 @@ help:
 	@echo "  azurite-stop     Stop Azurite"
 	@echo "  run-data-sync    Run data-sync function locally"
 	@echo "  run-email-update Run email-update function locally"
+	@echo ""
+	@echo "Azure:"
+	@echo "  az-register-providers  Register required Azure resource providers"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  clean            Remove generated files"
@@ -69,6 +72,18 @@ _setup-email-update-settings:
 		echo '{\n  "IsEncrypted": false,\n  "Values": {\n    "AzureWebJobsStorage": "$(AZURITE_CONN)",\n    "FUNCTIONS_WORKER_RUNTIME": "python",\n    "BLOB_CONNECTION_STRING": "$(AZURITE_CONN)",\n    "AZURE_STORAGE_CONNECTION_STRING": "$(AZURITE_CONN)",\n    "BLOB_ACCOUNT_URL": "",\n    "BLOB_CONTAINER_NAME": "fec-filings",\n    "MANIFEST_CONTAINER_NAME": "manifests",\n    "EMAIL_CONNECTION_STRING": "",\n    "EMAIL_SENDER_ADDRESS": "test@example.com",\n    "EMAIL_RECIPIENT_LIST": "",\n    "AZURE_OPENAI_ENDPOINT": "",\n    "AZURE_OPENAI_API_KEY": "",\n    "AZURE_OPENAI_DEPLOYMENT": ""\n  }\n}' > apps/email-update/local.settings.json; \
 		echo "Created apps/email-update/local.settings.json"; \
 	fi
+
+# Register all Azure resource providers required by the infrastructure
+az-register-providers:
+	@echo "Registering Azure resource providers..."
+	az provider register --namespace Microsoft.Storage --wait
+	az provider register --namespace Microsoft.Web --wait
+	az provider register --namespace Microsoft.Insights --wait
+	az provider register --namespace Microsoft.OperationalInsights --wait
+	az provider register --namespace Microsoft.Communication --wait
+	az provider register --namespace Microsoft.CognitiveServices --wait
+	az provider register --namespace Microsoft.Authorization --wait
+	@echo "All providers registered successfully"
 
 clean:
 	rm -rf apps/*/local.settings.json
