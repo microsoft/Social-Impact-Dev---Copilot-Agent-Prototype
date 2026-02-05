@@ -14,11 +14,6 @@ on:
           - dev
           - staging
           - prod
-      deploy_email_function:
-        description: 'Deploy email update function'
-        required: false
-        default: false
-        type: boolean
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -64,7 +59,7 @@ jobs:
           parameters: >
             environment=${{ github.event.inputs.environment || 'dev' }}
             fecApiKey=${{ secrets.FEC_API_KEY }}
-            enableEmailFunction=${{ github.event.inputs.deploy_email_function || 'false' }}
+            enableEmailFunction=true
             emailConnectionString=${{ secrets.EMAIL_CONNECTION_STRING || '' }}
             emailSenderAddress=${{ vars.EMAIL_SENDER_ADDRESS || '' }}
             emailRecipientList=${{ vars.EMAIL_RECIPIENT_LIST }}
@@ -133,7 +128,6 @@ jobs:
     name: Deploy Email Update Function
     runs-on: ubuntu-latest
     needs: deploy-infrastructure
-    if: ${{ github.event.inputs.deploy_email_function == 'true' }}
     environment: ${{ github.event.inputs.environment || 'dev' }}
 
     permissions:
