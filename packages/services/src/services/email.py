@@ -48,6 +48,13 @@ class EmailService(Protocol):
         file_urls: list[str],
     ) -> EmailResult: ...
 
+    def send_candidate_report_email(
+        self,
+        recipients: list[str],
+        report: Any,
+        summary: str,
+    ) -> EmailResult: ...
+
     @staticmethod
     def parse_recipient_list(recipient_list: str) -> list[str]: ...
 
@@ -204,7 +211,9 @@ class AzureEmailService:
         if report.total_receipts is not None:
             financials += f"<li><strong>Total Receipts:</strong> ${report.total_receipts:,.2f}</li>"
         if report.total_disbursements is not None:
-            financials += f"<li><strong>Total Disbursements:</strong> ${report.total_disbursements:,.2f}</li>"
+            financials += (
+                f"<li><strong>Total Disbursements:</strong> ${report.total_disbursements:,.2f}</li>"
+            )
         if report.cash_on_hand is not None:
             financials += f"<li><strong>Cash on Hand:</strong> ${report.cash_on_hand:,.2f}</li>"
 
@@ -216,21 +225,22 @@ class AzureEmailService:
                 links += " | "
             links += f'<a href="{report.csv_url}" style="color: #0066cc;">Download CSV</a>'
 
+        period = f"{report.coverage_start_date} to {report.coverage_end_date}"
         return f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <h2 style="color: #1a1a1a;">{report.candidate_name} - {report.report_type} Report</h2>
 
-            <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
                 <p><strong>Committee:</strong> {report.committee_name}</p>
-                <p><strong>Report Period:</strong> {report.coverage_start_date} to {report.coverage_end_date}</p>
+                <p><strong>Period:</strong> {period}</p>
                 <p><strong>Filed:</strong> {report.receipt_date}</p>
             </div>
 
             {"<h3>Financial Summary</h3><ul>" + financials + "</ul>" if financials else ""}
 
             <h3>AI Summary</h3>
-            <div style="background: #e8f4f8; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+            <div style="background: #e8f4f8; padding: 15px; border-radius: 5px;">
                 <p>{summary}</p>
             </div>
 
@@ -263,13 +273,15 @@ class AzureEmailService:
         if report.cash_on_hand is not None:
             lines.append(f"Cash on Hand: ${report.cash_on_hand:,.2f}")
 
-        lines.extend([
-            "",
-            "AI Summary",
-            "-" * 30,
-            summary,
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "AI Summary",
+                "-" * 30,
+                summary,
+                "",
+            ]
+        )
 
         if report.pdf_url:
             lines.append(f"PDF: {report.pdf_url}")

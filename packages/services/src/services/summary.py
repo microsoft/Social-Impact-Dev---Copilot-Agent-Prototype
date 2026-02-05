@@ -28,6 +28,10 @@ class SummaryService(Protocol):
 class AzureOpenAISummaryService:
     """Azure OpenAI-based summary generation service."""
 
+    endpoint: str
+    api_key: str
+    deployment: str
+
     def __init__(
         self,
         endpoint: str | None = None,
@@ -35,16 +39,20 @@ class AzureOpenAISummaryService:
         deployment: str | None = None,
         api_version: str = "2024-02-15-preview",
     ) -> None:
-        self.endpoint = endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
-        self.api_key = api_key or os.getenv("AZURE_OPENAI_API_KEY")
-        self.deployment = deployment or os.getenv("AZURE_OPENAI_DEPLOYMENT")
+        _endpoint = endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
+        _api_key = api_key or os.getenv("AZURE_OPENAI_API_KEY")
+        _deployment = deployment or os.getenv("AZURE_OPENAI_DEPLOYMENT")
 
-        if not self.endpoint:
+        if not _endpoint:
             raise ValueError("endpoint or AZURE_OPENAI_ENDPOINT must be provided")
-        if not self.api_key:
+        if not _api_key:
             raise ValueError("api_key or AZURE_OPENAI_API_KEY must be provided")
-        if not self.deployment:
+        if not _deployment:
             raise ValueError("deployment or AZURE_OPENAI_DEPLOYMENT must be provided")
+
+        self.endpoint = _endpoint
+        self.api_key = _api_key
+        self.deployment = _deployment
 
         self._client = AzureOpenAI(
             azure_endpoint=self.endpoint,
@@ -70,9 +78,11 @@ class AzureOpenAISummaryService:
                     {
                         "role": "system",
                         "content": (
-                            "You are a helpful assistant that summarizes FEC quarterly campaign finance reports. "
-                            "Provide a clear, concise summary that highlights key financial information including "
-                            "total receipts, disbursements, and cash on hand. Keep the tone professional and factual."
+                            "You are a helpful assistant that summarizes FEC quarterly "
+                            "campaign finance reports. Provide a clear, concise summary "
+                            "that highlights key financial information including total "
+                            "receipts, disbursements, and cash on hand. "
+                            "Keep the tone professional and factual."
                         ),
                     },
                     {

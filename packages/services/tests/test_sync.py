@@ -39,7 +39,9 @@ def test_sync_candidate_reports_no_candidates(mock_fec_client, mock_blob_service
     mock_fec_client.get_v1_filings.assert_not_called()
 
 
-def test_sync_candidate_reports_stores_reports(mock_fec_client, mock_blob_service, mock_http_client):
+def test_sync_candidate_reports_stores_reports(
+    mock_fec_client, mock_blob_service, mock_http_client
+):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
@@ -68,7 +70,9 @@ def test_sync_candidate_reports_stores_reports(mock_fec_client, mock_blob_servic
     assert len(report_calls) == 2
 
 
-def test_sync_candidate_reports_handles_missing(mock_fec_client, mock_blob_service, mock_http_client):
+def test_sync_candidate_reports_handles_missing(
+    mock_fec_client, mock_blob_service, mock_http_client
+):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
@@ -86,7 +90,9 @@ def test_sync_candidate_reports_handles_missing(mock_fec_client, mock_blob_servi
     assert result["P00001"] is None
 
 
-def test_sync_candidate_reports_handles_api_error(mock_fec_client, mock_blob_service, mock_http_client):
+def test_sync_candidate_reports_handles_api_error(
+    mock_fec_client, mock_blob_service, mock_http_client
+):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
@@ -103,7 +109,9 @@ def test_sync_candidate_reports_handles_api_error(mock_fec_client, mock_blob_ser
     assert result["P00001"] is None
 
 
-def test_sync_candidate_reports_uses_custom_report_types(mock_fec_client, mock_blob_service, mock_http_client):
+def test_sync_candidate_reports_uses_custom_report_types(
+    mock_fec_client, mock_blob_service, mock_http_client
+):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
@@ -127,7 +135,9 @@ def test_sync_candidate_reports_uses_custom_report_types(mock_fec_client, mock_b
     )
 
 
-def test_sync_candidate_reports_downloads_files(mock_fec_client, mock_blob_service, mock_http_client):
+def test_sync_candidate_reports_downloads_files(
+    mock_fec_client, mock_blob_service, mock_http_client
+):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,

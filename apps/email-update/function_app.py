@@ -57,7 +57,13 @@ def manual_report_check(req: func.HttpRequest) -> func.HttpResponse:
     result = service.process_candidates(get_candidate_ids(), get_recipients())
 
     return func.HttpResponse(
-        json.dumps({"candidates_processed": result.candidates_processed, "emails_sent": result.emails_sent, "errors": result.errors}),
+        json.dumps(
+            {
+                "candidates_processed": result.candidates_processed,
+                "emails_sent": result.emails_sent,
+                "errors": result.errors,
+            }
+        ),
         mimetype="application/json",
         status_code=200,
     )
