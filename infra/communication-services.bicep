@@ -63,9 +63,8 @@ resource emailLink 'Microsoft.Communication/communicationServices/emailLinks@202
 @description('The Communication Services resource ID')
 output communicationServicesId string = communicationServices.id
 
-@description('The Communication Services connection string')
-#disable-next-line outputs-should-not-contain-secrets
-output connectionString string = communicationServices.listKeys().primaryConnectionString
+@description('The Communication Services resource name')
+output communicationServicesName string = communicationServices.name
 
 @description('The email sender address (DoNotReply)')
 output senderAddress string = 'DoNotReply@${emailDomain.properties.mailFromSenderDomain}'

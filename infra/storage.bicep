@@ -111,7 +111,3 @@ output accountUrl string = storageAccount.properties.primaryEndpoints.blob
 
 @description('The name of the blob container')
 output containerName string = container.name
-
-@description('The storage connection string')
-#disable-next-line outputs-should-not-contain-secrets
-output connectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'

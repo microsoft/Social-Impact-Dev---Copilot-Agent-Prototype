@@ -148,6 +148,19 @@ module manifestStorage 'storage.bicep' = if (enableEmailFunction) {
   dependsOn: [storage]
 }
 
+// Reference deployed resources to get secrets (only when email function enabled)
+resource storageAccountRef 'Microsoft.Storage/storageAccounts@2023-01-01' existing = if (enableEmailFunction) {
+  name: storage.outputs.storageAccountName
+}
+
+resource acsRef 'Microsoft.Communication/communicationServices@2023-04-01' existing = if (enableEmailFunction) {
+  name: communicationServices.outputs.communicationServicesName
+}
+
+resource openAIRef 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = if (enableEmailFunction) {
+  name: openAI.outputs.openAIName
+}
+
 // Email update function app
 module emailFunctionApp 'email-function-app.bicep' = if (enableEmailFunction) {
   name: 'email-function-app-deployment'
@@ -158,16 +171,16 @@ module emailFunctionApp 'email-function-app.bicep' = if (enableEmailFunction) {
     appServicePlanSku: appServicePlanSku
     enableApplicationInsights: enableApplicationInsights
     logRetentionDays: logRetentionDays
-    blobConnectionString: storage.outputs.connectionString
+    blobConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountRef.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${storageAccountRef.listKeys().keys[0].value}'
     blobAccountUrl: storage.outputs.accountUrl
     blobContainerName: containerName
     manifestContainerName: manifestContainerName
     // Use auto-generated values if not provided manually
-    emailConnectionString: !empty(emailConnectionString) ? emailConnectionString : communicationServices.outputs.connectionString
+    emailConnectionString: !empty(emailConnectionString) ? emailConnectionString : acsRef.listKeys().primaryConnectionString
     emailSenderAddress: !empty(emailSenderAddress) ? emailSenderAddress : communicationServices.outputs.senderAddress
     emailRecipientList: emailRecipientList
     azureOpenAIEndpoint: !empty(azureOpenAIEndpoint) ? azureOpenAIEndpoint : openAI.outputs.endpoint
-    azureOpenAIApiKey: !empty(azureOpenAIApiKey) ? azureOpenAIApiKey : openAI.outputs.apiKey
+    azureOpenAIApiKey: !empty(azureOpenAIApiKey) ? azureOpenAIApiKey : openAIRef.listKeys().key1
     azureOpenAIDeployment: !empty(azureOpenAIDeployment) ? azureOpenAIDeployment : openAI.outputs.deploymentName
   }
 }
