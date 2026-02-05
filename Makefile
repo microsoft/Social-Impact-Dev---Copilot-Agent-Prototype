@@ -103,7 +103,7 @@ build-email-update:
 	@uv export --no-hashes --no-emit-package fec-api-client --no-emit-package services -o apps/email-update/requirements.txt
 	@rm -rf apps/email-update/.python_packages
 	@mkdir -p apps/email-update/.python_packages/lib/site-packages
-	@uv pip install --target apps/email-update/.python_packages/lib/site-packages -r apps/email-update/requirements.txt dist/services-*.whl
+	@uv pip install --target apps/email-update/.python_packages/lib/site-packages -r apps/email-update/requirements.txt dist/*.whl
 	@echo "email-update package built in apps/email-update/.python_packages"
 
 # Register all Azure resource providers required by the infrastructure
