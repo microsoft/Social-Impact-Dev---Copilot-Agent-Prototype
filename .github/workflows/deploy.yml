@@ -65,12 +65,12 @@ jobs:
             environment=${{ github.event.inputs.environment || 'dev' }}
             fecApiKey=${{ secrets.FEC_API_KEY }}
             enableEmailFunction=${{ github.event.inputs.deploy_email_function || 'false' }}
-            emailConnectionString=${{ secrets.EMAIL_CONNECTION_STRING }}
-            emailSenderAddress=${{ vars.EMAIL_SENDER_ADDRESS }}
+            emailConnectionString=${{ secrets.EMAIL_CONNECTION_STRING || '' }}
+            emailSenderAddress=${{ vars.EMAIL_SENDER_ADDRESS || '' }}
             emailRecipientList=${{ vars.EMAIL_RECIPIENT_LIST }}
-            azureOpenAIEndpoint=${{ vars.AZURE_OPENAI_ENDPOINT }}
-            azureOpenAIApiKey=${{ secrets.AZURE_OPENAI_API_KEY }}
-            azureOpenAIDeployment=${{ vars.AZURE_OPENAI_DEPLOYMENT }}
+            azureOpenAIEndpoint=${{ vars.AZURE_OPENAI_ENDPOINT || '' }}
+            azureOpenAIApiKey=${{ secrets.AZURE_OPENAI_API_KEY || '' }}
+            azureOpenAIDeployment=${{ vars.AZURE_OPENAI_DEPLOYMENT || '' }}
           failOnStdErr: false
 
   deploy-data-sync:
