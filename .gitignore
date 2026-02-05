@@ -16,6 +16,11 @@ temp/
 
 # Azure Functions
 local.settings.json
+apps/*/.python_packages/
+apps/*/requirements.txt
+
+# Build artifacts
+dist/
 
 # Bicep compiled output (keep .parameters.json files)
 infra/*.json

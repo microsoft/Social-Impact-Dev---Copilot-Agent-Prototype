@@ -97,24 +97,22 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install dependencies
-        run: |
-          uv sync --no-dev
-          uv export --no-hashes -o ${{ env.DATA_SYNC_PATH }}/requirements.txt
-
       - name: Build function package
         run: |
+          # Build workspace packages as wheels
+          uv build --wheel packages/fec-api-client --out-dir dist/
+          uv build --wheel packages/services --out-dir dist/
+
+          # Export dependencies excluding workspace packages
+          uv export --no-hashes --no-emit-package fec-api-client --no-emit-package services -o ${{ env.DATA_SYNC_PATH }}/requirements.txt
+
           cd ${{ env.DATA_SYNC_PATH }}
 
           # Create .python_packages directory for dependencies
           mkdir -p .python_packages/lib/site-packages
 
-          # Install workspace dependencies into function package
-          pip install --target .python_packages/lib/site-packages -r requirements.txt
-
-          # Copy local workspace packages
-          cp -r ../../packages/fec-api-client/src/fec_api_client .python_packages/lib/site-packages/
-          cp -r ../../packages/services/src/services .python_packages/lib/site-packages/
+          # Install all dependencies including workspace wheels
+          pip install --target .python_packages/lib/site-packages -r requirements.txt ../../dist/*.whl
 
       - name: Azure Login
         uses: azure/login@v2
@@ -156,23 +154,22 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install dependencies
-        run: |
-          uv sync --no-dev
-          uv export --no-hashes -o ${{ env.EMAIL_UPDATE_PATH }}/requirements.txt
-
       - name: Build function package
         run: |
+          # Build workspace packages as wheels
+          uv build --wheel packages/fec-api-client --out-dir dist/
+          uv build --wheel packages/services --out-dir dist/
+
+          # Export dependencies excluding workspace packages
+          uv export --no-hashes --no-emit-package fec-api-client --no-emit-package services -o ${{ env.EMAIL_UPDATE_PATH }}/requirements.txt
+
           cd ${{ env.EMAIL_UPDATE_PATH }}
 
           # Create .python_packages directory for dependencies
           mkdir -p .python_packages/lib/site-packages
 
-          # Install workspace dependencies into function package
-          pip install --target .python_packages/lib/site-packages -r requirements.txt
-
-          # Copy local workspace packages
-          cp -r ../../packages/services/src/services .python_packages/lib/site-packages/
+          # Install dependencies and services wheel (email-update only needs services)
+          pip install --target .python_packages/lib/site-packages -r requirements.txt ../../dist/services-*.whl
 
       - name: Azure Login
         uses: azure/login@v2
