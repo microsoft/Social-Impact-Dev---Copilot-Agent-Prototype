@@ -33,25 +33,34 @@ param enableApplicationInsights bool = true
 @maxValue(730)
 param logRetentionDays int = 90
 
-@description('Azure Communication Services connection string for email')
+@description('Azure Communication Services connection string for email (auto-generated if not provided)')
 @secure()
 param emailConnectionString string = ''
 
-@description('Email sender address')
+@description('Email sender address (auto-generated if not provided)')
 param emailSenderAddress string = ''
 
 @description('Comma-separated list of email recipients')
 param emailRecipientList string = ''
 
-@description('Azure OpenAI endpoint')
+@description('Azure OpenAI endpoint (auto-generated if not provided)')
 param azureOpenAIEndpoint string = ''
 
-@description('Azure OpenAI API key')
+@description('Azure OpenAI API key (auto-generated if not provided)')
 @secure()
 param azureOpenAIApiKey string = ''
 
-@description('Azure OpenAI deployment name')
+@description('Azure OpenAI deployment name (auto-generated if not provided)')
 param azureOpenAIDeployment string = ''
+
+@description('Azure OpenAI model to deploy')
+@allowed([
+  'gpt-4o'
+  'gpt-4o-mini'
+  'gpt-4'
+  'gpt-35-turbo'
+])
+param openAIModel string = 'gpt-4o-mini'
 
 @description('Enable email update function app')
 param enableEmailFunction bool = false
@@ -76,6 +85,26 @@ module storage 'storage.bicep' = {
     storageSku: 'Standard_LRS'
     minimumTlsVersion: 'TLS1_2'
     allowBlobPublicAccess: false
+  }
+}
+
+// Azure Communication Services for email (only if email function enabled)
+module communicationServices 'communication-services.bicep' = if (enableEmailFunction) {
+  name: 'communication-services-deployment'
+  params: {
+    communicationServicesName: '${baseName}-${environment}-acs'
+    dataLocation: 'United States'
+  }
+}
+
+// Azure OpenAI for summaries (only if email function enabled)
+module openAI 'openai.bicep' = if (enableEmailFunction) {
+  name: 'openai-deployment'
+  params: {
+    location: location
+    openAIName: '${baseName}-${environment}-openai'
+    modelName: openAIModel
+    deploymentName: openAIModel
   }
 }
 
@@ -133,12 +162,13 @@ module emailFunctionApp 'email-function-app.bicep' = if (enableEmailFunction) {
     blobAccountUrl: storage.outputs.accountUrl
     blobContainerName: containerName
     manifestContainerName: manifestContainerName
-    emailConnectionString: emailConnectionString
-    emailSenderAddress: emailSenderAddress
+    // Use auto-generated values if not provided manually
+    emailConnectionString: !empty(emailConnectionString) ? emailConnectionString : communicationServices.outputs.connectionString
+    emailSenderAddress: !empty(emailSenderAddress) ? emailSenderAddress : communicationServices.outputs.senderAddress
     emailRecipientList: emailRecipientList
-    azureOpenAIEndpoint: azureOpenAIEndpoint
-    azureOpenAIApiKey: azureOpenAIApiKey
-    azureOpenAIDeployment: azureOpenAIDeployment
+    azureOpenAIEndpoint: !empty(azureOpenAIEndpoint) ? azureOpenAIEndpoint : openAI.outputs.endpoint
+    azureOpenAIApiKey: !empty(azureOpenAIApiKey) ? azureOpenAIApiKey : openAI.outputs.apiKey
+    azureOpenAIDeployment: !empty(azureOpenAIDeployment) ? azureOpenAIDeployment : openAI.outputs.deploymentName
   }
 }
 
@@ -182,3 +212,15 @@ output emailFunctionAppName string = enableEmailFunction ? emailFunctionApp.outp
 
 @description('The email function app hostname')
 output emailFunctionAppHostname string = enableEmailFunction ? emailFunctionApp.outputs.functionAppHostname : ''
+
+@description('The auto-generated email sender address')
+output emailSenderAddress string = enableEmailFunction ? communicationServices.outputs.senderAddress : ''
+
+@description('The email domain')
+output emailDomain string = enableEmailFunction ? communicationServices.outputs.emailDomain : ''
+
+@description('The Azure OpenAI endpoint')
+output azureOpenAIEndpoint string = enableEmailFunction ? openAI.outputs.endpoint : ''
+
+@description('The Azure OpenAI deployment name')
+output azureOpenAIDeployment string = enableEmailFunction ? openAI.outputs.deploymentName : ''
