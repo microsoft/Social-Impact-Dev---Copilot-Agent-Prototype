@@ -9,6 +9,7 @@ from azure.communication.email import EmailClient
 from azure.identity import DefaultAzureCredential
 
 from .templates import build_filing_notification_html, build_filing_notification_plain_text
+from .utils import parse_comma_list
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,7 @@ class AzureEmailService:
     @staticmethod
     def parse_recipient_list(recipient_list: str) -> list[str]:
         """Parse a comma-separated recipient list string into a list of email addresses."""
-        return [r.strip() for r in recipient_list.split(",") if r.strip()]
+        return parse_comma_list(recipient_list)
 
     def __init__(
         self,

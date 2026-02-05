@@ -8,6 +8,7 @@ from services import (
     AzureEmailService,
     AzureOpenAISummaryService,
     CandidateReportService,
+    parse_comma_list,
 )
 
 app = func.FunctionApp()
@@ -15,16 +16,6 @@ logger = logging.getLogger(__name__)
 
 BLOB_ACCOUNT_URL = os.getenv("BLOB_ACCOUNT_URL")
 BLOB_CONTAINER_NAME = os.getenv("BLOB_CONTAINER_NAME", "fec-filings")
-
-
-def get_candidate_ids() -> list[str]:
-    value = os.getenv("FEC_CANDIDATE_IDS", "")
-    return [v.strip() for v in value.split(",") if v.strip()]
-
-
-def get_recipients() -> list[str]:
-    value = os.getenv("EMAIL_RECIPIENT_LIST", "")
-    return [v.strip() for v in value.split(",") if v.strip()]
 
 
 def create_report_service() -> CandidateReportService:
@@ -46,7 +37,10 @@ def scheduled_report_check(timer: func.TimerRequest) -> None:
         logger.warning("Timer is running late")
 
     service = create_report_service()
-    result = service.process_candidates(get_candidate_ids(), get_recipients())
+    result = service.process_candidates(
+        parse_comma_list(os.getenv("FEC_CANDIDATE_IDS")),
+        parse_comma_list(os.getenv("EMAIL_RECIPIENT_LIST")),
+    )
     logger.info(f"Scheduled run complete: {result}")
 
 
@@ -54,7 +48,10 @@ def scheduled_report_check(timer: func.TimerRequest) -> None:
 def manual_report_check(req: func.HttpRequest) -> func.HttpResponse:
     """POST /api/check-reports - Manual trigger for testing."""
     service = create_report_service()
-    result = service.process_candidates(get_candidate_ids(), get_recipients())
+    result = service.process_candidates(
+        parse_comma_list(os.getenv("FEC_CANDIDATE_IDS")),
+        parse_comma_list(os.getenv("EMAIL_RECIPIENT_LIST")),
+    )
 
     return func.HttpResponse(
         json.dumps(
