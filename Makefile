@@ -1,4 +1,4 @@
-.PHONY: help install lint test build azurite-start azurite-stop run-data-sync run-email-update clean
+.PHONY: help install lint test build azurite-start azurite-stop run-data-sync run-email-update clean az-register-providers build-data-sync build-email-update build-functions
 
 VENV_PATH := $(shell pwd)/.venv/bin
 AZURITE_CONN := DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;
@@ -16,6 +16,14 @@ help:
 	@echo "  azurite-stop     Stop Azurite"
 	@echo "  run-data-sync    Run data-sync function locally"
 	@echo "  run-email-update Run email-update function locally"
+	@echo ""
+	@echo "Build:"
+	@echo "  build-functions      Build all function packages for deployment"
+	@echo "  build-data-sync      Build data-sync function package"
+	@echo "  build-email-update   Build email-update function package"
+	@echo ""
+	@echo "Azure:"
+	@echo "  az-register-providers  Register required Azure resource providers"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  clean            Remove generated files"
@@ -69,6 +77,46 @@ _setup-email-update-settings:
 		echo '{\n  "IsEncrypted": false,\n  "Values": {\n    "AzureWebJobsStorage": "$(AZURITE_CONN)",\n    "FUNCTIONS_WORKER_RUNTIME": "python",\n    "BLOB_CONNECTION_STRING": "$(AZURITE_CONN)",\n    "AZURE_STORAGE_CONNECTION_STRING": "$(AZURITE_CONN)",\n    "BLOB_ACCOUNT_URL": "",\n    "BLOB_CONTAINER_NAME": "fec-filings",\n    "MANIFEST_CONTAINER_NAME": "manifests",\n    "EMAIL_CONNECTION_STRING": "",\n    "EMAIL_SENDER_ADDRESS": "test@example.com",\n    "EMAIL_RECIPIENT_LIST": "",\n    "AZURE_OPENAI_ENDPOINT": "",\n    "AZURE_OPENAI_API_KEY": "",\n    "AZURE_OPENAI_DEPLOYMENT": ""\n  }\n}' > apps/email-update/local.settings.json; \
 		echo "Created apps/email-update/local.settings.json"; \
 	fi
+
+# Build all function packages for deployment
+build-functions: build-data-sync build-email-update
+	@echo "All function packages built successfully"
+
+# Build data-sync function package
+build-data-sync:
+	@echo "Building data-sync function package..."
+	@rm -rf dist/
+	@uv build --wheel packages/fec-api-client --out-dir dist/
+	@uv build --wheel packages/services --out-dir dist/
+	@uv export --no-hashes --no-emit-package fec-api-client --no-emit-package services -o apps/data-sync/requirements.txt
+	@rm -rf apps/data-sync/.python_packages
+	@mkdir -p apps/data-sync/.python_packages/lib/site-packages
+	@uv pip install --target apps/data-sync/.python_packages/lib/site-packages -r apps/data-sync/requirements.txt dist/*.whl
+	@echo "data-sync package built in apps/data-sync/.python_packages"
+
+# Build email-update function package
+build-email-update:
+	@echo "Building email-update function package..."
+	@rm -rf dist/
+	@uv build --wheel packages/fec-api-client --out-dir dist/
+	@uv build --wheel packages/services --out-dir dist/
+	@uv export --no-hashes --no-emit-package fec-api-client --no-emit-package services -o apps/email-update/requirements.txt
+	@rm -rf apps/email-update/.python_packages
+	@mkdir -p apps/email-update/.python_packages/lib/site-packages
+	@uv pip install --target apps/email-update/.python_packages/lib/site-packages -r apps/email-update/requirements.txt dist/services-*.whl
+	@echo "email-update package built in apps/email-update/.python_packages"
+
+# Register all Azure resource providers required by the infrastructure
+az-register-providers:
+	@echo "Registering Azure resource providers..."
+	az provider register --namespace Microsoft.Storage --wait
+	az provider register --namespace Microsoft.Web --wait
+	az provider register --namespace Microsoft.Insights --wait
+	az provider register --namespace Microsoft.OperationalInsights --wait
+	az provider register --namespace Microsoft.Communication --wait
+	az provider register --namespace Microsoft.CognitiveServices --wait
+	az provider register --namespace Microsoft.Authorization --wait
+	@echo "All providers registered successfully"
 
 clean:
 	rm -rf apps/*/local.settings.json

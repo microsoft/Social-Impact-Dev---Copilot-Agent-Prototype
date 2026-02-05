@@ -65,6 +65,9 @@ param openAIModel string = 'gpt-4o-mini'
 @description('Enable email update function app')
 param enableEmailFunction bool = false
 
+@description('Enable role assignments (requires Owner or User Access Administrator role)')
+param enableRoleAssignments bool = true
+
 // Generate unique suffix for globally unique names
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var storageAccountName = toLower(replace('${baseName}${environment}${uniqueSuffix}', '-', ''))
@@ -80,6 +83,7 @@ module storage 'storage.bicep' = {
   name: 'storage-deployment'
   params: {
     location: location
+    #disable-next-line BCP334
     storageAccountName: take(storageAccountName, 24) // Max 24 chars
     containerName: containerName
     storageSku: 'Standard_LRS'
@@ -114,6 +118,7 @@ module functionApp 'function-app.bicep' = {
   params: {
     location: location
     functionAppName: functionAppName
+    #disable-next-line BCP334
     functionStorageAccountName: take(functionStorageAccountName, 24) // Max 24 chars
     appServicePlanSku: appServicePlanSku
     enableApplicationInsights: enableApplicationInsights
@@ -125,7 +130,7 @@ module functionApp 'function-app.bicep' = {
 }
 
 // Role assignment for function app to access storage
-module roleAssignment 'role-assignment.bicep' = {
+module roleAssignment 'role-assignment.bicep' = if (enableRoleAssignments) {
   name: 'role-assignment-deployment'
   params: {
     principalId: functionApp.outputs.functionAppPrincipalId
@@ -139,6 +144,7 @@ module manifestStorage 'storage.bicep' = if (enableEmailFunction) {
   name: 'manifest-storage-deployment'
   params: {
     location: location
+    #disable-next-line BCP334
     storageAccountName: take(storageAccountName, 24) // Use same storage account
     containerName: manifestContainerName
     storageSku: 'Standard_LRS'
@@ -171,25 +177,31 @@ module emailFunctionApp 'email-function-app.bicep' = if (enableEmailFunction) {
     appServicePlanSku: appServicePlanSku
     enableApplicationInsights: enableApplicationInsights
     logRetentionDays: logRetentionDays
+    #disable-next-line BCP422
     blobConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountRef.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${storageAccountRef.listKeys().keys[0].value}'
     blobAccountUrl: storage.outputs.accountUrl
     blobContainerName: containerName
     manifestContainerName: manifestContainerName
     // Use auto-generated values if not provided manually
+    #disable-next-line BCP422
     emailConnectionString: !empty(emailConnectionString) ? emailConnectionString : acsRef.listKeys().primaryConnectionString
+    #disable-next-line BCP318
     emailSenderAddress: !empty(emailSenderAddress) ? emailSenderAddress : communicationServices.outputs.senderAddress
     emailRecipientList: emailRecipientList
+    #disable-next-line BCP318
     azureOpenAIEndpoint: !empty(azureOpenAIEndpoint) ? azureOpenAIEndpoint : openAI.outputs.endpoint
+    #disable-next-line BCP422
     azureOpenAIApiKey: !empty(azureOpenAIApiKey) ? azureOpenAIApiKey : openAIRef.listKeys().key1
+    #disable-next-line BCP318
     azureOpenAIDeployment: !empty(azureOpenAIDeployment) ? azureOpenAIDeployment : openAI.outputs.deploymentName
   }
 }
 
 // Role assignment for email function app to access storage
-module emailRoleAssignment 'role-assignment.bicep' = if (enableEmailFunction) {
+module emailRoleAssignment 'role-assignment.bicep' = if (enableEmailFunction && enableRoleAssignments) {
   name: 'email-role-assignment-deployment'
   params: {
-    principalId: enableEmailFunction ? emailFunctionApp.outputs.functionAppPrincipalId : ''
+    principalId: emailFunctionApp.outputs.functionAppPrincipalId
     storageAccountId: storage.outputs.storageAccountId
     roleName: 'Storage Blob Data Contributor'
   }
