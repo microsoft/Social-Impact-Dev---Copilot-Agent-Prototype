@@ -22,22 +22,11 @@ class SummaryResult:
 class SummaryService(Protocol):
     """Protocol for AI summary generation services."""
 
-    def generate_summary(self, filings: list[dict]) -> SummaryResult: ...
+    def generate_candidate_summary(self, report) -> SummaryResult: ...
 
 
 class AzureOpenAISummaryService:
     """Azure OpenAI-based summary generation service."""
-
-    DEFAULT_SYSTEM_PROMPT = (
-        "You are a helpful assistant that summarizes FEC "
-        "(Federal Election Commission) filings.\n"
-        "When given a list of filings, provide a clear and concise summary that highlights:\n"
-        "- The total number of filings\n"
-        "- Key filing types (e.g., quarterly reports, 24/48 hour reports)\n"
-        "- Notable committees or candidates\n"
-        "- Any significant financial information if available\n\n"
-        "Keep your summary professional and factual."
-    )
 
     def __init__(
         self,
@@ -45,12 +34,10 @@ class AzureOpenAISummaryService:
         api_key: str | None = None,
         deployment: str | None = None,
         api_version: str = "2024-02-15-preview",
-        system_prompt: str | None = None,
     ) -> None:
         self.endpoint = endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
         self.api_key = api_key or os.getenv("AZURE_OPENAI_API_KEY")
         self.deployment = deployment or os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        self.system_prompt = system_prompt or self.DEFAULT_SYSTEM_PROMPT
 
         if not self.endpoint:
             raise ValueError("endpoint or AZURE_OPENAI_ENDPOINT must be provided")
@@ -65,31 +52,32 @@ class AzureOpenAISummaryService:
             api_version=api_version,
         )
 
-    def generate_summary(self, filings: list[dict]) -> SummaryResult:
-        """Generate a summary of the given filings.
+    def generate_candidate_summary(self, report) -> SummaryResult:
+        """Generate a summary for a candidate's quarterly report.
 
         Args:
-            filings: List of filing dictionaries containing filing metadata.
+            report: CandidateReport object with filing details.
 
         Returns:
             SummaryResult with the generated summary or error.
         """
-        if not filings:
-            return SummaryResult(
-                success=True,
-                summary="No new filings to summarize.",
-            )
-
-        filings_text = self._format_filings(filings)
+        report_text = self._format_candidate_report(report)
 
         try:
             response = self._client.chat.completions.create(
                 model=self.deployment,
                 messages=[
-                    {"role": "system", "content": self.system_prompt},
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a helpful assistant that summarizes FEC quarterly campaign finance reports. "
+                            "Provide a clear, concise summary that highlights key financial information including "
+                            "total receipts, disbursements, and cash on hand. Keep the tone professional and factual."
+                        ),
+                    },
                     {
                         "role": "user",
-                        "content": f"Please summarize the following FEC filings:\n\n{filings_text}",
+                        "content": f"Please summarize this quarterly FEC filing:\n\n{report_text}",
                     },
                 ],
                 max_tokens=1000,
@@ -100,25 +88,29 @@ class AzureOpenAISummaryService:
             if not summary:
                 return SummaryResult(success=False, error="Empty response from model")
 
-            logger.info(f"Generated summary for {len(filings)} filings")
+            logger.info(f"Generated summary for candidate {report.candidate_name}")
             return SummaryResult(success=True, summary=summary)
 
         except Exception as e:
-            logger.error(f"Failed to generate summary: {e}")
+            logger.error(f"Failed to generate candidate summary: {e}")
             return SummaryResult(success=False, error=str(e))
 
-    def _format_filings(self, filings: list[dict]) -> str:
-        """Format filings list into a readable text format."""
-        lines = []
-        for i, filing in enumerate(filings, 1):
-            parts = [f"{i}. "]
-            if "committee_name" in filing:
-                parts.append(f"Committee: {filing['committee_name']}")
-            if "form_type" in filing:
-                parts.append(f"Form: {filing['form_type']}")
-            if "receipt_date" in filing:
-                parts.append(f"Date: {filing['receipt_date']}")
-            if "document_description" in filing:
-                parts.append(f"Description: {filing['document_description']}")
-            lines.append(" | ".join(parts))
+    def _format_candidate_report(self, report) -> str:
+        """Format a CandidateReport into readable text for summarization."""
+        lines = [
+            f"Candidate: {report.candidate_name}",
+            f"Committee: {report.committee_name}",
+            f"Report Type: {report.report_type}",
+            f"Form Type: {report.form_type}",
+            f"Coverage Period: {report.coverage_start_date} to {report.coverage_end_date}",
+            f"Filing Date: {report.receipt_date}",
+        ]
+
+        if report.total_receipts is not None:
+            lines.append(f"Total Receipts: ${report.total_receipts:,.2f}")
+        if report.total_disbursements is not None:
+            lines.append(f"Total Disbursements: ${report.total_disbursements:,.2f}")
+        if report.cash_on_hand is not None:
+            lines.append(f"Cash on Hand: ${report.cash_on_hand:,.2f}")
+
         return "\n".join(lines)

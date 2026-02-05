@@ -53,17 +53,6 @@ def test_init_from_env_vars(mock_openai_client, monkeypatch):
     assert service.deployment == "gpt-4-env"
 
 
-def test_init_with_custom_system_prompt(mock_openai_client):
-    custom_prompt = "You are a custom assistant."
-    service = AzureOpenAISummaryService(
-        endpoint="https://test.openai.azure.com",
-        api_key="test-key",
-        deployment="gpt-4",
-        system_prompt=custom_prompt,
-    )
-    assert service.system_prompt == custom_prompt
-
-
 def test_init_raises_without_endpoint():
     with pytest.raises(ValueError, match="endpoint or AZURE_OPENAI_ENDPOINT must be provided"):
         AzureOpenAISummaryService(api_key="key", deployment="gpt-4")
@@ -79,14 +68,30 @@ def test_init_raises_without_deployment():
         AzureOpenAISummaryService(endpoint="https://test.com", api_key="key")
 
 
-# generate_summary tests
+# generate_candidate_summary tests
 
 
-def test_generate_summary_success(mock_openai_client):
+@pytest.fixture
+def mock_report():
+    report = MagicMock()
+    report.candidate_name = "Test Candidate"
+    report.committee_name = "Test Committee"
+    report.report_type = "Q1"
+    report.form_type = "F3P"
+    report.coverage_start_date = "2024-01-01"
+    report.coverage_end_date = "2024-03-31"
+    report.receipt_date = "2024-04-15"
+    report.total_receipts = 100000.00
+    report.total_disbursements = 50000.00
+    report.cash_on_hand = 50000.00
+    return report
+
+
+def test_generate_candidate_summary_success(mock_openai_client, mock_report):
     mock_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = "This is a summary of the filings."
+    mock_response.choices[0].message.content = "This is a summary of the quarterly report."
     mock_client.chat.completions.create.return_value = mock_response
     mock_openai_client.return_value = mock_client
 
@@ -96,28 +101,14 @@ def test_generate_summary_success(mock_openai_client):
         deployment="gpt-4",
     )
 
-    filings = [{"committee_name": "Test Committee", "form_type": "F3"}]
-    result = service.generate_summary(filings)
+    result = service.generate_candidate_summary(mock_report)
 
     assert result.success is True
-    assert result.summary == "This is a summary of the filings."
+    assert result.summary == "This is a summary of the quarterly report."
     mock_client.chat.completions.create.assert_called_once()
 
 
-def test_generate_summary_empty_filings(mock_openai_client):
-    service = AzureOpenAISummaryService(
-        endpoint="https://test.openai.azure.com",
-        api_key="test-key",
-        deployment="gpt-4",
-    )
-
-    result = service.generate_summary([])
-
-    assert result.success is True
-    assert result.summary == "No new filings to summarize."
-
-
-def test_generate_summary_empty_response(mock_openai_client):
+def test_generate_candidate_summary_empty_response(mock_openai_client, mock_report):
     mock_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
@@ -131,13 +122,13 @@ def test_generate_summary_empty_response(mock_openai_client):
         deployment="gpt-4",
     )
 
-    result = service.generate_summary([{"file_number": "123"}])
+    result = service.generate_candidate_summary(mock_report)
 
     assert result.success is False
     assert result.error == "Empty response from model"
 
 
-def test_generate_summary_handles_exception(mock_openai_client):
+def test_generate_candidate_summary_handles_exception(mock_openai_client, mock_report):
     mock_client = MagicMock()
     mock_client.chat.completions.create.side_effect = Exception("API error")
     mock_openai_client.return_value = mock_client
@@ -148,52 +139,57 @@ def test_generate_summary_handles_exception(mock_openai_client):
         deployment="gpt-4",
     )
 
-    result = service.generate_summary([{"file_number": "123"}])
+    result = service.generate_candidate_summary(mock_report)
 
     assert result.success is False
     assert result.error is not None
     assert "API error" in result.error
 
 
-# _format_filings tests
+# _format_candidate_report tests
 
 
-def test_format_filings(mock_openai_client):
+def test_format_candidate_report(mock_openai_client, mock_report):
     service = AzureOpenAISummaryService(
         endpoint="https://test.openai.azure.com",
         api_key="test-key",
         deployment="gpt-4",
     )
 
-    filings = [
-        {
-            "committee_name": "Test Committee",
-            "form_type": "F3",
-            "receipt_date": "2024-01-15",
-        },
-        {
-            "committee_name": "Another Committee",
-            "document_description": "Quarterly Report",
-        },
-    ]
+    result = service._format_candidate_report(mock_report)
 
-    result = service._format_filings(filings)
-
-    assert "1." in result
+    assert "Test Candidate" in result
     assert "Test Committee" in result
-    assert "Form: F3" in result
-    assert "2024-01-15" in result
-    assert "2." in result
-    assert "Another Committee" in result
-    assert "Quarterly Report" in result
+    assert "Q1" in result
+    assert "F3P" in result
+    assert "2024-01-01" in result
+    assert "2024-03-31" in result
+    assert "$100,000.00" in result
+    assert "$50,000.00" in result
 
 
-def test_format_filings_empty_list(mock_openai_client):
+def test_format_candidate_report_missing_financials(mock_openai_client):
+    report = MagicMock()
+    report.candidate_name = "Test Candidate"
+    report.committee_name = "Test Committee"
+    report.report_type = "Q1"
+    report.form_type = "F3P"
+    report.coverage_start_date = "2024-01-01"
+    report.coverage_end_date = "2024-03-31"
+    report.receipt_date = "2024-04-15"
+    report.total_receipts = None
+    report.total_disbursements = None
+    report.cash_on_hand = None
+
     service = AzureOpenAISummaryService(
         endpoint="https://test.openai.azure.com",
         api_key="test-key",
         deployment="gpt-4",
     )
 
-    result = service._format_filings([])
-    assert result == ""
+    result = service._format_candidate_report(report)
+
+    assert "Test Candidate" in result
+    assert "Total Receipts" not in result
+    assert "Total Disbursements" not in result
+    assert "Cash on Hand" not in result
