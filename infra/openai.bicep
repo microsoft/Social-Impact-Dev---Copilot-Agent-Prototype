@@ -62,12 +62,11 @@ resource deployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01
 @description('The Azure OpenAI resource ID')
 output openAIId string = openAI.id
 
+@description('The Azure OpenAI resource name')
+output openAIName string = openAI.name
+
 @description('The Azure OpenAI endpoint')
 output endpoint string = openAI.properties.endpoint
-
-@description('The Azure OpenAI API key')
-#disable-next-line outputs-should-not-contain-secrets
-output apiKey string = openAI.listKeys().key1
 
 @description('The deployment name')
 output deploymentName string = deployment.name
