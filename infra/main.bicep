@@ -65,6 +65,12 @@ param openAIModel string = 'gpt-4o-mini'
 @description('Enable role assignments (requires Owner or User Access Administrator role)')
 param enableRoleAssignments bool = true
 
+@description('Comma-separated list of FEC candidate IDs to filter (optional)')
+param fecCandidateIds string = ''
+
+@description('Comma-separated list of FEC report/form types to filter (optional, e.g., F3,F3P,F3X)')
+param fecReportTypes string = ''
+
 // Generate unique suffix for globally unique names
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var storageAccountName = toLower(replace('${baseName}${environment}${uniqueSuffix}', '-', ''))
@@ -110,7 +116,7 @@ module openAI 'openai.bicep' = {
 }
 
 // Function app with Application Insights
-module functionApp 'function-app.bicep' = {
+module functionApp 'data-sync-app.bicep' = {
   name: 'function-app-deployment'
   params: {
     location: location
@@ -123,6 +129,8 @@ module functionApp 'function-app.bicep' = {
     fecApiKey: fecApiKey
     blobAccountUrl: storage.outputs.accountUrl
     blobContainerName: containerName
+    fecCandidateIds: fecCandidateIds
+    fecReportTypes: fecReportTypes
   }
 }
 
@@ -168,7 +176,7 @@ resource openAIRef 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = 
 }
 
 // Email update function app
-module emailFunctionApp 'email-function-app.bicep' = {
+module emailFunctionApp 'email-update-app.bicep' = {
   name: 'email-function-app-deployment'
   params: {
     location: location
@@ -188,6 +196,7 @@ module emailFunctionApp 'email-function-app.bicep' = {
     azureOpenAIEndpoint: !empty(azureOpenAIEndpoint) ? azureOpenAIEndpoint : openAI.outputs.endpoint
     azureOpenAIApiKey: !empty(azureOpenAIApiKey) ? azureOpenAIApiKey : openAIRef.listKeys().key1
     azureOpenAIDeployment: !empty(azureOpenAIDeployment) ? azureOpenAIDeployment : openAI.outputs.deploymentName
+    fecCandidateIds: fecCandidateIds
   }
 }
 
