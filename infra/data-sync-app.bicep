@@ -40,6 +40,12 @@ param blobContainerName string = 'fec-filings'
 @description('User-assigned managed identity client ID (optional)')
 param managedIdentityClientId string = ''
 
+@description('Comma-separated list of FEC candidate IDs to filter (optional)')
+param fecCandidateIds string = ''
+
+@description('Comma-separated list of FEC report/form types to filter (optional, e.g., F3,F3P,F3X)')
+param fecReportTypes string = ''
+
 @description('The name of the Log Analytics Workspace')
 param logAnalyticsWorkspaceName string = '${functionAppName}-logs'
 
@@ -187,6 +193,14 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'AZURE_CLIENT_ID'
           value: managedIdentityClientId
+        }
+        {
+          name: 'FEC_CANDIDATE_IDS'
+          value: fecCandidateIds
+        }
+        {
+          name: 'FEC_REPORT_TYPES'
+          value: fecReportTypes
         }
       ]
     }

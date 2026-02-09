@@ -63,6 +63,9 @@ param azureOpenAIDeployment string
 @description('User-assigned managed identity client ID (optional)')
 param managedIdentityClientId string = ''
 
+@description('Comma-separated list of FEC candidate IDs to monitor')
+param fecCandidateIds string = ''
+
 @description('The name of the Log Analytics Workspace')
 param logAnalyticsWorkspaceName string = '${functionAppName}-logs'
 
@@ -238,6 +241,10 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'AZURE_CLIENT_ID'
           value: managedIdentityClientId
+        }
+        {
+          name: 'FEC_CANDIDATE_IDS'
+          value: fecCandidateIds
         }
       ]
     }
