@@ -42,7 +42,7 @@ def create_sync_service() -> SyncService:
         fec_client=fec_client,
         blob_service=blob_service,
         candidate_ids=FEC_CANDIDATE_IDS,
-        report_types=FEC_REPORT_TYPES,
+        report_types=cast(list[str], FEC_REPORT_TYPES),
     )
 
 
