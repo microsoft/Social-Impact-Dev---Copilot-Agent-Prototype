@@ -376,12 +376,14 @@ version = "0.1.0"
 source = { virtual = "apps/email-update" }
 dependencies = [
     { name = "azure-functions" },
+    { name = "fec-api-client" },
     { name = "services" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "azure-functions", specifier = ">=1.17.0" },
+    { name = "fec-api-client", editable = "packages/fec-api-client" },
     { name = "services", editable = "packages/services" },
 ]
 

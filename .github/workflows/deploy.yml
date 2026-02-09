@@ -59,6 +59,8 @@ jobs:
           parameters: >
             environment=${{ github.event.inputs.environment || 'dev' }}
             fecApiKey=${{ secrets.FEC_API_KEY }}
+            fecCandidateIds=${{ vars.FEC_CANDIDATE_IDS || '' }}
+            fecReportTypes=${{ vars.FEC_REPORT_TYPES || '' }}
             emailConnectionString=${{ secrets.EMAIL_CONNECTION_STRING || '' }}
             emailSenderAddress=${{ vars.EMAIL_SENDER_ADDRESS || '' }}
             emailRecipientList=${{ vars.EMAIL_RECIPIENT_LIST }}
@@ -161,8 +163,8 @@ jobs:
           # Create .python_packages directory for dependencies
           mkdir -p .python_packages/lib/site-packages
 
-          # Install dependencies and services wheel (email-update only needs services)
-          pip install --target .python_packages/lib/site-packages -r requirements.txt ../../dist/services-*.whl
+          # Install dependencies and workspace wheels
+          pip install --target .python_packages/lib/site-packages -r requirements.txt ../../dist/*.whl
 
       - name: Azure Login
         uses: azure/login@v2

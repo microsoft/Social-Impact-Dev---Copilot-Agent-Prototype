@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import json
 import logging
-from typing import cast
 
 import httpx
-from fec_api_client import FecApiClient, Filings, ReportTypeCode
+from fec_api_client import FecApiClient
 
 from .storage import BlobStorageService
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class SyncService:
-    """Service for syncing FEC candidate filings to blob storage."""
+    """Service for syncing FEC candidate reports to blob storage."""
 
     def __init__(
         self,
@@ -20,16 +20,16 @@ class SyncService:
         blob_service: BlobStorageService,
         http_client: httpx.Client | None = None,
         candidate_ids: list[str] | None = None,
-        report_types: list[ReportTypeCode] | None = None,
+        report_types: list[str] | None = None,
     ) -> None:
         self.fec_client = fec_client
         self.blob_service = blob_service
         self.http_client = http_client or httpx.Client(timeout=60.0)
-        self.candidate_ids = candidate_ids or []
-        self.report_types: list[ReportTypeCode] = report_types or []
+        self.candidate_ids = candidate_ids
+        self.report_types = report_types
 
-    def sync(self) -> dict[str, Filings | None]:
-        """Fetch and store the latest filing for each configured candidate.
+    def sync_candidate_reports(self) -> dict[str, dict | None]:
+        """Fetch and store the latest quarterly report for each configured candidate.
 
         Returns:
             Dict mapping candidate_id to their latest report data (or None if not found).
@@ -39,31 +39,33 @@ class SyncService:
             return {}
 
         self.blob_service.ensure_container_exists()
-        results: dict[str, Filings | None] = {}
+        results: dict[str, dict | None] = {}
 
         for candidate_id in self.candidate_ids:
-            report = self._fetch_latest(candidate_id)
+            report = self._fetch_latest_candidate_report(candidate_id)
             results[candidate_id] = report
 
             if report:
                 blob_path = f"reports/{candidate_id}.json"
                 self.blob_service.upload_bytes(
                     blob_path,
-                    report.to_json().encode(),
+                    json.dumps(report).encode(),
                     content_type="application/json",
                 )
                 logger.info(f"Stored report for {candidate_id}: {blob_path}")
 
-                self._process_linked_files(report)
+                self._process_filing(report)
 
         return results
 
-    def _fetch_latest(self, candidate_id: str) -> Filings | None:
-        """Fetch the latest filing for a single candidate."""
+    def _fetch_latest_candidate_report(self, candidate_id: str) -> dict | None:
+        """Fetch the latest quarterly report for a single candidate."""
+        report_types = self.report_types or ["Q1", "Q2", "Q3", "YE"]
+
         try:
             response = self.fec_client.get_v1_filings(
                 candidate_id=[candidate_id],
-                report_type=cast(list[str], self.report_types),
+                report_type=report_types,
                 sort=["-receipt_date"],
                 per_page=1,
             )
@@ -74,32 +76,33 @@ class SyncService:
 
             results = response.json().get("results", [])
             if not results:
-                logger.info(f"No filing found for {candidate_id}")
+                logger.info(f"No quarterly report found for {candidate_id}")
                 return None
 
-            return Filings(results[0])
+            return results[0]
 
         except Exception as e:
-            logger.error(f"Failed to fetch filing for {candidate_id}: {e}")
+            logger.error(f"Failed to fetch report for {candidate_id}: {e}")
             return None
 
-    def _process_linked_files(self, filing: Filings) -> int:
-        """Download and store CSV and PDF files for a filing if available."""
-        file_number = filing.file_number
+    def _process_filing(self, filing: dict) -> int:
+        """Process a single filing, downloading CSV and PDF if available."""
+        file_number = filing.get("file_number")
         if not file_number:
             return 0
 
         files_uploaded = 0
-        base_path = f"files/{file_number}"
+        base_path = f"filings/{file_number}"
 
-        if filing.csv_url:
-            csv_path = f"{base_path}/{file_number}.csv"
-            if self._download_and_store_file(filing.csv_url, csv_path, "text/csv"):
+        csv_url = filing.get("csv_url")
+        if csv_url:
+            if self._download_and_store_file(csv_url, f"{base_path}/{file_number}.csv", "text/csv"):
                 files_uploaded += 1
 
-        if filing.pdf_url:
+        pdf_url = filing.get("pdf_url")
+        if pdf_url:
             if self._download_and_store_file(
-                filing.pdf_url, f"{base_path}/{file_number}.pdf", "application/pdf"
+                pdf_url, f"{base_path}/{file_number}.pdf", "application/pdf"
             ):
                 files_uploaded += 1
 
