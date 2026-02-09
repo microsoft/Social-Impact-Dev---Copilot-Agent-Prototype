@@ -3,7 +3,7 @@ import os
 
 import azure.functions as func
 from fec_api_client import FecApiClient
-from services import AzureBlobStorageService, BlobStorageService, FileSyncService
+from services import AzureBlobStorageService, BlobStorageService, SyncService
 
 app = func.FunctionApp()
 logger = logging.getLogger(__name__)
@@ -31,10 +31,11 @@ def check_for_updates(timer: func.TimerRequest) -> None:
         account_url=BLOB_ACCOUNT_URL,
         container_name=BLOB_CONTAINER_NAME,
     )
-    sync_service = FileSyncService(
+    sync_service = SyncService(
         fec_client=fec_client,
         blob_service=blob_service,
     )
 
-    result = sync_service.sync()
-    logger.info(f"Synced {result.filings_processed} filings, {result.files_uploaded} files")
+    results = sync_service.sync()
+    synced = sum(1 for v in results.values() if v is not None)
+    logger.info(f"Synced {synced}/{len(results)} candidates")
