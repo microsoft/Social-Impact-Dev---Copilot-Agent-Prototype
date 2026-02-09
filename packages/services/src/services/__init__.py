@@ -4,9 +4,9 @@ from .email import (
     EmailResult,
     EmailService,
 )
-from .file_sync import FileSyncService, SyncResult
 from .storage import AzureBlobStorageService, BlobStorageService
 from .summary import AzureOpenAISummaryService, SummaryResult, SummaryService
+from .sync import SyncService
 
 __all__ = [
     "AzureBlobStorageService",
@@ -16,8 +16,7 @@ __all__ = [
     "EmailMessage",
     "EmailResult",
     "EmailService",
-    "FileSyncService",
     "SummaryResult",
     "SummaryService",
-    "SyncResult",
+    "SyncService",
 ]
