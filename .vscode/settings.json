@@ -7,4 +7,5 @@
       "source.organizeImports": "explicit"
     }
   },
+  "azureFunctions.projectSubpath": "apps/email-update"
 }

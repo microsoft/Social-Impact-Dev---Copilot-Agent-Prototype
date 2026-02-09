@@ -4,63 +4,75 @@ import os
 
 import azure.functions as func
 from services import (
-    AzureBlobStorageService,
     AzureEmailService,
     AzureOpenAISummaryService,
-    CandidateReportService,
+    CandidateReport,
+    EmailService,
+    SummaryService,
     parse_comma_list,
 )
 
 app = func.FunctionApp()
 logger = logging.getLogger(__name__)
 
-BLOB_ACCOUNT_URL = os.getenv("BLOB_ACCOUNT_URL")
-BLOB_CONTAINER_NAME = os.getenv("BLOB_CONTAINER_NAME", "fec-filings")
+# Email settings
+EMAIL_RECIPIENT_LIST = os.getenv("EMAIL_RECIPIENT_LIST", "")
 
 
-def create_report_service() -> CandidateReportService:
-    blob_service = AzureBlobStorageService(
-        account_url=BLOB_ACCOUNT_URL,
-        container_name=BLOB_CONTAINER_NAME,
+@app.blob_trigger(
+    arg_name="report_blob",
+    path="fec-filings/reports/{candidate_id}.json",
+    connection="BLOB_CONNECTION_STRING",
+)
+def process_new_report(report_blob: func.InputStream) -> None:
+    """Blob trigger that sends email when a new candidate report is synced."""
+    blob_name = report_blob.name
+    if not blob_name:
+        logger.error("Report blob name is empty")
+        return
+
+    # Extract candidate_id from path (e.g., "fec-filings/reports/P00001.json")
+    candidate_id = blob_name.split("/")[-1].replace(".json", "")
+    logger.info(f"Processing new report for candidate: {candidate_id}")
+
+    # Read report content
+    report_content = report_blob.read()
+    if not report_content:
+        logger.error(f"Empty report file: {blob_name}")
+        return
+
+    try:
+        report_data = json.loads(report_content.decode("utf-8"))
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in report {blob_name}: {e}")
+        return
+
+    # Parse recipients
+    recipients = parse_comma_list(EMAIL_RECIPIENT_LIST)
+    if not recipients:
+        logger.warning("No recipients configured, skipping email")
+        return
+
+    # Initialize services
+    summary_service: SummaryService = AzureOpenAISummaryService()
+    email_service: EmailService = AzureEmailService()
+
+    # Create CandidateReport from filing data
+    report = CandidateReport.from_filing(report_data, candidate_id)
+
+    # Generate AI summary
+    summary_result = summary_service.generate_candidate_summary(report)
+    fallback = f"New quarterly report filed by {report.candidate_name}."
+    summary_text = summary_result.summary or fallback
+
+    # Send email
+    email_result = email_service.send_candidate_report_email(
+        recipients=recipients,
+        report=report,
+        summary=summary_text,
     )
-    return CandidateReportService(
-        blob_service=blob_service,
-        summary_service=AzureOpenAISummaryService(),
-        email_service=AzureEmailService(),
-    )
 
-
-@app.timer_trigger(schedule="0 0 8 15 1,4,7,10 *", arg_name="timer", run_on_startup=False)
-def scheduled_report_check(timer: func.TimerRequest) -> None:
-    """Runs on 15th of Jan/Apr/Jul/Oct at 8 AM UTC (FEC quarterly deadlines)."""
-    if timer.past_due:
-        logger.warning("Timer is running late")
-
-    service = create_report_service()
-    result = service.process_candidates(
-        parse_comma_list(os.getenv("FEC_CANDIDATE_IDS")),
-        parse_comma_list(os.getenv("EMAIL_RECIPIENT_LIST")),
-    )
-    logger.info(f"Scheduled run complete: {result}")
-
-
-@app.route(route="check-reports", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
-def manual_report_check(req: func.HttpRequest) -> func.HttpResponse:
-    """POST /api/check-reports - Manual trigger for testing."""
-    service = create_report_service()
-    result = service.process_candidates(
-        parse_comma_list(os.getenv("FEC_CANDIDATE_IDS")),
-        parse_comma_list(os.getenv("EMAIL_RECIPIENT_LIST")),
-    )
-
-    return func.HttpResponse(
-        json.dumps(
-            {
-                "candidates_processed": result.candidates_processed,
-                "emails_sent": result.emails_sent,
-                "errors": result.errors,
-            }
-        ),
-        mimetype="application/json",
-        status_code=200,
-    )
+    if email_result.success:
+        logger.info(f"Email sent for {report.candidate_name}: {email_result.message_id}")
+    else:
+        logger.error(f"Failed to send email for {report.candidate_name}: {email_result.error}")
