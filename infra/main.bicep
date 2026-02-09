@@ -81,7 +81,7 @@ module storage 'storage.bicep' = {
   params: {
     location: location
     #disable-next-line BCP334
-    storageAccountName: take(storageAccountName, 24) // Max 24 chars
+    storageAccountName: take(storageAccountName, 24)
     containerName: containerName
     storageSku: 'Standard_LRS'
     minimumTlsVersion: 'TLS1_2'
@@ -116,7 +116,7 @@ module functionApp 'function-app.bicep' = {
     location: location
     functionAppName: functionAppName
     #disable-next-line BCP334
-    functionStorageAccountName: take(functionStorageAccountName, 24) // Max 24 chars
+    functionStorageAccountName: take(functionStorageAccountName, 24)
     appServicePlanSku: appServicePlanSku
     enableApplicationInsights: enableApplicationInsights
     logRetentionDays: logRetentionDays
@@ -142,7 +142,7 @@ module manifestStorage 'storage.bicep' = {
   params: {
     location: location
     #disable-next-line BCP334
-    storageAccountName: take(storageAccountName, 24) // Use same storage account
+    storageAccountName: take(storageAccountName, 24)
     containerName: manifestContainerName
     storageSku: 'Standard_LRS'
     minimumTlsVersion: 'TLS1_2'
@@ -153,15 +153,18 @@ module manifestStorage 'storage.bicep' = {
 
 // Reference deployed resources to get secrets
 resource storageAccountRef 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
-  name: storage.outputs.storageAccountName
+  name: take(storageAccountName, 24)
+  dependsOn: [storage]
 }
 
 resource acsRef 'Microsoft.Communication/communicationServices@2023-04-01' existing = {
-  name: communicationServices.outputs.communicationServicesName
+  name: '${baseName}-${environment}-acs'
+  dependsOn: [communicationServices]
 }
 
 resource openAIRef 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = {
-  name: openAI.outputs.openAIName
+  name: '${baseName}-${environment}-openai'
+  dependsOn: [openAI]
 }
 
 // Email update function app
@@ -179,7 +182,6 @@ module emailFunctionApp 'email-function-app.bicep' = {
     blobAccountUrl: storage.outputs.accountUrl
     blobContainerName: containerName
     manifestContainerName: manifestContainerName
-    // Use auto-generated values if not provided manually
     emailConnectionString: !empty(emailConnectionString) ? emailConnectionString : acsRef.listKeys().primaryConnectionString
     emailSenderAddress: !empty(emailSenderAddress) ? emailSenderAddress : communicationServices.outputs.senderAddress
     emailRecipientList: emailRecipientList
