@@ -62,6 +62,7 @@ def test_sync_candidate_reports_stores_reports(
 
     assert "P00001" in result
     assert "P00002" in result
+    assert result["P00001"] is not None
     assert result["P00001"]["file_number"] == 12345
 
     # Verify reports were stored
@@ -148,11 +149,13 @@ def test_sync_candidate_reports_downloads_files(
     mock_response = Mock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "results": [{
-            "file_number": 12345,
-            "csv_url": "https://example.com/12345.csv",
-            "pdf_url": "https://example.com/12345.pdf",
-        }]
+        "results": [
+            {
+                "file_number": 12345,
+                "csv_url": "https://example.com/12345.csv",
+                "pdf_url": "https://example.com/12345.pdf",
+            }
+        ]
     }
     mock_fec_client.get_v1_filings.return_value = mock_response
 
