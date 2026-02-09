@@ -19,15 +19,6 @@ param emailLocation string = 'global'
 ])
 param dataLocation string = 'United States'
 
-// Azure Communication Services resource
-resource communicationServices 'Microsoft.Communication/communicationServices@2023-04-01' = {
-  name: communicationServicesName
-  location: location
-  properties: {
-    dataLocation: dataLocation
-  }
-}
-
 // Email Communication Services resource
 resource emailService 'Microsoft.Communication/emailServices@2023-04-01' = {
   name: '${communicationServicesName}-email'
@@ -48,12 +39,12 @@ resource emailDomain 'Microsoft.Communication/emailServices/domains@2023-04-01' 
   }
 }
 
-// Link email service to communication services
-#disable-next-line BCP081
-resource emailLink 'Microsoft.Communication/communicationServices/emailLinks@2023-04-01' = {
-  parent: communicationServices
-  name: 'default'
+// Azure Communication Services resource (linked to email domain)
+resource communicationServices 'Microsoft.Communication/communicationServices@2023-04-01' = {
+  name: communicationServicesName
+  location: location
   properties: {
+    dataLocation: dataLocation
     linkedDomains: [
       emailDomain.id
     ]

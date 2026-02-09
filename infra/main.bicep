@@ -161,6 +161,7 @@ module manifestStorage 'storage.bicep' = {
 
 // Reference deployed resources to get secrets
 resource storageAccountRef 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
+  #disable-next-line BCP334
   name: take(storageAccountName, 24)
   dependsOn: [storage]
 }
