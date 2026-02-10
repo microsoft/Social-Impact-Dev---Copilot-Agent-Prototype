@@ -6,6 +6,7 @@ import logging
 import httpx
 from fec_api_client import FecApiClient
 
+from .constants import QUARTERLY_REPORT_TYPES
 from .storage import BlobStorageService
 
 logger = logging.getLogger(__name__)
@@ -62,7 +63,7 @@ class SyncService:
 
     def _fetch_latest_report(self, committee_id: str) -> dict | None:
         """Fetch the latest quarterly report for a committee."""
-        report_types = self.report_types or ["Q1", "Q2", "Q3", "YE"]
+        report_types = self.report_types or QUARTERLY_REPORT_TYPES
 
         try:
             response = self.fec_client.get_v1_filings(

@@ -1,3 +1,5 @@
+from fec_api_client.types import ReportTypeCode
+from .constants import ALL_REPORT_TYPES, QUARTERLY_REPORT_TYPES
 from .email import (
     AzureEmailService,
     EmailMessage,
@@ -15,6 +17,7 @@ from .sync import SyncService
 from .utils import parse_comma_list
 
 __all__ = [
+    "ALL_REPORT_TYPES",
     "AzureBlobStorageService",
     "AzureEmailService",
     "AzureOpenAISummaryService",
@@ -23,8 +26,10 @@ __all__ = [
     "EmailResult",
     "EmailService",
     "ProcessingResult",
+    "QUARTERLY_REPORT_TYPES",
     "QuarterlyReport",
     "QuarterlyReportService",
+    "ReportTypeCode",
     "SummaryResult",
     "SummaryService",
     "SyncService",
