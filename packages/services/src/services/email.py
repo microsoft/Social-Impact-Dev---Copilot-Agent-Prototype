@@ -49,7 +49,7 @@ class EmailService(Protocol):
         file_urls: list[str],
     ) -> EmailResult: ...
 
-    def send_candidate_report_email(
+    def send_quarterly_report_email(
         self,
         recipients: list[str],
         report: Any,
@@ -175,17 +175,17 @@ class AzureEmailService:
 
         return self.send_email(recipients, message)
 
-    def send_candidate_report_email(
+    def send_quarterly_report_email(
         self,
         recipients: list[str],
         report,
         summary: str,
     ) -> EmailResult:
-        """Send an email summarizing a candidate's quarterly report.
+        """Send an email summarizing a quarterly report.
 
         Args:
             recipients: List of email addresses to send to.
-            report: CandidateReport object with filing details.
+            report: QuarterlyReport object with filing details.
             summary: AI-generated summary text.
 
         Returns:
@@ -195,8 +195,8 @@ class AzureEmailService:
             logger.warning("No recipients provided, skipping email")
             return EmailResult(success=False, error="No recipients provided")
 
-        html_content = self._build_candidate_report_html(report, summary)
-        plain_text_content = self._build_candidate_report_plain_text(report, summary)
+        html_content = self._build_quarterly_report_html(report, summary)
+        plain_text_content = self._build_quarterly_report_plain_text(report, summary)
 
         message = EmailMessage(
             subject=f"FEC Quarterly Report: {report.candidate_name} ({report.report_type})",
@@ -206,8 +206,8 @@ class AzureEmailService:
 
         return self.send_email(recipients, message)
 
-    def _build_candidate_report_html(self, report, summary: str) -> str:
-        """Build HTML content for candidate report email."""
+    def _build_quarterly_report_html(self, report, summary: str) -> str:
+        """Build HTML content for quarterly report email."""
         financials = ""
         if report.total_receipts is not None:
             financials += f"<li><strong>Total Receipts:</strong> ${report.total_receipts:,.2f}</li>"
@@ -255,8 +255,8 @@ class AzureEmailService:
         </html>
         """
 
-    def _build_candidate_report_plain_text(self, report, summary: str) -> str:
-        """Build plain text content for candidate report email."""
+    def _build_quarterly_report_plain_text(self, report, summary: str) -> str:
+        """Build plain text content for quarterly report email."""
         lines = [
             f"{report.candidate_name} - {report.report_type} Report",
             "=" * 50,

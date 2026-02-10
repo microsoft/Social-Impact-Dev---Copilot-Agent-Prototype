@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class CandidateReport:
-    """A committee's quarterly campaign finance report."""
+class QuarterlyReport:
+    """A committee's quarterly campaign finance report (FEC Form 3)."""
 
     committee_id: str
     candidate_name: str
@@ -31,7 +31,7 @@ class CandidateReport:
     cash_on_hand: float | None = None
 
     @classmethod
-    def from_filing(cls, filing: dict, committee_id: str) -> CandidateReport:
+    def from_filing(cls, filing: dict, committee_id: str) -> QuarterlyReport:
         """Create from FEC filing data."""
         return cls(
             committee_id=committee_id,
@@ -53,15 +53,15 @@ class CandidateReport:
 
 @dataclass
 class ProcessingResult:
-    """Result of processing committee reports."""
+    """Result of processing quarterly reports."""
 
     committees_processed: int
     emails_sent: int
     errors: list[str]
 
 
-class CommitteeReportService:
-    """Service for reading and processing committee reports from blob storage."""
+class QuarterlyReportService:
+    """Service for reading and processing quarterly reports from blob storage."""
 
     def __init__(
         self,
@@ -117,7 +117,7 @@ class CommitteeReportService:
         result.committees_processed += 1
 
         summary = self._generate_summary(report)
-        email_result = self.email_service.send_candidate_report_email(
+        email_result = self.email_service.send_quarterly_report_email(
             recipients=recipients,
             report=report,
             summary=summary,
@@ -129,7 +129,7 @@ class CommitteeReportService:
         else:
             result.errors.append(f"Email failed for {committee_id}: {email_result.error}")
 
-    def _read_report_from_storage(self, committee_id: str) -> CandidateReport | None:
+    def _read_report_from_storage(self, committee_id: str) -> QuarterlyReport | None:
         """Read a committee's report from blob storage."""
         blob_path = f"reports/{committee_id}.json"
 
@@ -139,19 +139,15 @@ class CommitteeReportService:
                 return None
 
             filing = json.loads(data)
-            return CandidateReport.from_filing(filing, committee_id)
+            return QuarterlyReport.from_filing(filing, committee_id)
 
         except Exception as e:
             logger.error(f"Failed to read report for {committee_id}: {e}")
             return None
 
-    def _generate_summary(self, report: CandidateReport) -> str:
+    def _generate_summary(self, report: QuarterlyReport) -> str:
         """Generate AI summary for a report, with fallback."""
-        summary_result = self.summary_service.generate_candidate_summary(report)
+        summary_result = self.summary_service.generate_quarterly_summary(report)
         if summary_result.success and summary_result.summary:
             return summary_result.summary
         return f"{report.report_type} report filed on {report.receipt_date}."
-
-
-# Backwards compatibility alias
-CandidateReportService = CommitteeReportService

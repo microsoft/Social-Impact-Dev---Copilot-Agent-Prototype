@@ -6,8 +6,8 @@ import azure.functions as func
 from services import (
     AzureEmailService,
     AzureOpenAISummaryService,
-    CandidateReport,
     EmailService,
+    QuarterlyReport,
     SummaryService,
     parse_comma_list,
 )
@@ -25,7 +25,7 @@ EMAIL_RECIPIENT_LIST = os.getenv("EMAIL_RECIPIENT_LIST", "")
     connection="BLOB_CONNECTION_STRING",
 )
 def process_new_report(report_blob: func.InputStream) -> None:
-    """Blob trigger that sends email when a new committee report is synced."""
+    """Blob trigger that sends email when a new quarterly report is synced."""
     blob_name = report_blob.name
     if not blob_name:
         logger.error("Report blob name is empty")
@@ -57,16 +57,16 @@ def process_new_report(report_blob: func.InputStream) -> None:
     summary_service: SummaryService = AzureOpenAISummaryService()
     email_service: EmailService = AzureEmailService()
 
-    # Create CandidateReport from filing data
-    report = CandidateReport.from_filing(report_data, committee_id)
+    # Create QuarterlyReport from filing data
+    report = QuarterlyReport.from_filing(report_data, committee_id)
 
     # Generate AI summary
-    summary_result = summary_service.generate_candidate_summary(report)
+    summary_result = summary_service.generate_quarterly_summary(report)
     fallback = f"New quarterly report filed by {report.committee_name}."
     summary_text = summary_result.summary or fallback
 
     # Send email
-    email_result = email_service.send_candidate_report_email(
+    email_result = email_service.send_quarterly_report_email(
         recipients=recipients,
         report=report,
         summary=summary_text,
