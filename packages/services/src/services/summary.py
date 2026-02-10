@@ -22,7 +22,7 @@ class SummaryResult:
 class SummaryService(Protocol):
     """Protocol for AI summary generation services."""
 
-    def generate_candidate_summary(self, report) -> SummaryResult: ...
+    def generate_quarterly_summary(self, report) -> SummaryResult: ...
 
 
 class AzureOpenAISummaryService:
@@ -60,16 +60,16 @@ class AzureOpenAISummaryService:
             api_version=api_version,
         )
 
-    def generate_candidate_summary(self, report) -> SummaryResult:
-        """Generate a summary for a candidate's quarterly report.
+    def generate_quarterly_summary(self, report) -> SummaryResult:
+        """Generate a summary for a quarterly report.
 
         Args:
-            report: CandidateReport object with filing details.
+            report: QuarterlyReport object with filing details.
 
         Returns:
             SummaryResult with the generated summary or error.
         """
-        report_text = self._format_candidate_report(report)
+        report_text = self._format_quarterly_report(report)
 
         try:
             response = self._client.chat.completions.create(
@@ -98,15 +98,15 @@ class AzureOpenAISummaryService:
             if not summary:
                 return SummaryResult(success=False, error="Empty response from model")
 
-            logger.info(f"Generated summary for candidate {report.candidate_name}")
+            logger.info(f"Generated summary for {report.committee_name}")
             return SummaryResult(success=True, summary=summary)
 
         except Exception as e:
-            logger.error(f"Failed to generate candidate summary: {e}")
+            logger.error(f"Failed to generate quarterly summary: {e}")
             return SummaryResult(success=False, error=str(e))
 
-    def _format_candidate_report(self, report) -> str:
-        """Format a CandidateReport into readable text for summarization."""
+    def _format_quarterly_report(self, report) -> str:
+        """Format a QuarterlyReport into readable text for summarization."""
         lines = [
             f"Candidate: {report.candidate_name}",
             f"Committee: {report.committee_name}",
