@@ -12,77 +12,80 @@ logger = logging.getLogger(__name__)
 
 
 class SyncService:
-    """Service for syncing FEC candidate reports to blob storage."""
+    """Service for syncing FEC committee reports to blob storage."""
 
     def __init__(
         self,
         fec_client: FecApiClient,
         blob_service: BlobStorageService,
         http_client: httpx.Client | None = None,
-        candidate_ids: list[str] | None = None,
+        committee_ids: list[str] | None = None,
         report_types: list[str] | None = None,
+        api_key: str | None = None,
     ) -> None:
         self.fec_client = fec_client
         self.blob_service = blob_service
         self.http_client = http_client or httpx.Client(timeout=60.0)
-        self.candidate_ids = candidate_ids
+        self.committee_ids = committee_ids
         self.report_types = report_types
+        self.api_key = api_key
 
-    def sync_candidate_reports(self) -> dict[str, dict | None]:
-        """Fetch and store the latest quarterly report for each configured candidate.
+    def sync_reports(self) -> dict[str, dict | None]:
+        """Fetch and store the latest quarterly report for each configured committee.
 
         Returns:
-            Dict mapping candidate_id to their latest report data (or None if not found).
+            Dict mapping committee_id to their latest report data (or None if not found).
         """
-        if not self.candidate_ids:
-            logger.warning("No candidate IDs configured")
+        if not self.committee_ids:
+            logger.warning("No committee IDs configured")
             return {}
 
         self.blob_service.ensure_container_exists()
         results: dict[str, dict | None] = {}
 
-        for candidate_id in self.candidate_ids:
-            report = self._fetch_latest_candidate_report(candidate_id)
-            results[candidate_id] = report
+        for committee_id in self.committee_ids:
+            report = self._fetch_latest_report(committee_id)
+            results[committee_id] = report
 
             if report:
-                blob_path = f"reports/{candidate_id}.json"
+                blob_path = f"reports/{committee_id}.json"
                 self.blob_service.upload_bytes(
                     blob_path,
                     json.dumps(report).encode(),
                     content_type="application/json",
                 )
-                logger.info(f"Stored report for {candidate_id}: {blob_path}")
+                logger.info(f"Stored report for {committee_id}: {blob_path}")
 
                 self._process_filing(report)
 
         return results
 
-    def _fetch_latest_candidate_report(self, candidate_id: str) -> dict | None:
-        """Fetch the latest quarterly report for a single candidate."""
+    def _fetch_latest_report(self, committee_id: str) -> dict | None:
+        """Fetch the latest quarterly report for a committee."""
         report_types = self.report_types or ["Q1", "Q2", "Q3", "YE"]
 
         try:
             response = self.fec_client.get_v1_filings(
-                candidate_id=[candidate_id],
+                committee_id=[committee_id],
                 report_type=report_types,
                 sort=["-receipt_date"],
                 per_page=1,
+                api_key=self.api_key,
             )
 
             if response.status_code != 200:
-                logger.error(f"FEC API error for {candidate_id}: {response.status_code}")
+                logger.error(f"FEC API error for {committee_id}: {response.status_code}")
                 return None
 
             results = response.json().get("results", [])
             if not results:
-                logger.info(f"No quarterly report found for {candidate_id}")
+                logger.info(f"No quarterly report found for {committee_id}")
                 return None
 
             return results[0]
 
         except Exception as e:
-            logger.error(f"Failed to fetch report for {candidate_id}: {e}")
+            logger.error(f"Failed to fetch report for {committee_id}: {e}")
             return None
 
     def _process_filing(self, filing: dict) -> int:

@@ -24,46 +24,46 @@ def mock_http_client():
     return MagicMock()
 
 
-# sync_candidate_reports tests
+# sync_reports tests
 
 
-def test_sync_candidate_reports_no_candidates(mock_fec_client, mock_blob_service, mock_http_client):
+def test_sync_reports_no_committees(mock_fec_client, mock_blob_service, mock_http_client):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
         http_client=mock_http_client,
-        candidate_ids=None,
+        committee_ids=None,
     )
-    result = service.sync_candidate_reports()
+    result = service.sync_reports()
     assert result == {}
     mock_fec_client.get_v1_filings.assert_not_called()
 
 
-def test_sync_candidate_reports_stores_reports(
+def test_sync_reports_stores_reports(
     mock_fec_client, mock_blob_service, mock_http_client
 ):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
         http_client=mock_http_client,
-        candidate_ids=["P00001", "P00002"],
+        committee_ids=["C00000001", "C00000002"],
     )
 
     mock_response = Mock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "results": [{"file_number": 12345, "candidate_name": "Test Candidate"}]
+        "results": [{"file_number": 12345, "committee_name": "Test Committee"}]
     }
     mock_fec_client.get_v1_filings.return_value = mock_response
 
     mock_blob_service.exists.return_value = True  # Skip file downloads
 
-    result = service.sync_candidate_reports()
+    result = service.sync_reports()
 
-    assert "P00001" in result
-    assert "P00002" in result
-    assert result["P00001"] is not None
-    assert result["P00001"]["file_number"] == 12345
+    assert "C00000001" in result
+    assert "C00000002" in result
+    assert result["C00000001"] is not None
+    assert result["C00000001"]["file_number"] == 12345
 
     # Verify reports were stored
     upload_calls = mock_blob_service.upload_bytes.call_args_list
@@ -71,14 +71,14 @@ def test_sync_candidate_reports_stores_reports(
     assert len(report_calls) == 2
 
 
-def test_sync_candidate_reports_handles_missing(
+def test_sync_reports_handles_missing(
     mock_fec_client, mock_blob_service, mock_http_client
 ):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
         http_client=mock_http_client,
-        candidate_ids=["P00001"],
+        committee_ids=["C00000001"],
     )
 
     mock_response = Mock()
@@ -86,39 +86,41 @@ def test_sync_candidate_reports_handles_missing(
     mock_response.json.return_value = {"results": []}
     mock_fec_client.get_v1_filings.return_value = mock_response
 
-    result = service.sync_candidate_reports()
+    result = service.sync_reports()
 
-    assert result["P00001"] is None
+    assert result["C00000001"] is None
 
 
-def test_sync_candidate_reports_handles_api_error(
+def test_sync_reports_handles_api_error(
     mock_fec_client, mock_blob_service, mock_http_client
 ):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
         http_client=mock_http_client,
-        candidate_ids=["P00001"],
+        committee_ids=["C00000001"],
     )
 
     mock_response = Mock()
     mock_response.status_code = 500
     mock_fec_client.get_v1_filings.return_value = mock_response
 
-    result = service.sync_candidate_reports()
+    result = service.sync_reports()
 
-    assert result["P00001"] is None
+    assert result["C00000001"] is None
 
 
-def test_sync_candidate_reports_uses_custom_report_types(
+def test_sync_reports_uses_custom_report_types(
     mock_fec_client, mock_blob_service, mock_http_client
 ):
+    api_key = "test-api-key"
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
         http_client=mock_http_client,
-        candidate_ids=["P00001"],
+        committee_ids=["C00000001"],
         report_types=["Q1", "Q2"],
+        api_key=api_key,
     )
 
     mock_response = Mock()
@@ -126,24 +128,25 @@ def test_sync_candidate_reports_uses_custom_report_types(
     mock_response.json.return_value = {"results": []}
     mock_fec_client.get_v1_filings.return_value = mock_response
 
-    service.sync_candidate_reports()
+    service.sync_reports()
 
     mock_fec_client.get_v1_filings.assert_called_with(
-        candidate_id=["P00001"],
+        committee_id=["C00000001"],
         report_type=["Q1", "Q2"],
         sort=["-receipt_date"],
         per_page=1,
+        api_key=api_key,
     )
 
 
-def test_sync_candidate_reports_downloads_files(
+def test_sync_reports_downloads_files(
     mock_fec_client, mock_blob_service, mock_http_client
 ):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
         http_client=mock_http_client,
-        candidate_ids=["P00001"],
+        committee_ids=["C00000001"],
     )
 
     mock_response = Mock()
@@ -164,7 +167,7 @@ def test_sync_candidate_reports_downloads_files(
     file_response.content = b"data"
     mock_http_client.get.return_value = file_response
 
-    service.sync_candidate_reports()
+    service.sync_reports()
 
     # Should download CSV and PDF
     assert mock_http_client.get.call_count == 2

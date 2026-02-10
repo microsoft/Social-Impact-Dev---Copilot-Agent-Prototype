@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class CandidateReport:
-    """A candidate's quarterly report."""
+    """A committee's quarterly campaign finance report."""
 
-    candidate_id: str
+    committee_id: str
     candidate_name: str
     committee_name: str
     report_type: str
@@ -31,12 +31,12 @@ class CandidateReport:
     cash_on_hand: float | None = None
 
     @classmethod
-    def from_filing(cls, filing: dict, candidate_id: str) -> CandidateReport:
+    def from_filing(cls, filing: dict, committee_id: str) -> CandidateReport:
         """Create from FEC filing data."""
         return cls(
-            candidate_id=candidate_id,
-            candidate_name=filing.get("candidate_name", "Unknown"),
-            committee_name=filing.get("committee_name", "Unknown"),
+            committee_id=committee_id,
+            candidate_name=filing.get("candidate_name") or "Unknown",
+            committee_name=filing.get("committee_name") or "Unknown",
             report_type=filing.get("report_type", ""),
             coverage_start_date=filing.get("coverage_start_date", ""),
             coverage_end_date=filing.get("coverage_end_date", ""),
@@ -53,15 +53,15 @@ class CandidateReport:
 
 @dataclass
 class ProcessingResult:
-    """Result of processing candidate reports."""
+    """Result of processing committee reports."""
 
-    candidates_processed: int
+    committees_processed: int
     emails_sent: int
     errors: list[str]
 
 
-class CandidateReportService:
-    """Service for reading and processing candidate reports from blob storage."""
+class CommitteeReportService:
+    """Service for reading and processing committee reports from blob storage."""
 
     def __init__(
         self,
@@ -73,48 +73,48 @@ class CandidateReportService:
         self.summary_service = summary_service
         self.email_service = email_service
 
-    def process_candidates(
+    def process_committees(
         self,
-        candidate_ids: list[str],
+        committee_ids: list[str],
         recipients: list[str],
     ) -> ProcessingResult:
         """Read reports from storage, summarize, and send emails.
 
         Args:
-            candidate_ids: List of candidate IDs to process
+            committee_ids: List of committee IDs to process
             recipients: Email addresses to send reports to
 
         Returns:
             ProcessingResult with summary of operations
         """
-        result = ProcessingResult(candidates_processed=0, emails_sent=0, errors=[])
+        result = ProcessingResult(committees_processed=0, emails_sent=0, errors=[])
 
-        for candidate_id in candidate_ids:
+        for committee_id in committee_ids:
             try:
-                self._process_single_candidate(candidate_id, recipients, result)
+                self._process_single_committee(committee_id, recipients, result)
             except Exception as e:
-                logger.error(f"Error processing {candidate_id}: {e}")
-                result.errors.append(f"{candidate_id}: {e}")
+                logger.error(f"Error processing {committee_id}: {e}")
+                result.errors.append(f"{committee_id}: {e}")
 
         logger.info(f"Processing complete: {result}")
         return result
 
-    def _process_single_candidate(
+    def _process_single_committee(
         self,
-        candidate_id: str,
+        committee_id: str,
         recipients: list[str],
         result: ProcessingResult,
     ) -> None:
-        """Process a single candidate's report from storage."""
-        logger.info(f"Processing candidate: {candidate_id}")
+        """Process a single committee's report from storage."""
+        logger.info(f"Processing committee: {committee_id}")
 
-        report = self._read_report_from_storage(candidate_id)
+        report = self._read_report_from_storage(committee_id)
         if not report:
-            logger.warning(f"No report found in storage for {candidate_id}")
-            result.errors.append(f"No report in storage for {candidate_id}")
+            logger.warning(f"No report found in storage for {committee_id}")
+            result.errors.append(f"No report in storage for {committee_id}")
             return
 
-        result.candidates_processed += 1
+        result.committees_processed += 1
 
         summary = self._generate_summary(report)
         email_result = self.email_service.send_candidate_report_email(
@@ -124,14 +124,14 @@ class CandidateReportService:
         )
 
         if email_result.success:
-            logger.info(f"Email sent for {report.candidate_name}")
+            logger.info(f"Email sent for {report.committee_name}")
             result.emails_sent += 1
         else:
-            result.errors.append(f"Email failed for {candidate_id}: {email_result.error}")
+            result.errors.append(f"Email failed for {committee_id}: {email_result.error}")
 
-    def _read_report_from_storage(self, candidate_id: str) -> CandidateReport | None:
-        """Read a candidate's report from blob storage."""
-        blob_path = f"reports/{candidate_id}.json"
+    def _read_report_from_storage(self, committee_id: str) -> CandidateReport | None:
+        """Read a committee's report from blob storage."""
+        blob_path = f"reports/{committee_id}.json"
 
         try:
             data = self.blob_service.download_bytes(blob_path)
@@ -139,10 +139,10 @@ class CandidateReportService:
                 return None
 
             filing = json.loads(data)
-            return CandidateReport.from_filing(filing, candidate_id)
+            return CandidateReport.from_filing(filing, committee_id)
 
         except Exception as e:
-            logger.error(f"Failed to read report for {candidate_id}: {e}")
+            logger.error(f"Failed to read report for {committee_id}: {e}")
             return None
 
     def _generate_summary(self, report: CandidateReport) -> str:
@@ -151,3 +151,7 @@ class CandidateReportService:
         if summary_result.success and summary_result.summary:
             return summary_result.summary
         return f"{report.report_type} report filed on {report.receipt_date}."
+
+
+# Backwards compatibility alias
+CandidateReportService = CommitteeReportService

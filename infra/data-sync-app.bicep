@@ -40,8 +40,8 @@ param blobContainerName string = 'fec-filings'
 @description('User-assigned managed identity client ID (optional)')
 param managedIdentityClientId string = ''
 
-@description('Comma-separated list of FEC candidate IDs to filter (optional)')
-param fecCandidateIds string = ''
+@description('Comma-separated list of FEC committee IDs to monitor (e.g., C00718866)')
+param fecCommitteeIds string = ''
 
 @description('Comma-separated list of FEC report/form types to filter (optional, e.g., F3,F3P,F3X)')
 param fecReportTypes string = ''
@@ -195,8 +195,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           value: managedIdentityClientId
         }
         {
-          name: 'FEC_CANDIDATE_IDS'
-          value: fecCandidateIds
+          name: 'FEC_COMMITTEE_IDS'
+          value: fecCommitteeIds
         }
         {
           name: 'FEC_REPORT_TYPES'

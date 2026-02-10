@@ -65,8 +65,8 @@ param openAIModel string = 'gpt-4o-mini'
 @description('Enable role assignments (requires Owner or User Access Administrator role)')
 param enableRoleAssignments bool = true
 
-@description('Comma-separated list of FEC candidate IDs to filter (optional)')
-param fecCandidateIds string = ''
+@description('Comma-separated list of FEC committee IDs to monitor (e.g., C00718866)')
+param fecCommitteeIds string = ''
 
 @description('Comma-separated list of FEC report/form types to filter (optional, e.g., F3,F3P,F3X)')
 param fecReportTypes string = ''
@@ -129,7 +129,7 @@ module functionApp 'data-sync-app.bicep' = {
     fecApiKey: fecApiKey
     blobAccountUrl: storage.outputs.accountUrl
     blobContainerName: containerName
-    fecCandidateIds: fecCandidateIds
+    fecCommitteeIds: fecCommitteeIds
     fecReportTypes: fecReportTypes
   }
 }
@@ -197,7 +197,7 @@ module emailFunctionApp 'email-update-app.bicep' = {
     azureOpenAIEndpoint: !empty(azureOpenAIEndpoint) ? azureOpenAIEndpoint : openAI.outputs.endpoint
     azureOpenAIApiKey: !empty(azureOpenAIApiKey) ? azureOpenAIApiKey : openAIRef.listKeys().key1
     azureOpenAIDeployment: !empty(azureOpenAIDeployment) ? azureOpenAIDeployment : openAI.outputs.deploymentName
-    fecCandidateIds: fecCandidateIds
+    fecCommitteeIds: fecCommitteeIds
   }
 }
 

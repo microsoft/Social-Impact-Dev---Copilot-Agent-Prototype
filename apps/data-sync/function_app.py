@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 # FEC API settings
 FEC_API_KEY: str | None = os.getenv("FEC_API_KEY")
-FEC_CANDIDATE_IDS: list[str] = parse_comma_list(os.getenv("FEC_CANDIDATE_IDS", ""))
+FEC_API_BASE_URL = "https://api.open.fec.gov"
+FEC_COMMITTEE_IDS: list[str] = parse_comma_list(os.getenv("FEC_COMMITTEE_IDS", ""))
 DEFAULT_REPORT_TYPES: list[ReportTypeCode] = ["Q1", "Q2", "Q3", "YE"]
 _env_report_types = parse_comma_list(os.getenv("FEC_REPORT_TYPES", ""))
 FEC_REPORT_TYPES: list[ReportTypeCode] = cast(
@@ -29,10 +30,10 @@ def create_sync_service() -> SyncService:
     if not FEC_API_KEY:
         raise ValueError("FEC_API_KEY is required")
 
-    if not FEC_CANDIDATE_IDS:
-        raise ValueError("FEC_CANDIDATE_IDS is required")
+    if not FEC_COMMITTEE_IDS:
+        raise ValueError("FEC_COMMITTEE_IDS is required")
 
-    fec_client = FecApiClient(auth_token=FEC_API_KEY)
+    fec_client = FecApiClient(base_url=FEC_API_BASE_URL, auth_token=FEC_API_KEY)
     blob_service: BlobStorageService = AzureBlobStorageService(
         account_url=BLOB_ACCOUNT_URL,
         container_name=BLOB_CONTAINER_NAME,
@@ -41,8 +42,9 @@ def create_sync_service() -> SyncService:
     return SyncService(
         fec_client=fec_client,
         blob_service=blob_service,
-        candidate_ids=FEC_CANDIDATE_IDS,
+        committee_ids=FEC_COMMITTEE_IDS,
         report_types=cast(list[str], FEC_REPORT_TYPES),
+        api_key=FEC_API_KEY,
     )
 
 
@@ -54,9 +56,9 @@ def scheduled_sync(timer: func.TimerRequest) -> None:
 
     try:
         sync_service = create_sync_service()
-        reports = sync_service.sync_candidate_reports()
+        reports = sync_service.sync_reports()
         synced_count = len([r for r in reports.values() if r])
-        logger.info(f"Scheduled sync complete: {synced_count} candidates synced")
+        logger.info(f"Scheduled sync complete: {synced_count} committees synced")
     except ValueError as e:
         logger.warning(f"Sync skipped: {e}")
 
@@ -66,7 +68,7 @@ def manual_sync(req: func.HttpRequest) -> func.HttpResponse:
     """POST /api/sync - Manual trigger for testing."""
     try:
         sync_service = create_sync_service()
-        reports = sync_service.sync_candidate_reports()
+        reports = sync_service.sync_reports()
 
         return func.HttpResponse(
             json.dumps(

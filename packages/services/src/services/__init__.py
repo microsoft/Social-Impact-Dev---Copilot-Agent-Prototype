@@ -1,4 +1,9 @@
-from .candidate_reports import CandidateReport, CandidateReportService, ProcessingResult
+from .candidate_reports import (
+    CandidateReport,
+    CandidateReportService,
+    CommitteeReportService,
+    ProcessingResult,
+)
 from .email import (
     AzureEmailService,
     EmailMessage,
@@ -17,6 +22,7 @@ __all__ = [
     "BlobStorageService",
     "CandidateReport",
     "CandidateReportService",
+    "CommitteeReportService",
     "EmailMessage",
     "EmailResult",
     "EmailService",

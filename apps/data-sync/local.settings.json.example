@@ -7,7 +7,7 @@
     "BLOB_ACCOUNT_URL": "https://<storage-account>.blob.core.windows.net",
     "BLOB_CONTAINER_NAME": "fec-filings",
     "AZURE_CLIENT_ID": "<optional-managed-identity-client-id>",
-    "FEC_CANDIDATE_IDS": "",
+    "FEC_COMMITTEE_IDS": "",
     "FEC_REPORT_TYPES": ""
   }
 }
