@@ -63,7 +63,7 @@ class SyncService:
 
     def _fetch_latest_report(self, committee_id: str) -> dict | None:
         """Fetch the latest quarterly report for a committee."""
-        report_types = self.report_types or QUARTERLY_REPORT_TYPES
+        report_types = self.report_types or list(QUARTERLY_REPORT_TYPES)
 
         try:
             response = self.fec_client.get_v1_filings(

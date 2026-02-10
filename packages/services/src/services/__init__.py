@@ -1,4 +1,5 @@
 from fec_api_client.types import ReportTypeCode
+
 from .constants import ALL_REPORT_TYPES, QUARTERLY_REPORT_TYPES
 from .email import (
     AzureEmailService,

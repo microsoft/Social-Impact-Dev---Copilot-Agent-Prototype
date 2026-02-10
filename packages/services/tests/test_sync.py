@@ -39,9 +39,7 @@ def test_sync_reports_no_committees(mock_fec_client, mock_blob_service, mock_htt
     mock_fec_client.get_v1_filings.assert_not_called()
 
 
-def test_sync_reports_stores_reports(
-    mock_fec_client, mock_blob_service, mock_http_client
-):
+def test_sync_reports_stores_reports(mock_fec_client, mock_blob_service, mock_http_client):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
@@ -71,9 +69,7 @@ def test_sync_reports_stores_reports(
     assert len(report_calls) == 2
 
 
-def test_sync_reports_handles_missing(
-    mock_fec_client, mock_blob_service, mock_http_client
-):
+def test_sync_reports_handles_missing(mock_fec_client, mock_blob_service, mock_http_client):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
@@ -91,9 +87,7 @@ def test_sync_reports_handles_missing(
     assert result["C00000001"] is None
 
 
-def test_sync_reports_handles_api_error(
-    mock_fec_client, mock_blob_service, mock_http_client
-):
+def test_sync_reports_handles_api_error(mock_fec_client, mock_blob_service, mock_http_client):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
@@ -139,9 +133,7 @@ def test_sync_reports_uses_custom_report_types(
     )
 
 
-def test_sync_reports_downloads_files(
-    mock_fec_client, mock_blob_service, mock_http_client
-):
+def test_sync_reports_downloads_files(mock_fec_client, mock_blob_service, mock_http_client):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
