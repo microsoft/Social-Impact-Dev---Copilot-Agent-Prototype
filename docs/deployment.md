@@ -1,154 +1,207 @@
 # Deployment Guide
 
-This guide covers local development setup and Azure deployment for the FEC Data Sync project.
+This guide covers local development and Azure deployment for the FEC Data Sync project.
+
+## Prerequisites
+
+| Tool                          | Purpose                      | Installation                             |
+| ----------------------------- | ---------------------------- | ---------------------------------------- |
+| Python 3.11+                  | Runtime                      | [python.org][python]                     |
+| uv                            | Package manager              | [docs.astral.sh/uv][uv]                  |
+| Azure CLI                     | Azure management             | [Install Azure CLI][az-cli]              |
+| Azure Functions Core Tools v4 | Local function development   | [Install Core Tools][az-func-tools]      |
+| Azurite                       | Local storage emulator       | `npm install -g azurite` ([docs][azurite]) |
+| FEC API Key                   | Data source access           | [api.open.fec.gov][fec-api]              |
 
 ## Local Development
 
-### Prerequisites
-
-- Python 3.11+
-- [uv][uv] package manager
-- [Azure Functions Core Tools v4][azure-func-tools]
-- [Azurite][azurite] (local storage emulator)
-- FEC API key from [api.open.fec.gov][fec-api]
-
-### Setup
-
-1. **Install dependencies** from the workspace root:
-
-   ```bash
-   uv sync --dev
-   ```
-
-2. **Create local settings** for each function app:
-
-   ```bash
-   cd apps/fec-data-sync
-   cp local.settings.json.example local.settings.json
-   ```
-
-3. **Configure local.settings.json**:
-
-   ```json
-   {
-     "IsEncrypted": false,
-     "Values": {
-       "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-       "FUNCTIONS_WORKER_RUNTIME": "python",
-       "FEC_API_KEY": "<your-fec-api-key>",
-       "BLOB_ACCOUNT_URL": "http://127.0.0.1:10000/devstoreaccount1",
-       "BLOB_CONTAINER_NAME": "fec-filings",
-       "AZURE_STORAGE_CONNECTION_STRING": "UseDevelopmentStorage=true"
-     }
-   }
-   ```
-
-### Running Locally
-
-1. **Start Azurite** (local storage emulator):
-
-   ```bash
-   # Install if needed: npm install -g azurite
-   azurite --silent --location /tmp/azurite --debug /tmp/azurite/debug.log
-   ```
-
-2. **Create the blob container** (first time only):
-
-   ```bash
-   az storage container create \
-     --name fec-filings \
-     --connection-string "UseDevelopmentStorage=true"
-   ```
-
-3. **Start a function app**:
-
-   ```bash
-   cd apps/fec-data-sync
-   func start
-   ```
-
-4. **Trigger timer functions manually** (for testing):
-
-   ```bash
-   curl -X POST http://localhost:7071/admin/functions/check_for_updates \
-     -H "Content-Type: application/json" \
-     -d '{}'
-   ```
-
-### Running Tests
+### 1. Install Dependencies
 
 ```bash
-uv run pytest
+make install
+```
+
+### 2. Start Local Storage Emulator
+
+```bash
+make azurite-start
+```
+
+This starts [Azurite][azurite] and creates the required blob containers (`fec-filings`, `manifests`).
+
+### 3. Configure Local Settings
+
+Copy the example settings file and add your FEC API key:
+
+```bash
+cp apps/data-sync/local.settings.json.example apps/data-sync/local.settings.json
+```
+
+Edit `local.settings.json`:
+
+```json
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "FEC_API_KEY": "<your-fec-api-key>",
+    "BLOB_ACCOUNT_URL": "http://127.0.0.1:10000/devstoreaccount1",
+    "BLOB_CONTAINER_NAME": "fec-filings"
+  }
+}
+```
+
+### 4. Run Function Apps
+
+```bash
+# Run data-sync function
+make run-data-sync
+
+# Or run email-update function
+make run-email-update
+```
+
+### 5. Trigger Functions Manually
+
+Timer functions can be triggered manually for testing:
+
+```bash
+curl -X POST http://localhost:7071/admin/functions/check_for_updates \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+### 6. Run Tests
+
+```bash
+make test
+```
+
+### 7. Stop Emulator
+
+```bash
+make azurite-stop
 ```
 
 ---
 
 ## Azure Deployment
 
-### Option 1: GitHub Actions (Recommended)
+### Option 1: Using Make Commands (Recommended)
 
-The project includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) for automated deployment.
+The simplest way to deploy is using the provided Makefile commands.
 
-#### Prerequisites
+#### First-Time Setup
 
-1. **Create an Azure Resource Group**:
+```bash
+# 1. Login to Azure
+make az-login
 
-   ```bash
-   az group create --name fec-data-sync-rg --location eastus
-   ```
+# 2. Create resource group
+make az-create-rg
 
-2. **Configure GitHub OIDC authentication**:
+# 3. Register Azure providers (one-time only)
+make az-register-providers
+```
 
-   Create an Azure AD app registration for GitHub Actions:
+#### Deploy Everything
 
-   ```bash
-   # Create app registration
-   az ad app create --display-name "github-fec-data-sync"
+```bash
+# Set your FEC API key
+export FEC_API_KEY=your-fec-api-key
 
-   # Get the app ID
-   APP_ID=$(az ad app list --display-name "github-fec-data-sync" --query "[0].appId" -o tsv)
+# Deploy infrastructure and all function apps
+make deploy-all
+```
 
-   # Create service principal
-   az ad sp create --id $APP_ID
+#### Deploy Individually
 
-   # Get subscription ID
-   SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+```bash
+# Infrastructure only
+make deploy-infra
 
-   # Assign Contributor role to resource group
-   az role assignment create \
-     --assignee $APP_ID \
-     --role Contributor \
-     --scope /subscriptions/$SUBSCRIPTION_ID/resourceGroups/fec-data-sync-rg
+# Function apps (after infrastructure is deployed)
+make deploy-data-sync
+make deploy-email-update
+```
 
-   # Configure federated credentials for GitHub
-   az ad app federated-credential create \
-     --id $APP_ID \
-     --parameters '{
-       "name": "github-main",
-       "issuer": "https://token.actions.githubusercontent.com",
-       "subject": "repo:<your-org>/<your-repo>:ref:refs/heads/main",
-       "audiences": ["api://AzureADTokenExchange"]
-     }'
-   ```
+#### Custom Configuration
 
-3. **Configure GitHub secrets and variables**:
+Override defaults with environment variables:
 
-   **Secrets** (Settings > Secrets and variables > Actions > Secrets):
-   | Secret | Description |
-   |--------|-------------|
-   | `AZURE_CLIENT_ID` | App registration client ID |
-   | `AZURE_TENANT_ID` | Azure AD tenant ID |
-   | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
-   | `FEC_API_KEY` | FEC API key |
+```bash
+export AZURE_RESOURCE_GROUP=my-resource-group
+export AZURE_LOCATION=westus2
+export ENVIRONMENT=prod
+export FEC_API_KEY=your-key
 
-   **Variables** (Settings > Secrets and variables > Actions > Variables):
-   | Variable | Description |
-   |----------|-------------|
-   | `AZURE_RESOURCE_GROUP` | Resource group name (e.g., `fec-data-sync-rg`) |
+make deploy-all
+```
 
-4. **Create GitHub environment** (optional but recommended):
+| Variable               | Default            | Description                             |
+| ---------------------- | ------------------ | --------------------------------------- |
+| `AZURE_RESOURCE_GROUP` | `fec-data-sync-rg` | Resource group name                     |
+| `AZURE_LOCATION`       | `eastus`           | [Azure region][az-regions]              |
+| `ENVIRONMENT`          | `dev`              | Environment: `dev`, `staging`, `prod`   |
+| `FEC_API_KEY`          | -                  | Your FEC API key (required)             |
 
-   Go to Settings > Environments > New environment > `dev`
+---
+
+### Option 2: GitHub Actions
+
+The project includes a GitHub Actions workflow for CI/CD.
+
+#### Setup OIDC Authentication
+
+1. Create an Azure AD app registration:
+
+```bash
+# Create app registration
+az ad app create --display-name "github-fec-data-sync"
+
+# Get the app ID
+APP_ID=$(az ad app list --display-name "github-fec-data-sync" --query "[0].appId" -o tsv)
+
+# Create service principal
+az ad sp create --id $APP_ID
+
+# Get subscription ID
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+# Assign Contributor role
+az role assignment create \
+  --assignee $APP_ID \
+  --role Contributor \
+  --scope /subscriptions/$SUBSCRIPTION_ID/resourceGroups/fec-data-sync-rg
+
+# Configure federated credentials for GitHub
+az ad app federated-credential create \
+  --id $APP_ID \
+  --parameters '{
+    "name": "github-main",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "subject": "repo:<your-org>/<your-repo>:ref:refs/heads/main",
+    "audiences": ["api://AzureADTokenExchange"]
+  }'
+```
+
+See [Configuring OpenID Connect in Azure][az-oidc] for more details.
+
+2. Configure GitHub repository secrets:
+
+| Secret                  | Description                 |
+| ----------------------- | --------------------------- |
+| `AZURE_CLIENT_ID`       | App registration client ID  |
+| `AZURE_TENANT_ID`       | Azure AD tenant ID          |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID       |
+| `FEC_API_KEY`           | FEC API key                 |
+
+3. Configure GitHub repository variables:
+
+| Variable               | Description         |
+| ---------------------- | ------------------- |
+| `AZURE_RESOURCE_GROUP` | Resource group name |
 
 #### Triggering Deployment
 
@@ -157,18 +210,13 @@ The project includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) 
 
 ---
 
-### Option 2: Manual Deployment with Azure CLI
+### Option 3: Manual Azure CLI
+
+For full control, use Azure CLI directly.
 
 #### Deploy Infrastructure
 
 ```bash
-# Login to Azure
-az login
-
-# Create resource group
-az group create --name fec-data-sync-rg --location eastus
-
-# Deploy all resources using main.bicep
 az deployment group create \
   --resource-group fec-data-sync-rg \
   --template-file infra/main.bicep \
@@ -179,19 +227,15 @@ az deployment group create \
 #### Deploy Function Code
 
 ```bash
-cd apps/fec-data-sync
-
-# Build the package with dependencies
-uv export --no-hashes -o requirements.txt
-pip install --target .python_packages/lib/site-packages -r requirements.txt
-
-# Copy workspace packages
-cp -r ../../packages/fec-api-client/src/fec_api_client .python_packages/lib/site-packages/
-cp -r ../../packages/services/src/services .python_packages/lib/site-packages/
+# Build the package
+make build-data-sync
 
 # Deploy to Azure
-func azure functionapp publish fec-data-sync-dev
+cd apps/data-sync
+func azure functionapp publish data-sync-dev
 ```
+
+See [Deployment technologies in Azure Functions][az-func-deploy] for more options.
 
 ---
 
@@ -199,9 +243,9 @@ func azure functionapp publish fec-data-sync-dev
 
 ### Application Insights
 
-The deployment creates Application Insights with a Log Analytics Workspace for comprehensive monitoring.
+The deployment creates [Application Insights][az-app-insights] with a [Log Analytics Workspace][az-log-analytics] for monitoring.
 
-**Access via Azure Portal:**
+**Access in Azure Portal:**
 1. Navigate to your Resource Group
 2. Select the Application Insights resource (`<app-name>-insights`)
 
@@ -217,60 +261,109 @@ az webapp log tail --name <function-app-name> --resource-group <resource-group>
 
 ### Key Metrics
 
-| Metric | Description |
-|--------|-------------|
-| Function execution count | Number of trigger executions |
-| Function duration | Execution time per invocation |
-| Failures | Failed executions |
-| Dependencies | External calls (Blob Storage, FEC API) |
+| Metric                   | Description                              |
+| ------------------------ | ---------------------------------------- |
+| Function execution count | Number of trigger executions             |
+| Function duration        | Execution time per invocation            |
+| Failures                 | Failed executions                        |
+| Dependencies             | External calls (Blob Storage, FEC API)   |
+
+See [Monitor Azure Functions][az-func-monitor] for more details.
 
 ---
 
 ## Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `FEC_API_KEY` | FEC API authentication key | Yes |
-| `BLOB_ACCOUNT_URL` | Azure Blob Storage account URL | Yes |
-| `BLOB_CONTAINER_NAME` | Container name for storing files | Yes |
-| `AZURE_CLIENT_ID` | Managed identity client ID (user-assigned) | No |
-| `AZURE_STORAGE_CONNECTION_STRING` | Storage connection string (local dev) | No |
+| Variable                  | Description                      | Required |
+| ------------------------- | -------------------------------- | -------- |
+| `FEC_API_KEY`             | FEC API authentication key       | Yes      |
+| `BLOB_ACCOUNT_URL`        | Azure Blob Storage account URL   | Yes      |
+| `BLOB_CONTAINER_NAME`     | Container name for storing files | Yes      |
+| `AZURE_CLIENT_ID`         | Managed identity client ID       | No       |
+| `EMAIL_CONNECTION_STRING` | ACS connection string            | Auto     |
+| `EMAIL_SENDER_ADDRESS`    | Sender email address             | Auto     |
+| `AZURE_OPENAI_ENDPOINT`   | OpenAI endpoint URL              | Auto     |
+
+Variables marked "Auto" are automatically configured during deployment.
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
+### Function not triggering
 
-**Function not triggering:**
 - Check Application Insights for errors
-- Verify the timer trigger schedule in `function_app.py`
+- Verify timer trigger schedule in `function_app.py`
 - Ensure `AzureWebJobsStorage` is configured correctly
+- See [Timer trigger troubleshooting][az-func-timer]
 
-**Blob storage access denied:**
-- Verify the managed identity role assignment completed
+### Blob storage access denied
+
+- Verify managed identity role assignment completed
 - Check `BLOB_ACCOUNT_URL` is correct
 - For local dev, ensure Azurite is running
+- See [Managed identity authentication][az-func-identity]
 
-**FEC API errors:**
+### FEC API errors
+
 - Verify `FEC_API_KEY` is valid
 - Check FEC API rate limits (1,000 requests/hour)
+- See [FEC API documentation][fec-api]
 
 ### Useful Commands
 
 ```bash
 # View function app settings
-az functionapp config appsettings list --name <app-name> --resource-group <rg>
+az functionapp config appsettings list \
+  --name <app-name> \
+  --resource-group <rg>
 
 # Restart function app
-az functionapp restart --name <app-name> --resource-group <rg>
+az functionapp restart \
+  --name <app-name> \
+  --resource-group <rg>
 
 # View deployment status
-az deployment group show --name main --resource-group <rg>
+az deployment group show \
+  --name main \
+  --resource-group <rg>
 ```
 
-<!-- Reference Links -->
-[uv]: https://docs.astral.sh/uv/
-[azure-func-tools]: https://docs.microsoft.com/en-us/azure/azure-functions/functions-run-local
-[azurite]: https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azurite
+---
+
+## Make Commands Reference
+
+| Command                    | Description                      |
+| -------------------------- | -------------------------------- |
+| `make install`             | Install all dependencies         |
+| `make lint`                | Run linting and type checks      |
+| `make test`                | Run tests                        |
+| `make azurite-start`       | Start local storage emulator     |
+| `make azurite-stop`        | Stop local storage emulator      |
+| `make run-data-sync`       | Run data-sync function locally   |
+| `make run-email-update`    | Run email-update function locally|
+| `make build-functions`     | Build all function packages      |
+| `make deploy-infra`        | Deploy Azure infrastructure      |
+| `make deploy-data-sync`    | Deploy data-sync function        |
+| `make deploy-email-update` | Deploy email-update function     |
+| `make deploy-all`          | Deploy everything                |
+| `make az-login`            | Login to Azure CLI               |
+| `make az-create-rg`        | Create resource group            |
+| `make az-register-providers`| Register Azure providers        |
+| `make clean`               | Remove generated files           |
+
+<!-- Reference Links - Official Documentation -->
+[python]: https://www.python.org/downloads/
+[uv]: https://docs.astral.sh/uv/getting-started/installation/
+[az-cli]: https://learn.microsoft.com/cli/azure/install-azure-cli
+[az-func-tools]: https://learn.microsoft.com/azure/azure-functions/functions-run-local
+[azurite]: https://learn.microsoft.com/azure/storage/common/storage-use-azurite
 [fec-api]: https://api.open.fec.gov/developers/
+[az-regions]: https://azure.microsoft.com/explore/global-infrastructure/geographies
+[az-oidc]: https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-azure
+[az-func-deploy]: https://learn.microsoft.com/azure/azure-functions/functions-deployment-technologies
+[az-app-insights]: https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview
+[az-log-analytics]: https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-overview
+[az-func-monitor]: https://learn.microsoft.com/azure/azure-functions/functions-monitoring
+[az-func-timer]: https://learn.microsoft.com/azure/azure-functions/functions-bindings-timer
+[az-func-identity]: https://learn.microsoft.com/azure/azure-functions/functions-identity-based-connections-tutorial

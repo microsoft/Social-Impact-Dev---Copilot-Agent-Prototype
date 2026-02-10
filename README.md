@@ -1,103 +1,113 @@
-# Copilot Agent Prototype - FEC Update Emailer
+# FEC Data Sync
 
-A prototype application that syncs Federal Election Commission (FEC) filings data to Azure Blob Storage and sends email notifications with AI-generated summaries when new filings are detected.
+A prototype application that syncs Federal Election Commission (FEC) filings data to Azure and sends email notifications with AI-generated summaries when new filings are detected.
 
-## 📦 Project Structure
+## Architecture
 
-```
-├── apps/
-│   ├── data-sync/              # Azure Function for syncing FEC data
-│   └── email-update/           # Azure Function for email notifications
-├── packages/
-│   ├── fec-api-client/         # Generated FEC API client library
-│   └── services/               # Shared services
-│       ├── email.py            # Azure Communication Services email
-│       ├── file_sync.py        # FEC data synchronization
-│       ├── storage.py          # Azure Blob Storage operations
-│       ├── summary.py          # Azure OpenAI summary generation
-│       └── templates.py        # Email HTML templates
-├── infra/                      # Bicep templates for Azure infrastructure
-└── docs/                       # Documentation
-    ├── deployment.md           # Deployment guide
-    └── infrastructure.md       # Infrastructure details
+```mermaid
+flowchart LR
+    FEC["FEC API"] --> DS["data-sync<br/>Function App"]
+    DS --> Blob["Azure Blob<br/>Storage"]
+    Blob --> EU["email-update<br/>Function App"]
+    EU --> OpenAI["Azure OpenAI"]
+    EU --> ACS["Azure Communication<br/>Services"]
+    ACS --> Email["Email Recipients"]
 ```
 
-## 🚀 Getting Started
+See [Infrastructure Documentation][docs-infra] for the complete architecture diagram and resource details.
+
+## Quick Start
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.11+ ([python.org][python])
 - [uv][uv] package manager
-- Azure CLI (for deployment)
-- Azure Functions Core Tools (for local development)
-- [Azurite][azurite] (for local storage emulation)
+- [Azure Functions Core Tools][az-func-tools]
+- [Azurite][azurite] (local storage emulator)
+- [FEC API key][fec-api]
 
-### Installation
+### Local Development
 
 ```bash
+# Install dependencies
 make install
+
+# Start local storage emulator
+make azurite-start
+
+# Run a function app
+make run-data-sync
 ```
 
-## 🛠️ Development
+### Deploy to Azure
 
-This project uses a Makefile for common development tasks:
+```bash
+# Login and setup
+make az-login
+make az-create-rg
+make az-register-providers
 
-| Command                | Description                              |
-| ---------------------- | ---------------------------------------- |
-| `make install`         | Install all dependencies                 |
-| `make lint`            | Run ruff formatter, linter, and ty       |
-| `make test`            | Run tests                                |
-| `make azurite-start`   | Start Azurite (Azure Storage emulator)   |
-| `make azurite-stop`    | Stop Azurite                             |
-| `make run-data-sync`   | Run data-sync function locally           |
-| `make run-email-update`| Run email-update function locally        |
-| `make clean`           | Remove generated files                   |
+# Deploy everything
+export FEC_API_KEY=your-key
+make deploy-all
+```
 
-### Running Locally
+## Project Structure
 
-1. Start the Azure Storage emulator:
-   ```bash
-   make azurite-start
-   ```
+```
+├── apps/
+│   ├── data-sync/           # Syncs FEC data on a schedule
+│   └── email-update/        # Sends email notifications on new filings
+├── packages/
+│   ├── fec-api-client/      # Generated FEC API client
+│   └── services/            # Shared services (email, storage, AI)
+├── infra/                   # Bicep templates for Azure
+└── docs/                    # Documentation
+```
 
-2. Run either function app:
-   ```bash
-   make run-data-sync
-   # or
-   make run-email-update
-   ```
+## Make Commands
 
-## 🏗️ Architecture
+| Command                | Description                |
+| ---------------------- | -------------------------- |
+| `make install`         | Install dependencies       |
+| `make test`            | Run tests                  |
+| `make lint`            | Run linting                |
+| `make azurite-start`   | Start local storage        |
+| `make run-data-sync`   | Run data-sync locally      |
+| `make run-email-update`| Run email-update locally   |
+| `make deploy-all`      | Deploy to Azure            |
+| `make help`            | Show all commands          |
 
-### Azure Services
+## Documentation
 
-| Service                       | Purpose                                        |
-| ----------------------------- | ---------------------------------------------- |
-| Azure Functions               | Serverless compute for data sync and email     |
-| Azure Blob Storage            | Storage for FEC filings data and manifests     |
-| Azure Communication Services  | Email delivery                                 |
-| Azure OpenAI                  | AI-generated summaries of new filings          |
-| Azure Application Insights    | Monitoring and diagnostics                     |
-| Azure Managed Identity        | Secure authentication between services         |
+- [Deployment Guide][docs-deploy] - Local development and Azure deployment
+- [Infrastructure][docs-infra] - Azure resources and Bicep templates
 
-### External APIs
+## Azure Services Used
 
-| API     | Purpose                                 |
-| ------- | --------------------------------------- |
-| FEC API | Federal Election Commission data source |
+| Service                                  | Purpose                |
+| ---------------------------------------- | ---------------------- |
+| [Azure Functions][az-functions]          | Serverless compute     |
+| [Azure Blob Storage][az-storage]         | FEC filings storage    |
+| [Azure Communication Services][az-acs]   | Email delivery         |
+| [Azure OpenAI][az-openai]                | AI-generated summaries |
+| [Application Insights][az-app-insights]  | Monitoring             |
 
-## 📚 Documentation
-
-- [Deployment Guide][docs-deployment]
-- [Infrastructure Details][docs-infrastructure]
-
-## 📄 License
+## License
 
 See [LICENSE][license] for details.
 
 <!-- Reference Links -->
+[python]: https://www.python.org/downloads/
 [uv]: https://docs.astral.sh/uv/
-[azurite]: https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite
-[docs-deployment]: ./docs/deployment.md
-[docs-infrastructure]: ./docs/infrastructure.md
+[az-func-tools]: https://learn.microsoft.com/azure/azure-functions/functions-run-local
+[azurite]: https://learn.microsoft.com/azure/storage/common/storage-use-azurite
+[fec-api]: https://api.open.fec.gov/developers/
+[az-functions]: https://learn.microsoft.com/azure/azure-functions/functions-overview
+[az-storage]: https://learn.microsoft.com/azure/storage/blobs/storage-blobs-introduction
+[az-acs]: https://learn.microsoft.com/azure/communication-services/overview
+[az-openai]: https://learn.microsoft.com/azure/ai-services/openai/overview
+[az-app-insights]: https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview
+[docs-deploy]: ./docs/deployment.md
+[docs-infra]: ./docs/infrastructure.md
 [license]: ./LICENSE
