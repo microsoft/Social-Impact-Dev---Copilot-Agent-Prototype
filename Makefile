@@ -1,32 +1,52 @@
-.PHONY: help install lint test build azurite-start azurite-stop run-data-sync run-email-update clean az-register-providers build-data-sync build-email-update build-functions
+.PHONY: help install lint test build azurite-start azurite-stop run-data-sync run-email-update clean az-register-providers build-data-sync build-email-update build-functions deploy-infra deploy-data-sync deploy-email-update deploy-all
 
 VENV_PATH := $(shell pwd)/.venv/bin
 AZURITE_CONN := DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;
+
+# Deployment configuration (override with environment variables)
+AZURE_RESOURCE_GROUP ?= fec-data-sync-rg
+AZURE_LOCATION ?= eastus
+ENVIRONMENT ?= dev
+BASE_NAME ?= data-sync
 
 help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Development:"
-	@echo "  install          Install all dependencies"
-	@echo "  lint             Run linting and type checks"
-	@echo "  test             Run tests"
+	@echo "  install              Install all dependencies"
+	@echo "  lint                 Run linting and type checks"
+	@echo "  test                 Run tests"
 	@echo ""
 	@echo "Local Testing:"
-	@echo "  azurite-start    Start Azurite (Azure Storage emulator)"
-	@echo "  azurite-stop     Stop Azurite"
-	@echo "  run-data-sync    Run data-sync function locally"
-	@echo "  run-email-update Run email-update function locally"
+	@echo "  azurite-start        Start Azurite (Azure Storage emulator)"
+	@echo "  azurite-stop         Stop Azurite"
+	@echo "  run-data-sync        Run data-sync function locally"
+	@echo "  run-email-update     Run email-update function locally"
 	@echo ""
 	@echo "Build:"
 	@echo "  build-functions      Build all function packages for deployment"
 	@echo "  build-data-sync      Build data-sync function package"
 	@echo "  build-email-update   Build email-update function package"
 	@echo ""
-	@echo "Azure:"
-	@echo "  az-register-providers  Register required Azure resource providers"
+	@echo "Deployment:"
+	@echo "  deploy-infra         Deploy Azure infrastructure (Bicep)"
+	@echo "  deploy-data-sync     Deploy data-sync function app code"
+	@echo "  deploy-email-update  Deploy email-update function app code"
+	@echo "  deploy-all           Deploy infrastructure and all function apps"
+	@echo ""
+	@echo "Azure Setup:"
+	@echo "  az-login             Login to Azure CLI"
+	@echo "  az-create-rg         Create Azure resource group"
+	@echo "  az-register-providers Register required Azure resource providers"
 	@echo ""
 	@echo "Cleanup:"
-	@echo "  clean            Remove generated files"
+	@echo "  clean                Remove generated files"
+	@echo ""
+	@echo "Configuration (environment variables):"
+	@echo "  AZURE_RESOURCE_GROUP  Resource group name (default: fec-data-sync-rg)"
+	@echo "  AZURE_LOCATION        Azure region (default: eastus)"
+	@echo "  ENVIRONMENT           Environment name: dev|staging|prod (default: dev)"
+	@echo "  FEC_API_KEY           FEC API key (required for deployment)"
 
 install:
 	uv sync --dev
@@ -127,3 +147,53 @@ clean:
 	rm -rf .pytest_cache
 	rm -rf dist
 	@echo "Cleaned up generated files"
+
+# ============================================================================
+# Deployment Targets
+# ============================================================================
+
+# Login to Azure CLI
+az-login:
+	@echo "Logging in to Azure..."
+	az login
+
+# Create Azure resource group
+az-create-rg:
+	@echo "Creating resource group $(AZURE_RESOURCE_GROUP) in $(AZURE_LOCATION)..."
+	az group create --name $(AZURE_RESOURCE_GROUP) --location $(AZURE_LOCATION)
+
+# Deploy Azure infrastructure using Bicep
+deploy-infra:
+ifndef FEC_API_KEY
+	$(error FEC_API_KEY is required. Set it with: export FEC_API_KEY=your-key)
+endif
+	@echo "Deploying infrastructure to $(AZURE_RESOURCE_GROUP)..."
+	az deployment group create \
+		--resource-group $(AZURE_RESOURCE_GROUP) \
+		--template-file infra/main.bicep \
+		--parameters environment=$(ENVIRONMENT) \
+		--parameters baseName=$(BASE_NAME) \
+		--parameters fecApiKey=$(FEC_API_KEY)
+	@echo "Infrastructure deployed successfully!"
+
+# Deploy data-sync function app code
+deploy-data-sync: build-data-sync
+	@echo "Deploying data-sync function to Azure..."
+	cd apps/data-sync && func azure functionapp publish $(BASE_NAME)-$(ENVIRONMENT)
+	@echo "data-sync deployed successfully!"
+
+# Deploy email-update function app code
+deploy-email-update: build-email-update
+	@echo "Deploying email-update function to Azure..."
+	cd apps/email-update && func azure functionapp publish email-update-$(ENVIRONMENT)
+	@echo "email-update deployed successfully!"
+
+# Deploy everything: infrastructure + all function apps
+deploy-all: deploy-infra deploy-data-sync deploy-email-update
+	@echo ""
+	@echo "============================================"
+	@echo "  Deployment complete!"
+	@echo "============================================"
+	@echo "  Resource Group: $(AZURE_RESOURCE_GROUP)"
+	@echo "  Environment:    $(ENVIRONMENT)"
+	@echo "============================================"
