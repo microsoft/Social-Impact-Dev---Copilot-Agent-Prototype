@@ -208,9 +208,9 @@ endif
 	az deployment group create \
 		--resource-group $(AZURE_RESOURCE_GROUP) \
 		--template-file infra/main.bicep \
+		--parameters infra/main.bicepparam \
 		--parameters environment=$(ENVIRONMENT) \
-		--parameters baseName=$(BASE_NAME) \
-		--parameters fecApiKey=$(FEC_API_KEY)
+		--parameters baseName=$(BASE_NAME)
 	@echo "Infrastructure deployed successfully!"
 
 # Deploy data-sync function app code
