@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .analysis import AnalysisResult
     from .reports import Report
 
 
@@ -24,6 +25,47 @@ def _build_financials_html(report: Report) -> str:
             f"<li><strong>Cash on Hand:</strong> ${report.cash_on_hand_end_period:,.2f}</li>"
         )
     return financials
+
+
+def _build_maxed_donors_html(analysis: AnalysisResult | None) -> str:
+    """Build HTML section for maxed donors analysis."""
+    if not analysis or analysis.stats.get("count", 0) == 0:
+        return ""
+
+    stats = analysis.stats
+    data = analysis.data
+
+    # Build top employers list
+    top_employers = data.get("top_employers", [])[:5]
+    employers_html = ""
+    if top_employers:
+        employer_items = ", ".join(f"{name} ({count})" for name, count in top_employers)
+        employers_html = f"<li><strong>Top Employers:</strong> {employer_items}</li>"
+
+    # Build top states list
+    top_states = data.get("top_states", [])[:5]
+    states_html = ""
+    if top_states:
+        state_items = ", ".join(f"{state} ({count})" for state, count in top_states)
+        states_html = f"<li><strong>Top States:</strong> {state_items}</li>"
+
+    count = stats.get("count", 0)
+    total = stats.get("total", 0)
+    pct = stats.get("pct_of_individual", 0)
+
+    return f"""
+    <h3>Maxed Out Donors ($3,500 limit)</h3>
+    <ul>
+        <li><strong>{count}</strong> donors reached the contribution limit</li>
+        <li><strong>${total:,.2f}</strong> total from maxed donors
+            ({pct:.1f}% of individual contributions)</li>
+        {employers_html}
+        {states_html}
+    </ul>
+    <div style="background: #f0f7e6; padding: 15px; border-radius: 5px; margin-top: 10px;">
+        <p style="margin: 0;">{analysis.narrative}</p>
+    </div>
+    """
 
 
 def _build_links_html(
@@ -62,12 +104,22 @@ def build_report_html(
     *,
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
+    maxed_donors_analysis: AnalysisResult | None = None,
 ) -> str:
-    """Build HTML content for report email."""
+    """Build HTML content for report email.
+
+    Args:
+        report: Report metadata.
+        summary: AI-generated summary text.
+        formatted_csv_url: Optional URL to formatted CSV.
+        xlsx_url: Optional URL to Excel file.
+        maxed_donors_analysis: Optional maxed donors analysis result.
+    """
     from .reports import get_display_name
 
     financials = _build_financials_html(report)
     links = _build_links_html(report, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url)
+    maxed_donors_section = _build_maxed_donors_html(maxed_donors_analysis)
     period = f"{report.coverage_start_date} to {report.coverage_end_date}"
     display_name = get_display_name(report)
 
@@ -88,6 +140,8 @@ def build_report_html(
         <p>{summary}</p>
     </div>
 
+    {maxed_donors_section}
+
     {f"<p>{links}</p>" if links else ""}
 
     <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
@@ -98,14 +152,58 @@ def build_report_html(
 </html>"""
 
 
+def _build_maxed_donors_plain_text(analysis: AnalysisResult | None) -> list[str]:
+    """Build plain text section for maxed donors analysis."""
+    if not analysis or analysis.stats.get("count", 0) == 0:
+        return []
+
+    stats = analysis.stats
+    data = analysis.data
+
+    count = stats.get("count", 0)
+    total = stats.get("total", 0)
+    pct = stats.get("pct_of_individual", 0)
+
+    lines = [
+        "",
+        "Maxed Out Donors ($3,500 limit)",
+        "-" * 30,
+        f"  {count} donors reached the contribution limit",
+        f"  ${total:,.2f} total ({pct:.1f}% of individual contributions)",
+    ]
+
+    top_employers = data.get("top_employers", [])[:5]
+    if top_employers:
+        employer_items = ", ".join(f"{name} ({count})" for name, count in top_employers)
+        lines.append(f"  Top Employers: {employer_items}")
+
+    top_states = data.get("top_states", [])[:5]
+    if top_states:
+        state_items = ", ".join(f"{state} ({count})" for state, count in top_states)
+        lines.append(f"  Top States: {state_items}")
+
+    lines.extend(["", analysis.narrative, ""])
+
+    return lines
+
+
 def build_report_plain_text(
     report: Report,
     summary: str,
     *,
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
+    maxed_donors_analysis: AnalysisResult | None = None,
 ) -> str:
-    """Build plain text content for report email."""
+    """Build plain text content for report email.
+
+    Args:
+        report: Report metadata.
+        summary: AI-generated summary text.
+        formatted_csv_url: Optional URL to formatted CSV.
+        xlsx_url: Optional URL to Excel file.
+        maxed_donors_analysis: Optional maxed donors analysis result.
+    """
     from .reports import get_display_name
 
     display_name = get_display_name(report)
@@ -136,6 +234,9 @@ def build_report_plain_text(
         ]
     )
 
+    # Add maxed donors section
+    lines.extend(_build_maxed_donors_plain_text(maxed_donors_analysis))
+
     if report.pdf_url or report.csv_url:
         lines.append("Original FEC Filing:")
         if report.pdf_url:
@@ -160,16 +261,25 @@ def build_report_preview_html(
     *,
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
+    maxed_donors_analysis: AnalysisResult | None = None,
 ) -> str:
     """Build HTML preview page for report (for browser viewing).
 
     Wraps the actual email HTML with a page container for centered viewing.
+
+    Args:
+        report: Report metadata.
+        summary: AI-generated summary text.
+        formatted_csv_url: Optional URL to formatted CSV.
+        xlsx_url: Optional URL to Excel file.
+        maxed_donors_analysis: Optional maxed donors analysis result.
     """
     email_html = build_report_html(
         report,
         summary,
         formatted_csv_url=formatted_csv_url,
         xlsx_url=xlsx_url,
+        maxed_donors_analysis=maxed_donors_analysis,
     )
 
     return f"""<!DOCTYPE html>

@@ -3,15 +3,16 @@ import os
 
 import azure.functions as func
 from services import (
+    AnalysisResult,
+    AnalysisService,
     AzureBlobStorageService,
     AzureEmailService,
-    AzureOpenAISummaryService,
     EmailService,
     Filings,
-    SummaryService,
+    OpenAIAnalysisService,
     build_report_preview_html,
-    get_display_name,
     parse_comma_list,
+    parse_fec_csv,
 )
 
 app = func.FunctionApp()
@@ -44,48 +45,57 @@ def _build_download_url(req: func.HttpRequest, base_path: str, filename: str) ->
     return f"{base_url}/api/download/{base_path}/{filename}"
 
 
-def _get_or_create_summary(
+def _run_analysis(
     blob_service: AzureBlobStorageService,
     base_path: str,
     report: Filings,
-) -> str:
-    """Get cached summary from blob storage, or generate and cache a new one.
+) -> tuple[str, AnalysisResult | None]:
+    """Run all analysis (summary + maxed donors) with caching.
 
-    Summaries are stored at {base_path}/summary.txt to avoid repeated AI calls.
+    Downloads CSV, parses it, and runs the analysis service with caching.
+
+    Returns:
+        Tuple of (summary_text, maxed_donors_analysis).
     """
-    summary_blob_path = f"{base_path}/summary.txt"
+    analysis_service: AnalysisService = OpenAIAnalysisService(blob_service=blob_service)
 
-    # Try to get cached summary
+    # Generate summary (with caching)
+    summary_text = analysis_service.generate_summary(report, base_path)
+
+    # Download the CSV to parse for maxed donors analysis
+    csv_blob_path = None
     try:
-        cached = blob_service.download_bytes(summary_blob_path)
-        if cached:
-            logger.info(f"Using cached summary: {summary_blob_path}")
-            return cached.decode("utf-8")
+        blobs = blob_service.list_blobs(prefix=f"{base_path}/")
+        csv_blobs = [b for b in blobs if b.endswith(".csv") and not b.endswith("report.csv")]
+        if not csv_blobs:
+            # Try without the filtering
+            csv_blobs = [b for b in blobs if b.endswith(".csv")]
+        if csv_blobs:
+            csv_blob_path = csv_blobs[0]
     except Exception as e:
-        logger.debug(f"No cached summary found: {e}")
+        logger.warning(f"Failed to find CSV blob: {e}")
+        return summary_text, None
 
-    # Generate new summary
-    fallback = f"New report filed by {get_display_name(report)}."
+    if not csv_blob_path:
+        logger.warning(f"No CSV file found in {base_path}")
+        return summary_text, None
+
     try:
-        summary_service: SummaryService = AzureOpenAISummaryService()
-        summary_result = summary_service.generate_summary(report)
-        summary_text = summary_result.summary or fallback
-    except Exception as e:
-        logger.warning(f"AI summary failed, using fallback: {e}")
-        return f"{fallback} (AI summary unavailable)"
+        csv_content = blob_service.download_bytes(csv_blob_path)
+        if not csv_content:
+            logger.warning(f"Empty CSV file: {csv_blob_path}")
+            return summary_text, None
 
-    # Cache the summary
-    try:
-        blob_service.upload_bytes(
-            summary_blob_path,
-            summary_text.encode("utf-8"),
-            content_type="text/plain",
-        )
-        logger.info(f"Cached summary: {summary_blob_path}")
-    except Exception as e:
-        logger.warning(f"Failed to cache summary: {e}")
+        # Parse CSV
+        parsed = parse_fec_csv(csv_content)
 
-    return summary_text
+        # Run maxed donors analysis with caching
+        maxed_donors = analysis_service.analyze_maxed_donors(parsed, report, base_path)
+        return summary_text, maxed_donors
+
+    except Exception as e:
+        logger.warning(f"Failed to run analysis: {e}")
+        return summary_text, None
 
 
 @app.blob_trigger(
@@ -100,7 +110,7 @@ def process_new_report(report_blob: func.InputStream) -> None:
         logger.error("Report blob name is empty")
         return
 
-    # Extract base path (e.g., "C00718866/2024-Q1" from "fec-filings/C00718866/2024-Q1/report.json")
+    # Extract base path (e.g., "C00718866/2024-Q1")
     parts = blob_name.split("/")
     committee_id = parts[1] if len(parts) > 1 else "unknown"
     base_path = "/".join(parts[1:3]) if len(parts) > 2 else ""
@@ -137,8 +147,8 @@ def process_new_report(report_blob: func.InputStream) -> None:
     blob_service = AzureBlobStorageService(container_name=BLOB_CONTAINER_NAME)
     email_service: EmailService = AzureEmailService()
 
-    # Get or create cached summary
-    summary_text = _get_or_create_summary(blob_service, base_path, report)
+    # Run analysis (summary + maxed donors)
+    summary_text, maxed_donors_analysis = _run_analysis(blob_service, base_path, report)
 
     # Send email
     email_result = email_service.send_report_email(
@@ -147,6 +157,7 @@ def process_new_report(report_blob: func.InputStream) -> None:
         summary=summary_text,
         formatted_csv_url=formatted_csv_url,
         xlsx_url=xlsx_url,
+        maxed_donors_analysis=maxed_donors_analysis,
     )
 
     if email_result.success:
@@ -176,7 +187,6 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
 
         # Get the most recent (last alphabetically = most recent year-quarter)
         latest_blob = sorted(report_blobs)[-1]
-        # Extract base path (e.g., "C00718866/2024-Q1" from "C00718866/2024-Q1/report.json")
         base_path = "/".join(latest_blob.split("/")[:-1])
 
         report_content = blob_service.download_bytes(latest_blob)
@@ -197,12 +207,16 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
         formatted_csv_url = _build_download_url(req, base_path, f"{base_name}.csv")
         xlsx_url = _build_download_url(req, base_path, f"{base_name}.xlsx")
 
-    # Get or create cached summary
-    summary_text = _get_or_create_summary(blob_service, base_path, report)
+    # Run analysis (summary + maxed donors)
+    summary_text, maxed_donors_analysis = _run_analysis(blob_service, base_path, report)
 
     # Build HTML preview
     html_content = build_report_preview_html(
-        report, summary_text, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url
+        report,
+        summary_text,
+        formatted_csv_url=formatted_csv_url,
+        xlsx_url=xlsx_url,
+        maxed_donors_analysis=maxed_donors_analysis,
     )
 
     return func.HttpResponse(html_content, mimetype="text/html", status_code=200)
@@ -273,8 +287,8 @@ def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
         formatted_csv_url = _build_blob_url(base_path, f"{base_name}.csv")
         xlsx_url = _build_blob_url(base_path, f"{base_name}.xlsx")
 
-    # Get or create cached summary
-    summary_text = _get_or_create_summary(blob_service, base_path, report)
+    # Run analysis (summary + maxed donors)
+    summary_text, maxed_donors_analysis = _run_analysis(blob_service, base_path, report)
 
     # Send email
     try:
@@ -285,6 +299,7 @@ def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
             summary=summary_text,
             formatted_csv_url=formatted_csv_url,
             xlsx_url=xlsx_url,
+            maxed_donors_analysis=maxed_donors_analysis,
         )
 
         if email_result.success:
