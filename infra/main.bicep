@@ -100,7 +100,7 @@ module storage 'storage.bicep' = {
 module communicationServices 'communication-services.bicep' = {
   name: 'communication-services-deployment'
   params: {
-    communicationServicesName: '${baseName}-${environment}-acs'
+    communicationServicesName: 'email-update-${environment}-acs'
     dataLocation: 'United States'
   }
 }
@@ -110,7 +110,7 @@ module openAI 'openai.bicep' = {
   name: 'openai-deployment'
   params: {
     location: location
-    openAIName: '${baseName}-${environment}-openai'
+    openAIName: 'email-update-${environment}-openai'
     modelName: openAIModel
     deploymentName: openAIModel
   }
@@ -168,12 +168,12 @@ resource storageAccountRef 'Microsoft.Storage/storageAccounts@2023-01-01' existi
 }
 
 resource acsRef 'Microsoft.Communication/communicationServices@2023-04-01' existing = {
-  name: '${baseName}-${environment}-acs'
+  name: 'email-update-${environment}-acs'
   dependsOn: [communicationServices]
 }
 
 resource openAIRef 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = {
-  name: '${baseName}-${environment}-openai'
+  name: 'email-update-${environment}-openai'
   dependsOn: [openAI]
 }
 
