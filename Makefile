@@ -136,6 +136,7 @@ az-register-providers:
 	az provider register --namespace Microsoft.Communication --wait
 	az provider register --namespace Microsoft.CognitiveServices --wait
 	az provider register --namespace Microsoft.Authorization --wait
+	az provider register --namespace Microsoft.AlertsManagement --wait
 	@echo "All providers registered successfully"
 
 clean:
@@ -179,13 +180,23 @@ endif
 # Deploy data-sync function app code
 deploy-data-sync: build-data-sync
 	@echo "Deploying data-sync function to Azure..."
-	cd apps/data-sync && func azure functionapp publish $(BASE_NAME)-$(ENVIRONMENT)
+	$(eval DATA_SYNC_APP := $(shell az deployment group show --resource-group $(AZURE_RESOURCE_GROUP) --name main --query 'properties.outputs.functionAppName.value' -o tsv 2>/dev/null || echo ""))
+	@if [ -z "$(DATA_SYNC_APP)" ]; then \
+		echo "Error: Could not find function app name. Run 'make deploy-infra' first."; \
+		exit 1; \
+	fi
+	cd apps/data-sync && func azure functionapp publish $(DATA_SYNC_APP)
 	@echo "data-sync deployed successfully!"
 
 # Deploy email-update function app code
 deploy-email-update: build-email-update
 	@echo "Deploying email-update function to Azure..."
-	cd apps/email-update && func azure functionapp publish email-update-$(ENVIRONMENT)
+	$(eval EMAIL_APP := $(shell az deployment group show --resource-group $(AZURE_RESOURCE_GROUP) --name main --query 'properties.outputs.emailFunctionAppName.value' -o tsv 2>/dev/null || echo ""))
+	@if [ -z "$(EMAIL_APP)" ]; then \
+		echo "Error: Could not find email function app name. Run 'make deploy-infra' first."; \
+		exit 1; \
+	fi
+	cd apps/email-update && func azure functionapp publish $(EMAIL_APP)
 	@echo "email-update deployed successfully!"
 
 # Deploy everything: infrastructure + all function apps

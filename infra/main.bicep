@@ -73,10 +73,11 @@ param fecReportTypes string = ''
 
 // Generate unique suffix for globally unique names
 var uniqueSuffix = uniqueString(resourceGroup().id)
+var shortSuffix = take(uniqueSuffix, 6)
 var storageAccountName = toLower(replace('${baseName}${environment}${uniqueSuffix}', '-', ''))
 var functionStorageAccountName = toLower(replace('${baseName}func${uniqueSuffix}', '-', ''))
-var functionAppName = '${baseName}-${environment}'
-var emailFunctionAppName = 'email-update-${environment}'
+var functionAppName = '${baseName}-${environment}-${shortSuffix}'
+var emailFunctionAppName = 'email-update-${environment}-${shortSuffix}'
 var emailFunctionStorageAccountName = toLower(replace('emailfunc${uniqueSuffix}', '-', ''))
 var containerName = 'fec-filings'
 var manifestContainerName = 'manifests'

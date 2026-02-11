@@ -59,7 +59,7 @@ jobs:
           parameters: >
             environment=${{ github.event.inputs.environment || 'dev' }}
             fecApiKey=${{ secrets.FEC_API_KEY }}
-            fecCandidateIds=${{ vars.FEC_CANDIDATE_IDS || '' }}
+            fecCommitteeIds=${{ vars.FEC_COMMITTEE_IDS || '' }}
             fecReportTypes=${{ vars.FEC_REPORT_TYPES || '' }}
             emailConnectionString=${{ secrets.EMAIL_CONNECTION_STRING || '' }}
             emailSenderAddress=${{ vars.EMAIL_SENDER_ADDRESS || '' }}
