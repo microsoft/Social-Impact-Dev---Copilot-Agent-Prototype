@@ -7,7 +7,7 @@ import httpx
 from fec_api_client import FecApiClient, Filings
 
 from .constants import QUARTERLY_REPORT_TYPES
-from .csv_service import add_headers_to_csv, create_xlsx
+from .format import add_headers_to_csv, create_xlsx
 from .storage import BlobStorageService
 
 logger = logging.getLogger(__name__)
