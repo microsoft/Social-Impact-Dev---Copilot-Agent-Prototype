@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from fec_api_client import Filings
 
 from .email import EmailService
 from .storage import BlobStorageService
-from .summary import SummaryService
+
+if TYPE_CHECKING:
+    from .analysis import AnalysisService
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +38,11 @@ class ReportService:
     def __init__(
         self,
         blob_service: BlobStorageService,
-        summary_service: SummaryService,
+        analysis_service: AnalysisService,
         email_service: EmailService,
     ) -> None:
         self.blob_service = blob_service
-        self.summary_service = summary_service
+        self.analysis_service = analysis_service
         self.email_service = email_service
 
     def process_committees(
@@ -115,7 +118,4 @@ class ReportService:
 
     def _generate_summary(self, report: Report) -> str:
         """Generate AI summary for a report, with fallback."""
-        summary_result = self.summary_service.generate_summary(report)
-        if summary_result.success and summary_result.summary:
-            return summary_result.summary
-        return f"{report.report_type} report filed on {report.receipt_date}."
+        return self.analysis_service.generate_summary(report)

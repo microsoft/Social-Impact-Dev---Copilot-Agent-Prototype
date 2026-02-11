@@ -4,14 +4,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from fec_api_client import format_report_type
+
+from .utils import format_date, format_period
+
 if TYPE_CHECKING:
+    from .analysis import FullAnalysisResult
     from .reports import Report
 
 
 def _build_financials_html(report: Report) -> str:
     """Build HTML list items for financial data."""
-    from .reports import get_display_name  # noqa: F401 - used in templates
-
     financials = ""
     if report.total_receipts is not None:
         financials += f"<li><strong>Total Receipts:</strong> ${report.total_receipts:,.2f}</li>"
@@ -24,6 +27,117 @@ def _build_financials_html(report: Report) -> str:
             f"<li><strong>Cash on Hand:</strong> ${report.cash_on_hand_end_period:,.2f}</li>"
         )
     return financials
+
+
+def _build_analysis_section_html(analysis: FullAnalysisResult | None) -> str:
+    """Build HTML section for all analysis results as bulleted list."""
+    if not analysis:
+        return ""
+
+    sections = []
+
+    # Maxed donors
+    if analysis.maxed_donors and analysis.maxed_donors.stats.get("count", 0) > 0:
+        stats = analysis.maxed_donors.stats
+        sections.append(
+            f"<li><strong>Maxed Donors ($3,500):</strong> {stats['count']} donors, "
+            f"${stats['total']:,.2f} ({stats.get('pct_of_individual', 0):.1f}% of "
+            f"individual contributions)</li>"
+        )
+
+    # Geography
+    if analysis.geography:
+        gs = analysis.geography.stats
+        if gs.get("in_state_pct", 0) > 0 or gs.get("out_state_pct", 0) > 0:
+            sections.append(
+                f"<li><strong>Geography:</strong> {gs.get('in_state_pct', 0):.1f}% "
+                f"in-state, {gs.get('out_state_pct', 0):.1f}% out-of-state</li>"
+            )
+
+    # Donor size
+    if analysis.donor_size:
+        ds = analysis.donor_size.stats
+        sections.append(
+            f"<li><strong>Donor Composition:</strong> {ds.get('small_pct', 0):.1f}% "
+            f"from small donors ($25 or less), {ds.get('big_pct', 0):.1f}% from "
+            f"larger donors</li>"
+        )
+
+    # Funding sources
+    if analysis.funding_sources:
+        fs = analysis.funding_sources.stats
+        parts = []
+        if fs.get("individuals_pct", 0) > 0:
+            parts.append(f"{fs['individuals_pct']:.1f}% individuals")
+        if fs.get("pacs_pct", 0) > 0:
+            parts.append(f"{fs['pacs_pct']:.1f}% PACs")
+        if fs.get("parties_pct", 0) > 0:
+            parts.append(f"{fs['parties_pct']:.1f}% parties")
+        if fs.get("transfers_pct", 0) > 0:
+            parts.append(f"{fs['transfers_pct']:.1f}% transfers")
+        if fs.get("loans_pct", 0) > 0:
+            parts.append(f"{fs['loans_pct']:.1f}% loans")
+        if parts:
+            sections.append(f"<li><strong>Funding Sources:</strong> {', '.join(parts)}</li>")
+
+    # Flagged expenditures
+    if analysis.expenditures:
+        es = analysis.expenditures.stats
+        if es.get("flagged_count", 0) > 0:
+            sections.append(
+                f"<li><strong>Flagged Expenditures:</strong> {es['flagged_count']} "
+                f"items (${es.get('flagged_total', 0):,.2f})</li>"
+            )
+
+    if not sections:
+        return ""
+
+    return f"""
+    <h3>Analysis Summary</h3>
+    <ul>
+        {"".join(sections)}
+    </ul>
+    """
+
+
+def _build_detailed_analysis_html(analysis: FullAnalysisResult | None) -> str:
+    """Build HTML section for detailed AI analysis (industry, grouped donations)."""
+    if not analysis:
+        return ""
+
+    sections = []
+
+    # Industry analysis
+    if analysis.industry and analysis.industry.narrative:
+        sections.append(
+            f"""
+            <div style="background: #f0f7e6; padding: 15px; border-radius: 5px;
+                        margin-bottom: 10px;">
+                <strong>Industry/Employer Analysis:</strong>
+                <p style="margin: 5px 0 0 0;">{analysis.industry.narrative}</p>
+            </div>
+            """
+        )
+
+    # Grouped donations
+    if analysis.grouped_donations and analysis.grouped_donations.narrative:
+        sections.append(
+            f"""
+            <div style="background: #f0f7e6; padding: 15px; border-radius: 5px;
+                        margin-bottom: 10px;">
+                <strong>Donation Patterns:</strong>
+                <p style="margin: 5px 0 0 0;">{analysis.grouped_donations.narrative}</p>
+            </div>
+            """
+        )
+
+    if not sections:
+        return ""
+
+    return f"""
+    <h3>Detailed Analysis</h3>
+    {"".join(sections)}
+    """
 
 
 def _build_links_html(
@@ -62,23 +176,39 @@ def build_report_html(
     *,
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
+    analysis: FullAnalysisResult | None = None,
+    # Deprecated: use analysis instead
+    maxed_donors_analysis=None,
 ) -> str:
-    """Build HTML content for report email."""
+    """Build HTML content for report email.
+
+    Args:
+        report: Report metadata.
+        summary: AI-generated summary text.
+        formatted_csv_url: Optional URL to formatted CSV.
+        xlsx_url: Optional URL to Excel file.
+        analysis: Full analysis result with all features.
+        maxed_donors_analysis: Deprecated, use analysis instead.
+    """
     from .reports import get_display_name
 
     financials = _build_financials_html(report)
     links = _build_links_html(report, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url)
-    period = f"{report.coverage_start_date} to {report.coverage_end_date}"
+    analysis_section = _build_analysis_section_html(analysis)
+    detailed_section = _build_detailed_analysis_html(analysis)
+    period = format_period(report.coverage_start_date, report.coverage_end_date)
     display_name = get_display_name(report)
+    report_type_display = format_report_type(report.report_type)
+    filed_date = format_date(report.receipt_date)
 
     return f"""<html>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-    <h2 style="color: #1a1a1a;">{display_name} - {report.report_type} Report</h2>
+    <h2 style="color: #1a1a1a;">{display_name} - {report_type_display} Report</h2>
 
     <div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
         <p><strong>Committee:</strong> {report.committee_name}</p>
         <p><strong>Period:</strong> {period}</p>
-        <p><strong>Filed:</strong> {report.receipt_date}</p>
+        <p><strong>Filed:</strong> {filed_date}</p>
     </div>
 
     {"<h3>Financial Summary</h3><ul>" + financials + "</ul>" if financials else ""}
@@ -87,6 +217,10 @@ def build_report_html(
     <div style="background: #e8f4f8; padding: 15px; border-radius: 5px;">
         <p>{summary}</p>
     </div>
+
+    {analysis_section}
+
+    {detailed_section}
 
     {f"<p>{links}</p>" if links else ""}
 
@@ -98,24 +232,104 @@ def build_report_html(
 </html>"""
 
 
+def _build_analysis_section_plain_text(analysis: FullAnalysisResult | None) -> list[str]:
+    """Build plain text section for all analysis results."""
+    if not analysis:
+        return []
+
+    lines = ["", "Analysis Summary", "-" * 30]
+
+    # Maxed donors
+    if analysis.maxed_donors and analysis.maxed_donors.stats.get("count", 0) > 0:
+        stats = analysis.maxed_donors.stats
+        lines.append(
+            f"  Maxed Donors: {stats['count']} donors, ${stats['total']:,.2f} "
+            f"({stats.get('pct_of_individual', 0):.1f}% of individual)"
+        )
+
+    # Geography
+    if analysis.geography:
+        gs = analysis.geography.stats
+        if gs.get("in_state_pct", 0) > 0 or gs.get("out_state_pct", 0) > 0:
+            lines.append(
+                f"  Geography: {gs.get('in_state_pct', 0):.1f}% in-state, "
+                f"{gs.get('out_state_pct', 0):.1f}% out-of-state"
+            )
+
+    # Donor size
+    if analysis.donor_size:
+        ds = analysis.donor_size.stats
+        lines.append(
+            f"  Donor Composition: {ds.get('small_pct', 0):.1f}% small donors, "
+            f"{ds.get('big_pct', 0):.1f}% larger donors"
+        )
+
+    # Funding sources
+    if analysis.funding_sources:
+        fs = analysis.funding_sources.stats
+        parts = []
+        if fs.get("individuals_pct", 0) > 0:
+            parts.append(f"{fs['individuals_pct']:.1f}% individuals")
+        if fs.get("pacs_pct", 0) > 0:
+            parts.append(f"{fs['pacs_pct']:.1f}% PACs")
+        if fs.get("parties_pct", 0) > 0:
+            parts.append(f"{fs['parties_pct']:.1f}% parties")
+        if parts:
+            lines.append(f"  Funding Sources: {', '.join(parts)}")
+
+    # Flagged expenditures
+    if analysis.expenditures:
+        es = analysis.expenditures.stats
+        if es.get("flagged_count", 0) > 0:
+            lines.append(
+                f"  Flagged Expenditures: {es['flagged_count']} items "
+                f"(${es.get('flagged_total', 0):,.2f})"
+            )
+
+    # Detailed analysis narratives
+    if analysis.industry and analysis.industry.narrative:
+        lines.extend(["", "Industry Analysis:", f"  {analysis.industry.narrative}"])
+
+    if analysis.grouped_donations and analysis.grouped_donations.narrative:
+        lines.extend(["", "Donation Patterns:", f"  {analysis.grouped_donations.narrative}"])
+
+    return lines
+
+
 def build_report_plain_text(
     report: Report,
     summary: str,
     *,
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
+    analysis: FullAnalysisResult | None = None,
+    # Deprecated: use analysis instead
+    maxed_donors_analysis=None,
 ) -> str:
-    """Build plain text content for report email."""
+    """Build plain text content for report email.
+
+    Args:
+        report: Report metadata.
+        summary: AI-generated summary text.
+        formatted_csv_url: Optional URL to formatted CSV.
+        xlsx_url: Optional URL to Excel file.
+        analysis: Full analysis result with all features.
+        maxed_donors_analysis: Deprecated, use analysis instead.
+    """
     from .reports import get_display_name
 
     display_name = get_display_name(report)
+    report_type_display = format_report_type(report.report_type)
+    period = format_period(report.coverage_start_date, report.coverage_end_date)
+    filed_date = format_date(report.receipt_date)
+
     lines = [
-        f"{display_name} - {report.report_type} Report",
+        f"{display_name} - {report_type_display} Report",
         "=" * 50,
         "",
         f"Committee: {report.committee_name}",
-        f"Report Period: {report.coverage_start_date} to {report.coverage_end_date}",
-        f"Filed: {report.receipt_date}",
+        f"Report Period: {period}",
+        f"Filed: {filed_date}",
         "",
     ]
 
@@ -136,16 +350,18 @@ def build_report_plain_text(
         ]
     )
 
+    # Add analysis section
+    lines.extend(_build_analysis_section_plain_text(analysis))
+
     if report.pdf_url or report.csv_url:
-        lines.append("Original FEC Filing:")
+        lines.extend(["", "Original FEC Filing:"])
         if report.pdf_url:
             lines.append(f"  PDF: {report.pdf_url}")
         if report.csv_url:
             lines.append(f"  CSV: {report.csv_url}")
-        lines.append("")
 
     if formatted_csv_url or xlsx_url:
-        lines.append("Processed Data:")
+        lines.extend(["", "Processed Data:"])
         if formatted_csv_url:
             lines.append(f"  CSV: {formatted_csv_url}")
         if xlsx_url:
@@ -160,16 +376,28 @@ def build_report_preview_html(
     *,
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
+    analysis: FullAnalysisResult | None = None,
+    # Deprecated: use analysis instead
+    maxed_donors_analysis=None,
 ) -> str:
     """Build HTML preview page for report (for browser viewing).
 
     Wraps the actual email HTML with a page container for centered viewing.
+
+    Args:
+        report: Report metadata.
+        summary: AI-generated summary text.
+        formatted_csv_url: Optional URL to formatted CSV.
+        xlsx_url: Optional URL to Excel file.
+        analysis: Full analysis result with all features.
+        maxed_donors_analysis: Deprecated, use analysis instead.
     """
     email_html = build_report_html(
         report,
         summary,
         formatted_csv_url=formatted_csv_url,
         xlsx_url=xlsx_url,
+        analysis=analysis,
     )
 
     return f"""<!DOCTYPE html>

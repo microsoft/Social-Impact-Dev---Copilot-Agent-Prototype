@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from azure.communication.email import EmailClient
 from azure.identity import DefaultAzureCredential
@@ -12,6 +12,9 @@ from .templates import (
     build_report_html,
     build_report_plain_text,
 )
+
+if TYPE_CHECKING:
+    from .analysis import FullAnalysisResult
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +54,7 @@ class EmailService(Protocol):
         *,
         formatted_csv_url: str | None = None,
         xlsx_url: str | None = None,
+        analysis: FullAnalysisResult | None = None,
     ) -> EmailResult: ...
 
 
@@ -128,6 +132,7 @@ class AzureEmailService:
         *,
         formatted_csv_url: str | None = None,
         xlsx_url: str | None = None,
+        analysis: FullAnalysisResult | None = None,
     ) -> EmailResult:
         """Send an email summarizing a report.
 
@@ -137,10 +142,13 @@ class AzureEmailService:
             summary: AI-generated summary text.
             formatted_csv_url: Optional URL to formatted CSV with headers.
             xlsx_url: Optional URL to Excel download.
+            analysis: Optional full analysis result with all features.
 
         Returns:
             EmailResult with success status and message ID or error.
         """
+        from fec_api_client import format_report_type
+
         from .reports import get_display_name
 
         if not recipients:
@@ -148,15 +156,24 @@ class AzureEmailService:
             return EmailResult(success=False, error="No recipients provided")
 
         html_content = build_report_html(
-            report, summary, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url
+            report,
+            summary,
+            formatted_csv_url=formatted_csv_url,
+            xlsx_url=xlsx_url,
+            analysis=analysis,
         )
         plain_text_content = build_report_plain_text(
-            report, summary, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url
+            report,
+            summary,
+            formatted_csv_url=formatted_csv_url,
+            xlsx_url=xlsx_url,
+            analysis=analysis,
         )
 
         display_name = get_display_name(report)
+        report_type_display = format_report_type(report.report_type)
         message = EmailMessage(
-            subject=f"FEC Report: {display_name} ({report.report_type})",
+            subject=f"FEC Report: {display_name} ({report_type_display})",
             html_content=html_content,
             plain_text_content=plain_text_content,
         )
