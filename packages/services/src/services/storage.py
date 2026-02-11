@@ -25,16 +25,6 @@ class BlobStorageService(Protocol):
 
     def exists(self, blob_name: str) -> bool: ...
 
-    def build_file_urls(self, files: list[dict]) -> list[str]: ...
-
-    def get_metadata(self, blob_name: str) -> dict[str, str]: ...
-
-    def set_metadata(self, blob_name: str, metadata: dict[str, str]) -> None: ...
-
-    def mark_as_processed(self, blob_name: str) -> None: ...
-
-    def is_processed(self, blob_name: str) -> bool: ...
-
 
 class AzureBlobStorageService:
     def __init__(
@@ -105,51 +95,3 @@ class AzureBlobStorageService:
             raise ValueError("container_name must be set")
         blob_client = self._client.get_blob_client(container=self.container_name, blob=blob_name)
         return blob_client.exists()
-
-    def build_file_urls(self, files: list[dict]) -> list[str]:
-        """Build public URLs for files stored in blob storage."""
-        if not self.account_url or not self.container_name:
-            return []
-
-        urls = []
-        for file in files:
-            if "blob_path" in file:
-                url = f"{self.account_url.rstrip('/')}/{self.container_name}/{file['blob_path']}"
-                urls.append(url)
-            elif "file_number" in file:
-                url = f"{self.account_url.rstrip('/')}/{self.container_name}/{file['file_number']}"
-                urls.append(url)
-        return urls
-
-    def get_metadata(self, blob_name: str) -> dict[str, str]:
-        """Get metadata for a blob."""
-        if not self.container_name:
-            raise ValueError("container_name must be set")
-        blob_client = self._client.get_blob_client(container=self.container_name, blob=blob_name)
-        properties = blob_client.get_blob_properties()
-        return properties.get("metadata", {}) or {}
-
-    def set_metadata(self, blob_name: str, metadata: dict[str, str]) -> None:
-        """Set metadata for a blob."""
-        if not self.container_name:
-            raise ValueError("container_name must be set")
-        blob_client = self._client.get_blob_client(container=self.container_name, blob=blob_name)
-        blob_client.set_blob_metadata(metadata)
-
-    def _normalize_blob_name(self, blob_name: str) -> str:
-        """Extract the blob name from a full path."""
-        return blob_name.split("/")[-1]
-
-    def mark_as_processed(self, blob_name: str) -> None:
-        """Mark a blob as processed by setting metadata."""
-        blob_name = self._normalize_blob_name(blob_name)
-        self.set_metadata(blob_name, {"processed": "true"})
-
-    def is_processed(self, blob_name: str) -> bool:
-        """Check if a blob has been marked as processed."""
-        blob_name = self._normalize_blob_name(blob_name)
-        try:
-            metadata = self.get_metadata(blob_name)
-            return metadata.get("processed") == "true"
-        except Exception:
-            return False
