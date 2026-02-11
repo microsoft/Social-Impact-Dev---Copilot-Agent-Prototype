@@ -8,84 +8,6 @@ if TYPE_CHECKING:
     from .reports import Report
 
 
-def build_filing_notification_html(
-    filing_count: int,
-    summary: str,
-    files: list[dict],
-    file_urls: list[str],
-) -> str:
-    """Build HTML email content for filing notifications."""
-    files_html = ""
-    if file_urls:
-        files_html = "<h3>Files</h3><ul>"
-        for i, url in enumerate(file_urls):
-            file = files[i] if i < len(files) else {}
-            name = file.get("committee_name", file.get("file_number", f"File {i + 1}"))
-            files_html += f'<li><a href="{url}">{name}</a></li>'
-        files_html += "</ul>"
-
-    return f"""<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-        h2 {{ color: #0066cc; }}
-        .summary {{ background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-        ul {{ padding-left: 20px; }}
-        a {{ color: #0066cc; }}
-    </style>
-</head>
-<body>
-    <h2>FEC Filing Update</h2>
-    <p><strong>{filing_count}</strong> new filing(s) have been processed.</p>
-
-    <div class="summary">
-        <h3>Summary</h3>
-        <p>{summary}</p>
-    </div>
-
-    {files_html}
-
-    <hr>
-    <p style="font-size: 12px; color: #666;">
-        This is an automated notification from the FEC Data Sync system.
-    </p>
-</body>
-</html>"""
-
-
-def build_filing_notification_plain_text(
-    filing_count: int,
-    summary: str,
-    files: list[dict],
-    file_urls: list[str],
-) -> str:
-    """Build plain text email content for filing notifications."""
-    lines = [
-        "FEC Filing Update",
-        "=" * 40,
-        "",
-        f"{filing_count} new filing(s) have been processed.",
-        "",
-        "Summary:",
-        "-" * 20,
-        summary,
-        "",
-    ]
-
-    if file_urls:
-        lines.append("Files:")
-        lines.append("-" * 20)
-        for i, url in enumerate(file_urls):
-            file = files[i] if i < len(files) else {}
-            name = file.get("committee_name", file.get("file_number", f"File {i + 1}"))
-            lines.append(f"- {name}: {url}")
-
-    lines.extend(["", "-" * 40, "This is an automated notification from the FEC Data Sync system."])
-    return "\n".join(lines)
-
-
 def _build_financials_html(report: Report) -> str:
     """Build HTML list items for financial data."""
     from .reports import get_display_name  # noqa: F401 - used in templates
@@ -104,24 +26,30 @@ def _build_financials_html(report: Report) -> str:
     return financials
 
 
-def _build_links_html(report: Report) -> str:
+def _build_links_html(pdf_url: str | None, csv_url: str | None) -> str:
     """Build HTML links for PDF and CSV downloads."""
     links = ""
-    if report.pdf_url:
-        links += f'<a href="{report.pdf_url}" style="color: #0066cc;">View PDF</a>'
-    if report.csv_url:
+    if pdf_url:
+        links += f'<a href="{pdf_url}" style="color: #0066cc;">View PDF</a>'
+    if csv_url:
         if links:
             links += " | "
-        links += f'<a href="{report.csv_url}" style="color: #0066cc;">Download CSV</a>'
+        links += f'<a href="{csv_url}" style="color: #0066cc;">Download CSV</a>'
     return links
 
 
-def build_report_html(report: Report, summary: str) -> str:
+def build_report_html(
+    report: Report,
+    summary: str,
+    *,
+    pdf_url: str | None = None,
+    csv_url: str | None = None,
+) -> str:
     """Build HTML content for report email."""
     from .reports import get_display_name
 
     financials = _build_financials_html(report)
-    links = _build_links_html(report)
+    links = _build_links_html(pdf_url, csv_url)
     period = f"{report.coverage_start_date} to {report.coverage_end_date}"
     display_name = get_display_name(report)
 
@@ -152,7 +80,13 @@ def build_report_html(report: Report, summary: str) -> str:
 </html>"""
 
 
-def build_report_plain_text(report: Report, summary: str) -> str:
+def build_report_plain_text(
+    report: Report,
+    summary: str,
+    *,
+    pdf_url: str | None = None,
+    csv_url: str | None = None,
+) -> str:
     """Build plain text content for report email."""
     from .reports import get_display_name
 
@@ -184,56 +118,33 @@ def build_report_plain_text(report: Report, summary: str) -> str:
         ]
     )
 
-    if report.pdf_url:
-        lines.append(f"PDF: {report.pdf_url}")
-    if report.csv_url:
-        lines.append(f"CSV: {report.csv_url}")
+    if pdf_url:
+        lines.append(f"PDF: {pdf_url}")
+    if csv_url:
+        lines.append(f"CSV: {csv_url}")
 
     return "\n".join(lines)
 
 
-def build_report_preview_html(report: Report, summary: str) -> str:
-    """Build HTML preview page for report (for browser viewing)."""
-    from .reports import get_display_name
+def build_report_preview_html(
+    report: Report,
+    summary: str,
+    *,
+    pdf_url: str | None = None,
+    csv_url: str | None = None,
+) -> str:
+    """Build HTML preview page for report (for browser viewing).
 
-    financials = _build_financials_html(report)
-    links = _build_links_html(report)
-    period = f"{report.coverage_start_date} to {report.coverage_end_date}"
-    display_name = get_display_name(report)
+    Wraps the actual email HTML with a page container for centered viewing.
+    """
+    email_html = build_report_html(report, summary, pdf_url=pdf_url, csv_url=csv_url)
 
     return f"""<!DOCTYPE html>
 <html>
 <head>
-    <title>FEC Report Preview: {report.committee_name}</title>
+    <title>FEC Report: {report.committee_name}</title>
     <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333;
-               max-width: 800px; margin: 40px auto; padding: 20px; }}
-        .header {{ background: #1a1a1a; color: white; padding: 20px; border-radius: 5px; }}
-        .info-box {{ background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-        .summary-box {{ background: #e8f4f8; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-        .footer {{ font-size: 12px; color: #666; border-top: 1px solid #ddd;
-                   padding-top: 20px; margin-top: 30px; }}
-        a {{ color: #0066cc; }}
+        body {{ max-width: 800px; margin: 40px auto; padding: 20px; }}
     </style>
 </head>
-<body>
-    <div class="header">
-        <h1>{display_name} - {report.report_type} Report</h1>
-        <p>Preview of email notification</p>
-    </div>
-    <div class="info-box">
-        <p><strong>Committee:</strong> {report.committee_name}</p>
-        <p><strong>Period:</strong> {period}</p>
-        <p><strong>Filed:</strong> {report.receipt_date}</p>
-    </div>
-    {"<h3>Financial Summary</h3><ul>" + financials + "</ul>" if financials else ""}
-    <h3>AI Summary</h3>
-    <div class="summary-box">
-        <p>{summary}</p>
-    </div>
-    {f"<p>{links}</p>" if links else ""}
-    <div class="footer">
-        <p>This is a preview of the automated notification from the FEC Filing Monitor.</p>
-    </div>
-</body>
-</html>"""
+{email_html[email_html.find("<body") :]}"""
