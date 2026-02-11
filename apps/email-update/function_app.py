@@ -33,6 +33,17 @@ def _build_blob_url(base_path: str, filename: str) -> str:
     return f"{BLOB_ACCOUNT_URL.rstrip('/')}/{BLOB_CONTAINER_NAME}/{base_path}/{filename}"
 
 
+def _build_download_url(req: func.HttpRequest, base_path: str, filename: str) -> str:
+    """Build a download URL through the function app."""
+    url = req.url
+    api_index = url.find("/api/")
+    if api_index >= 0:
+        base_url = url[:api_index]
+    else:
+        base_url = url.rsplit("/", 1)[0]
+    return f"{base_url}/api/download/{base_path}/{filename}"
+
+
 @app.blob_trigger(
     arg_name="report_blob",
     path="fec-filings/{committee_id}/{year_quarter}/report.json",
@@ -69,14 +80,14 @@ def process_new_report(report_blob: func.InputStream) -> None:
         logger.warning("No recipients configured, skipping email")
         return
 
-    # Build blob URLs for PDF and CSV
-    pdf_url = None
-    csv_url = None
-    if BLOB_ACCOUNT_URL and base_path:
-        if report.pdf_url:
-            pdf_url = _build_blob_url(base_path, _get_filename_from_url(report.pdf_url))
-        if report.csv_url:
-            csv_url = _build_blob_url(base_path, _get_filename_from_url(report.csv_url))
+    # Build URLs - originals from FEC, processed from our blob storage
+    formatted_csv_url = None
+    xlsx_url = None
+    if BLOB_ACCOUNT_URL and base_path and report.csv_url:
+        csv_filename = _get_filename_from_url(report.csv_url)
+        base_name = csv_filename.rsplit(".", 1)[0]
+        formatted_csv_url = _build_blob_url(base_path, f"{base_name}.csv")
+        xlsx_url = _build_blob_url(base_path, f"{base_name}.xlsx")
 
     # Initialize services
     summary_service: SummaryService = AzureOpenAISummaryService()
@@ -92,8 +103,8 @@ def process_new_report(report_blob: func.InputStream) -> None:
         recipients=recipients,
         report=report,
         summary=summary_text,
-        pdf_url=pdf_url,
-        csv_url=csv_url,
+        formatted_csv_url=formatted_csv_url,
+        xlsx_url=xlsx_url,
     )
 
     if email_result.success:
@@ -135,14 +146,14 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
         logger.error(f"Failed to read report for {committee_id}: {e}")
         return func.HttpResponse(f"Error reading report: {e}", status_code=500)
 
-    # Build blob URLs for PDF and CSV
-    pdf_url = None
-    csv_url = None
-    if BLOB_ACCOUNT_URL and base_path:
-        if report.pdf_url:
-            pdf_url = _build_blob_url(base_path, _get_filename_from_url(report.pdf_url))
-        if report.csv_url:
-            csv_url = _build_blob_url(base_path, _get_filename_from_url(report.csv_url))
+    # Build URLs for processed files (formatted CSV and XLSX)
+    formatted_csv_url = None
+    xlsx_url = None
+    if base_path and report.csv_url:
+        csv_filename = _get_filename_from_url(report.csv_url)
+        base_name = csv_filename.rsplit(".", 1)[0]
+        formatted_csv_url = _build_download_url(req, base_path, f"{base_name}.csv")
+        xlsx_url = _build_download_url(req, base_path, f"{base_name}.xlsx")
 
     # Generate AI summary
     try:
@@ -154,6 +165,57 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
         summary_text = f"New report filed by {get_display_name(report)}. (AI summary unavailable)"
 
     # Build HTML preview
-    html_content = build_report_preview_html(report, summary_text, pdf_url=pdf_url, csv_url=csv_url)
+    html_content = build_report_preview_html(
+        report, summary_text, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url
+    )
 
     return func.HttpResponse(html_content, mimetype="text/html", status_code=200)
+
+
+@app.route(
+    route="download/{committee_id}/{year_quarter}/{filename}",
+    methods=["GET"],
+    auth_level=func.AuthLevel.ANONYMOUS,
+)
+def download_file(req: func.HttpRequest) -> func.HttpResponse:
+    """Download file from blob storage.
+
+    GET /api/download/{committee_id}/{year_quarter}/{filename}
+    """
+    committee_id = req.route_params.get("committee_id")
+    year_quarter = req.route_params.get("year_quarter")
+    filename = req.route_params.get("filename")
+
+    if not committee_id or not year_quarter or not filename:
+        return func.HttpResponse("Missing path parameters", status_code=400)
+
+    blob_path = f"{committee_id}/{year_quarter}/{filename}"
+
+    # Initialize storage service
+    blob_service = AzureBlobStorageService(container_name=BLOB_CONTAINER_NAME)
+
+    try:
+        content = blob_service.download_bytes(blob_path)
+        if not content:
+            return func.HttpResponse(f"File not found: {blob_path}", status_code=404)
+
+        # Determine content type based on extension
+        content_type = "application/octet-stream"
+        if filename.endswith(".csv"):
+            content_type = "text/csv"
+        elif filename.endswith(".xlsx"):
+            content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        elif filename.endswith(".pdf"):
+            content_type = "application/pdf"
+        elif filename.endswith(".json"):
+            content_type = "application/json"
+
+        return func.HttpResponse(
+            content,
+            mimetype=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            status_code=200,
+        )
+    except Exception as e:
+        logger.error(f"Failed to download {blob_path}: {e}")
+        return func.HttpResponse(f"Error downloading file: {e}", status_code=500)

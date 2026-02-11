@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 import httpx
 from fec_api_client import FecApiClient, Filings
 
 from .constants import QUARTERLY_REPORT_TYPES
+from .format import add_headers_to_csv, create_xlsx
 from .storage import BlobStorageService
 
 logger = logging.getLogger(__name__)
@@ -105,48 +107,54 @@ class SyncService:
         return f"{committee_id}/{report_year}-{report_type}"
 
     def _process_filing(self, base_path: str, filing: Filings) -> int:
-        """Process a single filing, downloading CSV and PDF if available."""
+        """Process a single filing, downloading CSV and creating processed versions."""
         files_uploaded = 0
 
         if filing.csv_url:
-            filename = self._get_filename_from_url(filing.csv_url)
-            if self._download_and_store_file(filing.csv_url, f"{base_path}/{filename}", "text/csv"):
-                files_uploaded += 1
+            csv_content = self._download_file(filing.csv_url)
+            if csv_content:
+                filename = self._get_filename_from_url(filing.csv_url)
+                base_name = filename.rsplit(".", 1)[0]
 
-        if filing.pdf_url:
-            filename = self._get_filename_from_url(filing.pdf_url)
-            if self._download_and_store_file(
-                filing.pdf_url, f"{base_path}/{filename}", "application/pdf"
-            ):
-                files_uploaded += 1
+                # Process and upload formatted CSV and XLSX
+                xlsx_mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                for blob_path, processor, content_type in [
+                    (f"{base_path}/{base_name}.csv", add_headers_to_csv, "text/csv"),
+                    (f"{base_path}/{base_name}.xlsx", create_xlsx, xlsx_mime),
+                ]:
+                    if self._process_and_upload(csv_content, blob_path, processor, content_type):
+                        files_uploaded += 1
 
         return files_uploaded
+
+    def _process_and_upload(
+        self,
+        content: bytes,
+        blob_path: str,
+        processor: Callable[[bytes], str | bytes],
+        content_type: str,
+    ) -> bool:
+        """Process content and upload to blob storage."""
+        try:
+            processed = processor(content)
+            data = processed.encode("utf-8") if isinstance(processed, str) else processed
+            self.blob_service.upload_bytes(blob_path, data, content_type=content_type)
+            logger.info(f"Uploaded: {blob_path}")
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to process {blob_path}: {e}")
+            return False
+
+    def _download_file(self, url: str) -> bytes | None:
+        """Download a file from URL and return its content."""
+        try:
+            response = self.http_client.get(url)
+            response.raise_for_status()
+            return response.content
+        except httpx.HTTPError as e:
+            logger.warning(f"Failed to download {url}: {e}")
+            return None
 
     def _get_filename_from_url(self, url: str) -> str:
         """Extract the filename from a URL."""
         return url.rstrip("/").split("/")[-1]
-
-    def _download_and_store_file(
-        self,
-        url: str,
-        blob_path: str,
-        content_type: str,
-    ) -> bool:
-        """Download a file from URL and store in blob storage if not exists."""
-        if self.blob_service.exists(blob_path):
-            logger.debug(f"Blob already exists: {blob_path}")
-            return False
-
-        try:
-            response = self.http_client.get(url)
-            response.raise_for_status()
-            self.blob_service.upload_bytes(
-                blob_path,
-                response.content,
-                content_type=content_type,
-            )
-            logger.info(f"Uploaded: {blob_path}")
-            return True
-        except httpx.HTTPError as e:
-            logger.warning(f"Failed to download {url}: {e}")
-            return False
