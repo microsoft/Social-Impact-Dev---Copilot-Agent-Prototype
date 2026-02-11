@@ -14,7 +14,7 @@ from .templates import (
 )
 
 if TYPE_CHECKING:
-    from .analysis import AnalysisResult
+    from .analysis import FullAnalysisResult
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class EmailService(Protocol):
         *,
         formatted_csv_url: str | None = None,
         xlsx_url: str | None = None,
-        maxed_donors_analysis: AnalysisResult | None = None,
+        analysis: FullAnalysisResult | None = None,
     ) -> EmailResult: ...
 
 
@@ -132,7 +132,7 @@ class AzureEmailService:
         *,
         formatted_csv_url: str | None = None,
         xlsx_url: str | None = None,
-        maxed_donors_analysis: AnalysisResult | None = None,
+        analysis: FullAnalysisResult | None = None,
     ) -> EmailResult:
         """Send an email summarizing a report.
 
@@ -142,7 +142,7 @@ class AzureEmailService:
             summary: AI-generated summary text.
             formatted_csv_url: Optional URL to formatted CSV with headers.
             xlsx_url: Optional URL to Excel download.
-            maxed_donors_analysis: Optional maxed donors analysis result.
+            analysis: Optional full analysis result with all features.
 
         Returns:
             EmailResult with success status and message ID or error.
@@ -158,14 +158,14 @@ class AzureEmailService:
             summary,
             formatted_csv_url=formatted_csv_url,
             xlsx_url=xlsx_url,
-            maxed_donors_analysis=maxed_donors_analysis,
+            analysis=analysis,
         )
         plain_text_content = build_report_plain_text(
             report,
             summary,
             formatted_csv_url=formatted_csv_url,
             xlsx_url=xlsx_url,
-            maxed_donors_analysis=maxed_donors_analysis,
+            analysis=analysis,
         )
 
         display_name = get_display_name(report)

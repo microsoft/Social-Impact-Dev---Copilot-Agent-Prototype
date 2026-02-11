@@ -1,7 +1,12 @@
 from fec_api_client import Filings
 from fec_api_client.types import ReportTypeCode
 
-from .analysis import AnalysisResult, AnalysisService, OpenAIAnalysisService
+from .analysis import (
+    AnalysisResult,
+    AnalysisService,
+    FullAnalysisResult,
+    OpenAIAnalysisService,
+)
 from .constants import (
     ALL_REPORT_TYPES,
     FORM_TYPE_COLUMNS,
@@ -40,6 +45,7 @@ __all__ = [
     "EmailService",
     "Filings",
     "FORM_TYPE_COLUMNS",
+    "FullAnalysisResult",
     "FormatService",
     "HeaderDef",
     "OpenAIAnalysisService",

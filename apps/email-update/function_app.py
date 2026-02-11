@@ -3,12 +3,12 @@ import os
 
 import azure.functions as func
 from services import (
-    AnalysisResult,
     AnalysisService,
     AzureBlobStorageService,
     AzureEmailService,
     EmailService,
     Filings,
+    FullAnalysisResult,
     OpenAIAnalysisService,
     build_report_preview_html,
     parse_comma_list,
@@ -49,20 +49,17 @@ def _run_analysis(
     blob_service: AzureBlobStorageService,
     base_path: str,
     report: Filings,
-) -> tuple[str, AnalysisResult | None]:
-    """Run all analysis (summary + maxed donors) with caching.
+) -> FullAnalysisResult | None:
+    """Run full analysis with caching.
 
-    Downloads CSV, parses it, and runs the analysis service with caching.
+    Downloads CSV, parses it, and runs all extractors and analyzers.
 
     Returns:
-        Tuple of (summary_text, maxed_donors_analysis).
+        FullAnalysisResult with all analysis features, or None if failed.
     """
     analysis_service: AnalysisService = OpenAIAnalysisService(blob_service=blob_service)
 
-    # Generate summary (with caching)
-    summary_text = analysis_service.generate_summary(report, base_path)
-
-    # Download the CSV to parse for maxed donors analysis
+    # Download the CSV to parse for analysis
     csv_blob_path = None
     try:
         blobs = blob_service.list_blobs(prefix=f"{base_path}/")
@@ -74,28 +71,27 @@ def _run_analysis(
             csv_blob_path = csv_blobs[0]
     except Exception as e:
         logger.warning(f"Failed to find CSV blob: {e}")
-        return summary_text, None
+        return None
 
     if not csv_blob_path:
         logger.warning(f"No CSV file found in {base_path}")
-        return summary_text, None
+        return None
 
     try:
         csv_content = blob_service.download_bytes(csv_blob_path)
         if not csv_content:
             logger.warning(f"Empty CSV file: {csv_blob_path}")
-            return summary_text, None
+            return None
 
         # Parse CSV
         parsed = parse_fec_csv(csv_content)
 
-        # Run maxed donors analysis with caching
-        maxed_donors = analysis_service.analyze_maxed_donors(parsed, report, base_path)
-        return summary_text, maxed_donors
+        # Run full analysis with caching
+        return analysis_service.run_full_analysis(parsed, report, base_path)
 
     except Exception as e:
         logger.warning(f"Failed to run analysis: {e}")
-        return summary_text, None
+        return None
 
 
 @app.blob_trigger(
@@ -147,8 +143,13 @@ def process_new_report(report_blob: func.InputStream) -> None:
     blob_service = AzureBlobStorageService(container_name=BLOB_CONTAINER_NAME)
     email_service: EmailService = AzureEmailService()
 
-    # Run analysis (summary + maxed donors)
-    summary_text, maxed_donors_analysis = _run_analysis(blob_service, base_path, report)
+    # Run full analysis
+    analysis = _run_analysis(blob_service, base_path, report)
+    summary_text = (
+        analysis.summary
+        if analysis and analysis.summary
+        else f"New report filed by {report.committee_name}."
+    )
 
     # Send email
     email_result = email_service.send_report_email(
@@ -157,7 +158,7 @@ def process_new_report(report_blob: func.InputStream) -> None:
         summary=summary_text,
         formatted_csv_url=formatted_csv_url,
         xlsx_url=xlsx_url,
-        maxed_donors_analysis=maxed_donors_analysis,
+        analysis=analysis,
     )
 
     if email_result.success:
@@ -207,8 +208,13 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
         formatted_csv_url = _build_download_url(req, base_path, f"{base_name}.csv")
         xlsx_url = _build_download_url(req, base_path, f"{base_name}.xlsx")
 
-    # Run analysis (summary + maxed donors)
-    summary_text, maxed_donors_analysis = _run_analysis(blob_service, base_path, report)
+    # Run full analysis
+    analysis = _run_analysis(blob_service, base_path, report)
+    summary_text = (
+        analysis.summary
+        if analysis and analysis.summary
+        else f"New report filed by {report.committee_name}."
+    )
 
     # Build HTML preview
     html_content = build_report_preview_html(
@@ -216,7 +222,7 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
         summary_text,
         formatted_csv_url=formatted_csv_url,
         xlsx_url=xlsx_url,
-        maxed_donors_analysis=maxed_donors_analysis,
+        analysis=analysis,
     )
 
     return func.HttpResponse(html_content, mimetype="text/html", status_code=200)
@@ -287,8 +293,13 @@ def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
         formatted_csv_url = _build_blob_url(base_path, f"{base_name}.csv")
         xlsx_url = _build_blob_url(base_path, f"{base_name}.xlsx")
 
-    # Run analysis (summary + maxed donors)
-    summary_text, maxed_donors_analysis = _run_analysis(blob_service, base_path, report)
+    # Run full analysis
+    analysis = _run_analysis(blob_service, base_path, report)
+    summary_text = (
+        analysis.summary
+        if analysis and analysis.summary
+        else f"New report filed by {report.committee_name}."
+    )
 
     # Send email
     try:
@@ -299,7 +310,7 @@ def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
             summary=summary_text,
             formatted_csv_url=formatted_csv_url,
             xlsx_url=xlsx_url,
-            maxed_donors_analysis=maxed_donors_analysis,
+            analysis=analysis,
         )
 
         if email_result.success:
