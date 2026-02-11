@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import json
 import logging
 
 import httpx
-from fec_api_client import FecApiClient
+from fec_api_client import FecApiClient, Filings
 
 from .constants import QUARTERLY_REPORT_TYPES
 from .storage import BlobStorageService
@@ -31,27 +30,27 @@ class SyncService:
         self.report_types = report_types
         self.api_key = api_key
 
-    def sync_reports(self) -> dict[str, dict | None]:
+    def sync_reports(self) -> dict[str, Filings | None]:
         """Fetch and store the latest quarterly report for each configured committee.
 
         Returns:
-            Dict mapping committee_id to their latest report data (or None if not found).
+            Dict mapping committee_id to their latest Filings (or None if not found).
         """
         if not self.committee_ids:
             logger.warning("No committee IDs configured")
             return {}
 
         self.blob_service.ensure_container_exists()
-        results: dict[str, dict | None] = {}
+        results: dict[str, Filings | None] = {}
 
         for committee_id in self.committee_ids:
-            report = self._fetch_latest_report(committee_id)
+            filing = self._fetch_latest_report(committee_id)
 
-            if not report:
+            if not filing:
                 results[committee_id] = None
                 continue
 
-            base_path = self._get_report_path(committee_id, report)
+            base_path = self._get_report_path(committee_id, filing)
             blob_path = f"{base_path}/report.json"
 
             if self.blob_service.exists(blob_path):
@@ -61,17 +60,17 @@ class SyncService:
 
             self.blob_service.upload_bytes(
                 blob_path,
-                json.dumps(report).encode(),
+                filing.to_json().encode(),
                 content_type="application/json",
             )
             logger.info(f"Stored report for {committee_id}: {blob_path}")
 
-            self._process_filing(base_path, report)
-            results[committee_id] = report
+            self._process_filing(base_path, filing)
+            results[committee_id] = filing
 
         return results
 
-    def _fetch_latest_report(self, committee_id: str) -> dict | None:
+    def _fetch_latest_report(self, committee_id: str) -> Filings | None:
         """Fetch the latest quarterly report for a committee."""
         report_types = self.report_types or list(QUARTERLY_REPORT_TYPES)
 
@@ -93,32 +92,32 @@ class SyncService:
                 logger.info(f"No quarterly report found for {committee_id}")
                 return None
 
-            return results[0]
+            return Filings.from_dict(results[0])
 
         except Exception as e:
             logger.error(f"Failed to fetch report for {committee_id}: {e}")
             return None
 
-    def _get_report_path(self, committee_id: str, report: dict) -> str:
+    def _get_report_path(self, committee_id: str, filing: Filings) -> str:
         """Build the base path for a report: {committee_id}/{year}-{report_type}."""
-        report_year = report.get("report_year", "unknown")
-        report_type = report.get("report_type", "unknown")
+        report_year = filing.report_year or "unknown"
+        report_type = filing.report_type or "unknown"
         return f"{committee_id}/{report_year}-{report_type}"
 
-    def _process_filing(self, base_path: str, filing: dict) -> int:
+    def _process_filing(self, base_path: str, filing: Filings) -> int:
         """Process a single filing, downloading CSV and PDF if available."""
         files_uploaded = 0
 
-        csv_url = filing.get("csv_url")
-        if csv_url:
-            filename = self._get_filename_from_url(csv_url)
-            if self._download_and_store_file(csv_url, f"{base_path}/{filename}", "text/csv"):
+        if filing.csv_url:
+            filename = self._get_filename_from_url(filing.csv_url)
+            if self._download_and_store_file(filing.csv_url, f"{base_path}/{filename}", "text/csv"):
                 files_uploaded += 1
 
-        pdf_url = filing.get("pdf_url")
-        if pdf_url:
-            filename = self._get_filename_from_url(pdf_url)
-            if self._download_and_store_file(pdf_url, f"{base_path}/{filename}", "application/pdf"):
+        if filing.pdf_url:
+            filename = self._get_filename_from_url(filing.pdf_url)
+            if self._download_and_store_file(
+                filing.pdf_url, f"{base_path}/{filename}", "application/pdf"
+            ):
                 files_uploaded += 1
 
         return files_uploaded

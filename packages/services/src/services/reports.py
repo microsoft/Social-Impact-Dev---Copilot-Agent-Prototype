@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass
+
+from fec_api_client import Filings
 
 from .email import EmailService
 from .storage import BlobStorageService
@@ -10,58 +11,26 @@ from .summary import SummaryService
 
 logger = logging.getLogger(__name__)
 
+# Type alias - Report is a Filings object
+Report = Filings
 
-@dataclass
-class QuarterlyReport:
-    """A committee's quarterly campaign finance report (FEC Form 3)."""
 
-    committee_id: str
-    candidate_name: str
-    committee_name: str
-    report_type: str
-    coverage_start_date: str
-    coverage_end_date: str
-    receipt_date: str
-    filing_id: str
-    form_type: str
-    csv_url: str | None
-    pdf_url: str | None
-    total_receipts: float | None = None
-    total_disbursements: float | None = None
-    cash_on_hand: float | None = None
-
-    @classmethod
-    def from_filing(cls, filing: dict, committee_id: str) -> QuarterlyReport:
-        """Create from FEC filing data."""
-        return cls(
-            committee_id=committee_id,
-            candidate_name=filing.get("candidate_name") or "Unknown",
-            committee_name=filing.get("committee_name") or "Unknown",
-            report_type=filing.get("report_type", ""),
-            coverage_start_date=filing.get("coverage_start_date", ""),
-            coverage_end_date=filing.get("coverage_end_date", ""),
-            receipt_date=filing.get("receipt_date", ""),
-            filing_id=str(filing.get("file_number", "")),
-            form_type=filing.get("form_type", ""),
-            csv_url=filing.get("csv_url"),
-            pdf_url=filing.get("pdf_url"),
-            total_receipts=filing.get("total_receipts"),
-            total_disbursements=filing.get("total_disbursements"),
-            cash_on_hand=filing.get("cash_on_hand_end_period"),
-        )
+def get_display_name(report: Report) -> str:
+    """Get display name for a report (candidate_name with committee_name fallback)."""
+    return report.candidate_name or report.committee_name or "Unknown"
 
 
 @dataclass
 class ProcessingResult:
-    """Result of processing quarterly reports."""
+    """Result of processing reports."""
 
     committees_processed: int
     emails_sent: int
     errors: list[str]
 
 
-class QuarterlyReportService:
-    """Service for reading and processing quarterly reports from blob storage."""
+class ReportService:
+    """Service for reading and processing FEC reports from blob storage."""
 
     def __init__(
         self,
@@ -117,7 +86,7 @@ class QuarterlyReportService:
         result.committees_processed += 1
 
         summary = self._generate_summary(report)
-        email_result = self.email_service.send_quarterly_report_email(
+        email_result = self.email_service.send_report_email(
             recipients=recipients,
             report=report,
             summary=summary,
@@ -129,7 +98,7 @@ class QuarterlyReportService:
         else:
             result.errors.append(f"Email failed for {committee_id}: {email_result.error}")
 
-    def _read_report_from_storage(self, committee_id: str) -> QuarterlyReport | None:
+    def _read_report_from_storage(self, committee_id: str) -> Report | None:
         """Read a committee's report from blob storage."""
         blob_path = f"reports/{committee_id}.json"
 
@@ -138,16 +107,15 @@ class QuarterlyReportService:
             if not data:
                 return None
 
-            filing = json.loads(data)
-            return QuarterlyReport.from_filing(filing, committee_id)
+            return Filings.from_json(data.decode("utf-8"))
 
         except Exception as e:
             logger.error(f"Failed to read report for {committee_id}: {e}")
             return None
 
-    def _generate_summary(self, report: QuarterlyReport) -> str:
+    def _generate_summary(self, report: Report) -> str:
         """Generate AI summary for a report, with fallback."""
-        summary_result = self.summary_service.generate_quarterly_summary(report)
+        summary_result = self.summary_service.generate_summary(report)
         if summary_result.success and summary_result.summary:
             return summary_result.summary
         return f"{report.report_type} report filed on {report.receipt_date}."

@@ -11,8 +11,8 @@ from azure.identity import DefaultAzureCredential
 from .templates import (
     build_filing_notification_html,
     build_filing_notification_plain_text,
-    build_quarterly_report_html,
-    build_quarterly_report_plain_text,
+    build_report_html,
+    build_report_plain_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class EmailService(Protocol):
         file_urls: list[str],
     ) -> EmailResult: ...
 
-    def send_quarterly_report_email(
+    def send_report_email(
         self,
         recipients: list[str],
         report: Any,
@@ -171,31 +171,34 @@ class AzureEmailService:
 
         return self.send_email(recipients, message)
 
-    def send_quarterly_report_email(
+    def send_report_email(
         self,
         recipients: list[str],
         report,
         summary: str,
     ) -> EmailResult:
-        """Send an email summarizing a quarterly report.
+        """Send an email summarizing a report.
 
         Args:
             recipients: List of email addresses to send to.
-            report: QuarterlyReport object with filing details.
+            report: Report (Filings) object with filing details.
             summary: AI-generated summary text.
 
         Returns:
             EmailResult with success status and message ID or error.
         """
+        from .reports import get_display_name
+
         if not recipients:
             logger.warning("No recipients provided, skipping email")
             return EmailResult(success=False, error="No recipients provided")
 
-        html_content = build_quarterly_report_html(report, summary)
-        plain_text_content = build_quarterly_report_plain_text(report, summary)
+        html_content = build_report_html(report, summary)
+        plain_text_content = build_report_plain_text(report, summary)
 
+        display_name = get_display_name(report)
         message = EmailMessage(
-            subject=f"FEC Quarterly Report: {report.candidate_name} ({report.report_type})",
+            subject=f"FEC Report: {display_name} ({report.report_type})",
             html_content=html_content,
             plain_text_content=plain_text_content,
         )

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .quarterly_reports import QuarterlyReport
+    from .reports import Report
 
 
 def build_filing_notification_html(
@@ -86,8 +86,10 @@ def build_filing_notification_plain_text(
     return "\n".join(lines)
 
 
-def _build_quarterly_financials_html(report: QuarterlyReport) -> str:
+def _build_financials_html(report: Report) -> str:
     """Build HTML list items for financial data."""
+    from .reports import get_display_name  # noqa: F401 - used in templates
+
     financials = ""
     if report.total_receipts is not None:
         financials += f"<li><strong>Total Receipts:</strong> ${report.total_receipts:,.2f}</li>"
@@ -95,12 +97,14 @@ def _build_quarterly_financials_html(report: QuarterlyReport) -> str:
         financials += (
             f"<li><strong>Total Disbursements:</strong> ${report.total_disbursements:,.2f}</li>"
         )
-    if report.cash_on_hand is not None:
-        financials += f"<li><strong>Cash on Hand:</strong> ${report.cash_on_hand:,.2f}</li>"
+    if report.cash_on_hand_end_period is not None:
+        financials += (
+            f"<li><strong>Cash on Hand:</strong> ${report.cash_on_hand_end_period:,.2f}</li>"
+        )
     return financials
 
 
-def _build_quarterly_links_html(report: QuarterlyReport) -> str:
+def _build_links_html(report: Report) -> str:
     """Build HTML links for PDF and CSV downloads."""
     links = ""
     if report.pdf_url:
@@ -112,15 +116,18 @@ def _build_quarterly_links_html(report: QuarterlyReport) -> str:
     return links
 
 
-def build_quarterly_report_html(report: QuarterlyReport, summary: str) -> str:
-    """Build HTML content for quarterly report email."""
-    financials = _build_quarterly_financials_html(report)
-    links = _build_quarterly_links_html(report)
+def build_report_html(report: Report, summary: str) -> str:
+    """Build HTML content for report email."""
+    from .reports import get_display_name
+
+    financials = _build_financials_html(report)
+    links = _build_links_html(report)
     period = f"{report.coverage_start_date} to {report.coverage_end_date}"
+    display_name = get_display_name(report)
 
     return f"""<html>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-    <h2 style="color: #1a1a1a;">{report.candidate_name} - {report.report_type} Report</h2>
+    <h2 style="color: #1a1a1a;">{display_name} - {report.report_type} Report</h2>
 
     <div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
         <p><strong>Committee:</strong> {report.committee_name}</p>
@@ -145,10 +152,13 @@ def build_quarterly_report_html(report: QuarterlyReport, summary: str) -> str:
 </html>"""
 
 
-def build_quarterly_report_plain_text(report: QuarterlyReport, summary: str) -> str:
-    """Build plain text content for quarterly report email."""
+def build_report_plain_text(report: Report, summary: str) -> str:
+    """Build plain text content for report email."""
+    from .reports import get_display_name
+
+    display_name = get_display_name(report)
     lines = [
-        f"{report.candidate_name} - {report.report_type} Report",
+        f"{display_name} - {report.report_type} Report",
         "=" * 50,
         "",
         f"Committee: {report.committee_name}",
@@ -161,8 +171,8 @@ def build_quarterly_report_plain_text(report: QuarterlyReport, summary: str) -> 
         lines.append(f"Total Receipts: ${report.total_receipts:,.2f}")
     if report.total_disbursements is not None:
         lines.append(f"Total Disbursements: ${report.total_disbursements:,.2f}")
-    if report.cash_on_hand is not None:
-        lines.append(f"Cash on Hand: ${report.cash_on_hand:,.2f}")
+    if report.cash_on_hand_end_period is not None:
+        lines.append(f"Cash on Hand: ${report.cash_on_hand_end_period:,.2f}")
 
     lines.extend(
         [
@@ -182,11 +192,14 @@ def build_quarterly_report_plain_text(report: QuarterlyReport, summary: str) -> 
     return "\n".join(lines)
 
 
-def build_quarterly_report_preview_html(report: QuarterlyReport, summary: str) -> str:
-    """Build HTML preview page for quarterly report (for browser viewing)."""
-    financials = _build_quarterly_financials_html(report)
-    links = _build_quarterly_links_html(report)
+def build_report_preview_html(report: Report, summary: str) -> str:
+    """Build HTML preview page for report (for browser viewing)."""
+    from .reports import get_display_name
+
+    financials = _build_financials_html(report)
+    links = _build_links_html(report)
     period = f"{report.coverage_start_date} to {report.coverage_end_date}"
+    display_name = get_display_name(report)
 
     return f"""<!DOCTYPE html>
 <html>
@@ -205,7 +218,7 @@ def build_quarterly_report_preview_html(report: QuarterlyReport, summary: str) -
 </head>
 <body>
     <div class="header">
-        <h1>{report.candidate_name} - {report.report_type} Report</h1>
+        <h1>{display_name} - {report.report_type} Report</h1>
         <p>Preview of email notification</p>
     </div>
     <div class="info-box">

@@ -1,3 +1,4 @@
+from fec_api_client import Filings
 from fec_api_client.types import ReportTypeCode
 
 from .constants import ALL_REPORT_TYPES, QUARTERLY_REPORT_TYPES
@@ -7,15 +8,16 @@ from .email import (
     EmailResult,
     EmailService,
 )
-from .quarterly_reports import (
+from .reports import (
     ProcessingResult,
-    QuarterlyReport,
-    QuarterlyReportService,
+    Report,
+    ReportService,
+    get_display_name,
 )
 from .storage import AzureBlobStorageService, BlobStorageService
 from .summary import AzureOpenAISummaryService, SummaryResult, SummaryService
 from .sync import SyncService
-from .templates import build_quarterly_report_preview_html
+from .templates import build_report_preview_html
 from .utils import parse_comma_list
 
 __all__ = [
@@ -27,14 +29,16 @@ __all__ = [
     "EmailMessage",
     "EmailResult",
     "EmailService",
+    "Filings",
     "ProcessingResult",
     "QUARTERLY_REPORT_TYPES",
-    "QuarterlyReport",
-    "QuarterlyReportService",
+    "Report",
+    "ReportService",
     "ReportTypeCode",
     "SummaryResult",
     "SummaryService",
     "SyncService",
-    "build_quarterly_report_preview_html",
+    "build_report_preview_html",
+    "get_display_name",
     "parse_comma_list",
 ]
