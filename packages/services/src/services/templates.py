@@ -47,9 +47,7 @@ def _build_links_html(
     # Processed files
     processed_links = []
     if formatted_csv_url:
-        processed_links.append(
-            f'<a href="{formatted_csv_url}" style="color: #0066cc;">CSV (with headers)</a>'
-        )
+        processed_links.append(f'<a href="{formatted_csv_url}" style="color: #0066cc;">CSV</a>')
     if xlsx_url:
         processed_links.append(f'<a href="{xlsx_url}" style="color: #0066cc;">Excel</a>')
     if processed_links:
@@ -149,7 +147,7 @@ def build_report_plain_text(
     if formatted_csv_url or xlsx_url:
         lines.append("Processed Data:")
         if formatted_csv_url:
-            lines.append(f"  CSV (with headers): {formatted_csv_url}")
+            lines.append(f"  CSV: {formatted_csv_url}")
         if xlsx_url:
             lines.append(f"  Excel: {xlsx_url}")
 
