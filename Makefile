@@ -1,4 +1,4 @@
-.PHONY: help install lint test build azurite-start azurite-stop run-data-sync run-email-update clean az-register-providers build-data-sync build-email-update build-functions deploy-infra deploy-data-sync deploy-email-update deploy-all demo
+.PHONY: help install lint test build azurite-start azurite-stop run-data-sync run-email-update clean az-register-providers build-data-sync build-email-update build-functions deploy-infra deploy-data-sync deploy-email-update deploy-all demo-sync demo-email
 
 VENV_PATH := $(shell pwd)/.venv/bin
 AZURITE_CONN := DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;
@@ -18,7 +18,8 @@ help:
 	@echo "  test                 Run tests"
 	@echo ""
 	@echo "Local Testing:"
-	@echo "  demo                 Run demo data sync (requires local.settings.json)"
+	@echo "  demo-sync            Run data-sync function (syncs FEC reports)"
+	@echo "  demo-email           Run email-update function (preview summaries)"
 	@echo "  azurite-start        Start Azurite (Azure Storage emulator)"
 	@echo "  azurite-stop         Stop Azurite"
 	@echo "  run-data-sync        Run data-sync function locally"
@@ -78,7 +79,7 @@ azurite-stop:
 	@echo "Azurite stopped"
 
 # Demo: sync FEC committee quarterly reports
-demo:
+demo-sync:
 	@echo "=== FEC Data Sync Demo ==="
 	@# Start Azurite if not running
 	@pgrep -f azurite > /dev/null || (echo "Starting Azurite..." && make azurite-start)
@@ -93,6 +94,23 @@ demo:
 	@echo "Once running, trigger sync at: http://localhost:7071/api/sync"
 	@echo ""
 	@cd apps/data-sync && PATH="$(VENV_PATH):$$PATH" func start
+
+# Demo: email preview with AI summaries
+demo-email:
+	@echo "=== FEC Email Preview Demo ==="
+	@# Start Azurite if not running
+	@pgrep -f azurite > /dev/null || (echo "Starting Azurite..." && make azurite-start)
+	@# Require existing local.settings.json
+	@if [ ! -f apps/email-update/local.settings.json ]; then \
+		echo "Error: apps/email-update/local.settings.json not found."; \
+		echo "Copy from local.settings.json.example and configure your settings."; \
+		exit 1; \
+	fi
+	@echo "Using apps/email-update/local.settings.json"
+	@echo "Starting function app..."
+	@echo "Once running, preview email at: http://localhost:7072/api/preview/{committee_id}"
+	@echo ""
+	@cd apps/email-update && PATH="$(VENV_PATH):$$PATH" func start --port 7072
 
 # Run data-sync function locally
 run-data-sync: _check-azurite
