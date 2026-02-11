@@ -116,17 +116,10 @@ class SyncService:
                 filename = self._get_filename_from_url(filing.csv_url)
                 base_name = filename.rsplit(".", 1)[0]
 
-                # Upload raw CSV as-is
-                self.blob_service.upload_bytes(
-                    f"{base_path}/{filename}", csv_content, content_type="text/csv"
-                )
-                logger.info(f"Uploaded raw CSV: {base_path}/{filename}")
-                files_uploaded += 1
-
                 # Process and upload formatted CSV and XLSX
                 xlsx_mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 for blob_path, processor, content_type in [
-                    (f"{base_path}/{base_name}_formatted.csv", add_headers_to_csv, "text/csv"),
+                    (f"{base_path}/{base_name}.csv", add_headers_to_csv, "text/csv"),
                     (f"{base_path}/{base_name}.xlsx", create_xlsx, xlsx_mime),
                 ]:
                     if self._process_and_upload(csv_content, blob_path, processor, content_type):
@@ -165,28 +158,3 @@ class SyncService:
     def _get_filename_from_url(self, url: str) -> str:
         """Extract the filename from a URL."""
         return url.rstrip("/").split("/")[-1]
-
-    def _download_and_store_file(
-        self,
-        url: str,
-        blob_path: str,
-        content_type: str,
-    ) -> bool:
-        """Download a file from URL and store in blob storage if not exists."""
-        if self.blob_service.exists(blob_path):
-            logger.debug(f"Blob already exists: {blob_path}")
-            return False
-
-        try:
-            response = self.http_client.get(url)
-            response.raise_for_status()
-            self.blob_service.upload_bytes(
-                blob_path,
-                response.content,
-                content_type=content_type,
-            )
-            logger.info(f"Uploaded: {blob_path}")
-            return True
-        except httpx.HTTPError as e:
-            logger.warning(f"Failed to download {url}: {e}")
-            return False

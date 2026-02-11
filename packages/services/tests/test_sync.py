@@ -173,51 +173,6 @@ def test_sync_reports_downloads_files(mock_fec_client, mock_blob_service, mock_h
     assert mock_http_client.get.call_count == 1
 
 
-# _download_and_store_file tests
-
-
-def test_download_skips_existing_blob(mock_fec_client, mock_blob_service, mock_http_client):
-    service = SyncService(
-        fec_client=mock_fec_client,
-        blob_service=mock_blob_service,
-        http_client=mock_http_client,
-    )
-    mock_blob_service.exists.return_value = True
-    result = service._download_and_store_file(
-        "https://example.com/file.csv",
-        "filings/123/123.csv",
-        "text/csv",
-    )
-    assert result is False
-    mock_http_client.get.assert_not_called()
-
-
-def test_download_stores_new_file(mock_fec_client, mock_blob_service, mock_http_client):
-    service = SyncService(
-        fec_client=mock_fec_client,
-        blob_service=mock_blob_service,
-        http_client=mock_http_client,
-    )
-    mock_blob_service.exists.return_value = False
-    mock_response = Mock()
-    mock_response.content = b"csv,data"
-    mock_http_client.get.return_value = mock_response
-
-    result = service._download_and_store_file(
-        "https://example.com/file.csv",
-        "filings/123/123.csv",
-        "text/csv",
-    )
-
-    assert result is True
-    mock_http_client.get.assert_called_once_with("https://example.com/file.csv")
-    mock_blob_service.upload_bytes.assert_called_once_with(
-        "filings/123/123.csv",
-        b"csv,data",
-        content_type="text/csv",
-    )
-
-
 # _process_filing tests
 
 
@@ -262,6 +217,6 @@ def test_process_filing_with_csv_and_pdf(mock_fec_client, mock_blob_service, moc
     )
 
     result = service._process_filing("C00123456/2024-Q1", filing)
-    # 3 files: raw CSV, formatted CSV, XLSX (PDF uses original FEC URL)
-    assert result == 3
+    # 2 files: formatted CSV and XLSX (PDF/raw CSV use original FEC URL)
+    assert result == 2
     assert mock_http_client.get.call_count == 1

@@ -86,7 +86,7 @@ def process_new_report(report_blob: func.InputStream) -> None:
     if BLOB_ACCOUNT_URL and base_path and report.csv_url:
         csv_filename = _get_filename_from_url(report.csv_url)
         base_name = csv_filename.rsplit(".", 1)[0]
-        formatted_csv_url = _build_blob_url(base_path, f"{base_name}_formatted.csv")
+        formatted_csv_url = _build_blob_url(base_path, f"{base_name}.csv")
         xlsx_url = _build_blob_url(base_path, f"{base_name}.xlsx")
 
     # Initialize services
@@ -152,7 +152,7 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
     if base_path and report.csv_url:
         csv_filename = _get_filename_from_url(report.csv_url)
         base_name = csv_filename.rsplit(".", 1)[0]
-        formatted_csv_url = _build_download_url(req, base_path, f"{base_name}_formatted.csv")
+        formatted_csv_url = _build_download_url(req, base_path, f"{base_name}.csv")
         xlsx_url = _build_download_url(req, base_path, f"{base_name}.xlsx")
 
     # Generate AI summary
@@ -196,14 +196,6 @@ def download_file(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         content = blob_service.download_bytes(blob_path)
-
-        # Fallback: if formatted CSV doesn't exist, try raw CSV
-        if not content and filename.endswith("_formatted.csv"):
-            raw_filename = filename.replace("_formatted.csv", ".csv")
-            blob_path = f"{committee_id}/{year_quarter}/{raw_filename}"
-            content = blob_service.download_bytes(blob_path)
-            filename = raw_filename
-
         if not content:
             return func.HttpResponse(f"File not found: {blob_path}", status_code=404)
 
