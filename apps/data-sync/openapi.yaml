@@ -1,0 +1,62 @@
+openapi: 3.0.3
+info:
+  title: FEC Data Sync API
+  description: API for syncing FEC filings data from the FEC API to blob storage
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:7071/api
+    description: Local development
+  - url: https://{function-app-name}.azurewebsites.net/api
+    description: Azure Function App
+
+paths:
+  /sync:
+    post:
+      summary: Manually trigger FEC data sync
+      description: |
+        Triggers a sync of FEC filings for configured committees.
+        Downloads the latest quarterly reports from the FEC API and stores them in blob storage.
+
+        This endpoint requires a function key for authentication.
+      operationId: manualSync
+      security:
+        - functionKey: []
+      responses:
+        '200':
+          description: Sync completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  synced:
+                    type: object
+                    description: Map of committee IDs to sync status (true if synced)
+                    additionalProperties:
+                      type: boolean
+                    example:
+                      C00718866: true
+                      C00123456: false
+                  total_synced:
+                    type: integer
+                    description: Number of committees successfully synced
+                    example: 1
+        '400':
+          description: Configuration error (missing FEC_API_KEY or FEC_COMMITTEE_IDS)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "FEC_API_KEY is required"
+
+components:
+  securitySchemes:
+    functionKey:
+      type: apiKey
+      in: query
+      name: code
+      description: Azure Function key for authentication
