@@ -2,6 +2,7 @@ from fec_api_client import Filings
 from fec_api_client.types import ReportTypeCode
 
 from .constants import ALL_REPORT_TYPES, QUARTERLY_REPORT_TYPES
+from .csv_service import add_headers_to_csv, create_xlsx, parse_fec_csv
 from .email import (
     AzureEmailService,
     EmailMessage,
@@ -38,7 +39,10 @@ __all__ = [
     "SummaryResult",
     "SummaryService",
     "SyncService",
+    "add_headers_to_csv",
     "build_report_preview_html",
+    "create_xlsx",
     "get_display_name",
     "parse_comma_list",
+    "parse_fec_csv",
 ]

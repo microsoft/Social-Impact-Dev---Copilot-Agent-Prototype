@@ -169,8 +169,8 @@ def test_sync_reports_downloads_files(mock_fec_client, mock_blob_service, mock_h
 
     service.sync_reports()
 
-    # Should download CSV and PDF
-    assert mock_http_client.get.call_count == 2
+    # Should download CSV only (PDF uses original FEC URL)
+    assert mock_http_client.get.call_count == 1
 
 
 # _download_and_store_file tests
@@ -239,8 +239,18 @@ def test_process_filing_with_csv_and_pdf(mock_fec_client, mock_blob_service, moc
         http_client=mock_http_client,
     )
     mock_blob_service.exists.return_value = False
+
+    # Mock CSV response with valid FEC CSV content
+    csv_content = (
+        b'"HDR","FEC","8.0","Test","1.0","",""\n'
+        b'"SA11AI","C00123456","TX001","","","IND","","DOE","JOHN","","","","123 MAIN ST",'
+        b'"","CITY","TX","12345","P2024","","20240101","100.00","100.00","","CONTRIBUTION",'
+        b'"ACME","ENGINEER","","","","","","","","","","","","","","","","",""'
+    )
+
     mock_response = Mock()
-    mock_response.content = b"data"
+    mock_response.content = csv_content
+    mock_response.raise_for_status = Mock()
     mock_http_client.get.return_value = mock_response
 
     filing = Filings.from_dict(
@@ -252,5 +262,6 @@ def test_process_filing_with_csv_and_pdf(mock_fec_client, mock_blob_service, moc
     )
 
     result = service._process_filing("C00123456/2024-Q1", filing)
-    assert result == 2
-    assert mock_http_client.get.call_count == 2
+    # 3 files: raw CSV, formatted CSV, XLSX (PDF uses original FEC URL)
+    assert result == 3
+    assert mock_http_client.get.call_count == 1

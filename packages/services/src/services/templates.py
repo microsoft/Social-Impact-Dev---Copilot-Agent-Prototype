@@ -26,30 +26,50 @@ def _build_financials_html(report: Report) -> str:
     return financials
 
 
-def _build_links_html(pdf_url: str | None, csv_url: str | None) -> str:
-    """Build HTML links for PDF and CSV downloads."""
-    links = ""
-    if pdf_url:
-        links += f'<a href="{pdf_url}" style="color: #0066cc;">View PDF</a>'
-    if csv_url:
-        if links:
-            links += " | "
-        links += f'<a href="{csv_url}" style="color: #0066cc;">Download CSV</a>'
-    return links
+def _build_links_html(
+    report: Report,
+    *,
+    formatted_csv_url: str | None = None,
+    xlsx_url: str | None = None,
+) -> str:
+    """Build HTML links for original FEC files and processed downloads."""
+    sections = []
+
+    # Original FEC files (from report object)
+    fec_links = []
+    if report.pdf_url:
+        fec_links.append(f'<a href="{report.pdf_url}" style="color: #0066cc;">PDF</a>')
+    if report.csv_url:
+        fec_links.append(f'<a href="{report.csv_url}" style="color: #0066cc;">CSV</a>')
+    if fec_links:
+        sections.append(f"<strong>Original FEC Filing:</strong> {' | '.join(fec_links)}")
+
+    # Processed files
+    processed_links = []
+    if formatted_csv_url:
+        processed_links.append(
+            f'<a href="{formatted_csv_url}" style="color: #0066cc;">CSV (with headers)</a>'
+        )
+    if xlsx_url:
+        processed_links.append(f'<a href="{xlsx_url}" style="color: #0066cc;">Excel</a>')
+    if processed_links:
+        sections.append(f"<strong>Processed Data:</strong> {' | '.join(processed_links)}")
+
+    return "<br>".join(sections)
 
 
 def build_report_html(
     report: Report,
     summary: str,
     *,
-    pdf_url: str | None = None,
-    csv_url: str | None = None,
+    formatted_csv_url: str | None = None,
+    xlsx_url: str | None = None,
 ) -> str:
     """Build HTML content for report email."""
     from .reports import get_display_name
 
     financials = _build_financials_html(report)
-    links = _build_links_html(pdf_url, csv_url)
+    links = _build_links_html(report, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url)
     period = f"{report.coverage_start_date} to {report.coverage_end_date}"
     display_name = get_display_name(report)
 
@@ -84,8 +104,8 @@ def build_report_plain_text(
     report: Report,
     summary: str,
     *,
-    pdf_url: str | None = None,
-    csv_url: str | None = None,
+    formatted_csv_url: str | None = None,
+    xlsx_url: str | None = None,
 ) -> str:
     """Build plain text content for report email."""
     from .reports import get_display_name
@@ -118,10 +138,20 @@ def build_report_plain_text(
         ]
     )
 
-    if pdf_url:
-        lines.append(f"PDF: {pdf_url}")
-    if csv_url:
-        lines.append(f"CSV: {csv_url}")
+    if report.pdf_url or report.csv_url:
+        lines.append("Original FEC Filing:")
+        if report.pdf_url:
+            lines.append(f"  PDF: {report.pdf_url}")
+        if report.csv_url:
+            lines.append(f"  CSV: {report.csv_url}")
+        lines.append("")
+
+    if formatted_csv_url or xlsx_url:
+        lines.append("Processed Data:")
+        if formatted_csv_url:
+            lines.append(f"  CSV (with headers): {formatted_csv_url}")
+        if xlsx_url:
+            lines.append(f"  Excel: {xlsx_url}")
 
     return "\n".join(lines)
 
@@ -130,14 +160,19 @@ def build_report_preview_html(
     report: Report,
     summary: str,
     *,
-    pdf_url: str | None = None,
-    csv_url: str | None = None,
+    formatted_csv_url: str | None = None,
+    xlsx_url: str | None = None,
 ) -> str:
     """Build HTML preview page for report (for browser viewing).
 
     Wraps the actual email HTML with a page container for centered viewing.
     """
-    email_html = build_report_html(report, summary, pdf_url=pdf_url, csv_url=csv_url)
+    email_html = build_report_html(
+        report,
+        summary,
+        formatted_csv_url=formatted_csv_url,
+        xlsx_url=xlsx_url,
+    )
 
     return f"""<!DOCTYPE html>
 <html>

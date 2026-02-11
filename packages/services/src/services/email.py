@@ -49,8 +49,8 @@ class EmailService(Protocol):
         report: Any,
         summary: str,
         *,
-        pdf_url: str | None = None,
-        csv_url: str | None = None,
+        formatted_csv_url: str | None = None,
+        xlsx_url: str | None = None,
     ) -> EmailResult: ...
 
 
@@ -126,8 +126,8 @@ class AzureEmailService:
         report,
         summary: str,
         *,
-        pdf_url: str | None = None,
-        csv_url: str | None = None,
+        formatted_csv_url: str | None = None,
+        xlsx_url: str | None = None,
     ) -> EmailResult:
         """Send an email summarizing a report.
 
@@ -135,8 +135,8 @@ class AzureEmailService:
             recipients: List of email addresses to send to.
             report: Report (Filings) object with filing details.
             summary: AI-generated summary text.
-            pdf_url: Optional blob URL for PDF download.
-            csv_url: Optional blob URL for CSV download.
+            formatted_csv_url: Optional URL to formatted CSV with headers.
+            xlsx_url: Optional URL to Excel download.
 
         Returns:
             EmailResult with success status and message ID or error.
@@ -147,9 +147,11 @@ class AzureEmailService:
             logger.warning("No recipients provided, skipping email")
             return EmailResult(success=False, error="No recipients provided")
 
-        html_content = build_report_html(report, summary, pdf_url=pdf_url, csv_url=csv_url)
+        html_content = build_report_html(
+            report, summary, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url
+        )
         plain_text_content = build_report_plain_text(
-            report, summary, pdf_url=pdf_url, csv_url=csv_url
+            report, summary, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url
         )
 
         display_name = get_display_name(report)

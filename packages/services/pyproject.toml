@@ -8,6 +8,7 @@ dependencies = [
     "azure-communication-email>=1.0.0",
     "openai>=1.0.0",
     "httpx>=0.25.0",
+    "openpyxl>=3.1.0",
 ]
 
 [build-system]
