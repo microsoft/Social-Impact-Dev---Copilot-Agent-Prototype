@@ -440,8 +440,8 @@ class IndustryAnalyzer:
             )
 
         self._ensure_client()
-        assert self._client is not None
-        assert self._deployment is not None
+        if self._client is None or self._deployment is None:
+            raise ValueError("OpenAI client not initialized")
 
         user_message = INDUSTRY_USER_TEMPLATE.format(
             committee_name=committee_name,
@@ -553,8 +553,8 @@ class GroupedDonationsAnalyzer:
             )
 
         self._ensure_client()
-        assert self._client is not None
-        assert self._deployment is not None
+        if self._client is None or self._deployment is None:
+            raise ValueError("OpenAI client not initialized")
 
         user_message = GROUPED_DONATIONS_USER_TEMPLATE.format(
             committee_name=committee_name,
