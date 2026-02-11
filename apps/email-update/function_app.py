@@ -44,6 +44,50 @@ def _build_download_url(req: func.HttpRequest, base_path: str, filename: str) ->
     return f"{base_url}/api/download/{base_path}/{filename}"
 
 
+def _get_or_create_summary(
+    blob_service: AzureBlobStorageService,
+    base_path: str,
+    report: Filings,
+) -> str:
+    """Get cached summary from blob storage, or generate and cache a new one.
+
+    Summaries are stored at {base_path}/summary.txt to avoid repeated AI calls.
+    """
+    summary_blob_path = f"{base_path}/summary.txt"
+
+    # Try to get cached summary
+    try:
+        cached = blob_service.download_bytes(summary_blob_path)
+        if cached:
+            logger.info(f"Using cached summary: {summary_blob_path}")
+            return cached.decode("utf-8")
+    except Exception as e:
+        logger.debug(f"No cached summary found: {e}")
+
+    # Generate new summary
+    fallback = f"New report filed by {get_display_name(report)}."
+    try:
+        summary_service: SummaryService = AzureOpenAISummaryService()
+        summary_result = summary_service.generate_summary(report)
+        summary_text = summary_result.summary or fallback
+    except Exception as e:
+        logger.warning(f"AI summary failed, using fallback: {e}")
+        return f"{fallback} (AI summary unavailable)"
+
+    # Cache the summary
+    try:
+        blob_service.upload_bytes(
+            summary_blob_path,
+            summary_text.encode("utf-8"),
+            content_type="text/plain",
+        )
+        logger.info(f"Cached summary: {summary_blob_path}")
+    except Exception as e:
+        logger.warning(f"Failed to cache summary: {e}")
+
+    return summary_text
+
+
 @app.blob_trigger(
     arg_name="report_blob",
     path="fec-filings/{committee_id}/{year_quarter}/report.json",
@@ -90,13 +134,11 @@ def process_new_report(report_blob: func.InputStream) -> None:
         xlsx_url = _build_blob_url(base_path, f"{base_name}.xlsx")
 
     # Initialize services
-    summary_service: SummaryService = AzureOpenAISummaryService()
+    blob_service = AzureBlobStorageService(container_name=BLOB_CONTAINER_NAME)
     email_service: EmailService = AzureEmailService()
 
-    # Generate AI summary
-    summary_result = summary_service.generate_summary(report)
-    fallback = f"New report filed by {get_display_name(report)}."
-    summary_text = summary_result.summary or fallback
+    # Get or create cached summary
+    summary_text = _get_or_create_summary(blob_service, base_path, report)
 
     # Send email
     email_result = email_service.send_report_email(
@@ -155,14 +197,8 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
         formatted_csv_url = _build_download_url(req, base_path, f"{base_name}.csv")
         xlsx_url = _build_download_url(req, base_path, f"{base_name}.xlsx")
 
-    # Generate AI summary
-    try:
-        summary_service: SummaryService = AzureOpenAISummaryService()
-        summary_result = summary_service.generate_summary(report)
-        summary_text = summary_result.summary or f"New report filed by {get_display_name(report)}."
-    except Exception as e:
-        logger.warning(f"AI summary failed, using fallback: {e}")
-        summary_text = f"New report filed by {get_display_name(report)}. (AI summary unavailable)"
+    # Get or create cached summary
+    summary_text = _get_or_create_summary(blob_service, base_path, report)
 
     # Build HTML preview
     html_content = build_report_preview_html(
@@ -170,6 +206,113 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
     )
 
     return func.HttpResponse(html_content, mimetype="text/html", status_code=200)
+
+
+@app.route(
+    route="send-test-email/{committee_id}",
+    methods=["POST"],
+    auth_level=func.AuthLevel.ANONYMOUS,
+)
+def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
+    """POST /api/send-test-email/{committee_id} - Manually trigger email for testing."""
+    import json
+
+    committee_id = req.route_params.get("committee_id")
+    if not committee_id:
+        return func.HttpResponse("Missing committee_id", status_code=400)
+
+    # Parse optional recipients from request body
+    recipients = None
+    try:
+        body = req.get_json()
+        if body and "recipients" in body:
+            recipients = body["recipients"]
+    except ValueError:
+        pass
+
+    # Fall back to configured recipients
+    if not recipients:
+        recipients = parse_comma_list(EMAIL_RECIPIENT_LIST)
+
+    if not recipients:
+        return func.HttpResponse(
+            "No recipients provided in request body or EMAIL_RECIPIENT_LIST",
+            status_code=400,
+        )
+
+    # Initialize storage service
+    blob_service = AzureBlobStorageService(container_name=BLOB_CONTAINER_NAME)
+
+    # Find the latest report for this committee
+    try:
+        blobs = blob_service.list_blobs(prefix=f"{committee_id}/")
+        report_blobs = [b for b in blobs if b.endswith("/report.json")]
+        if not report_blobs:
+            return func.HttpResponse(
+                f"No reports found for committee {committee_id}", status_code=404
+            )
+
+        latest_blob = sorted(report_blobs)[-1]
+        base_path = "/".join(latest_blob.split("/")[:-1])
+
+        report_content = blob_service.download_bytes(latest_blob)
+        if not report_content:
+            return func.HttpResponse("Failed to read report", status_code=500)
+
+        report = Filings.from_json(report_content.decode("utf-8"))
+    except Exception as e:
+        logger.error(f"Failed to read report for {committee_id}: {e}")
+        return func.HttpResponse(f"Error reading report: {e}", status_code=500)
+
+    # Build URLs for processed files
+    formatted_csv_url = None
+    xlsx_url = None
+    if BLOB_ACCOUNT_URL and base_path and report.csv_url:
+        csv_filename = _get_filename_from_url(report.csv_url)
+        base_name = csv_filename.rsplit(".", 1)[0]
+        formatted_csv_url = _build_blob_url(base_path, f"{base_name}.csv")
+        xlsx_url = _build_blob_url(base_path, f"{base_name}.xlsx")
+
+    # Get or create cached summary
+    summary_text = _get_or_create_summary(blob_service, base_path, report)
+
+    # Send email
+    try:
+        email_service: EmailService = AzureEmailService()
+        email_result = email_service.send_report_email(
+            recipients=recipients,
+            report=report,
+            summary=summary_text,
+            formatted_csv_url=formatted_csv_url,
+            xlsx_url=xlsx_url,
+        )
+
+        if email_result.success:
+            return func.HttpResponse(
+                json.dumps(
+                    {
+                        "success": True,
+                        "message_id": email_result.message_id,
+                        "committee_name": report.committee_name,
+                        "recipients": recipients,
+                    }
+                ),
+                mimetype="application/json",
+                status_code=200,
+            )
+        else:
+            return func.HttpResponse(
+                json.dumps({"success": False, "error": email_result.error}),
+                mimetype="application/json",
+                status_code=500,
+            )
+    except Exception as e:
+        logger.error(f"Failed to send test email: {e}")
+        return func.HttpResponse(
+            json.dumps({"success": False, "error": str(e)}),
+            mimetype="application/json",
+            status_code=500,
+        )
 
 
 @app.route(
