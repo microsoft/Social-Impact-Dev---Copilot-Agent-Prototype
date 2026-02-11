@@ -20,6 +20,17 @@ logger = logging.getLogger(__name__)
 # Email settings
 EMAIL_RECIPIENT_LIST = os.getenv("EMAIL_RECIPIENT_LIST", "")
 BLOB_CONTAINER_NAME = os.getenv("BLOB_CONTAINER_NAME", "fec-filings")
+BLOB_ACCOUNT_URL = os.getenv("BLOB_ACCOUNT_URL", "")
+
+
+def _get_filename_from_url(url: str) -> str:
+    """Extract the filename from a URL."""
+    return url.rstrip("/").split("/")[-1]
+
+
+def _build_blob_url(base_path: str, filename: str) -> str:
+    """Build a blob URL for a file."""
+    return f"{BLOB_ACCOUNT_URL.rstrip('/')}/{BLOB_CONTAINER_NAME}/{base_path}/{filename}"
 
 
 @app.blob_trigger(
@@ -34,9 +45,10 @@ def process_new_report(report_blob: func.InputStream) -> None:
         logger.error("Report blob name is empty")
         return
 
-    # Extract committee_id from path (e.g., "fec-filings/C00718866/2024-Q1/report.json")
+    # Extract base path (e.g., "C00718866/2024-Q1" from "fec-filings/C00718866/2024-Q1/report.json")
     parts = blob_name.split("/")
     committee_id = parts[1] if len(parts) > 1 else "unknown"
+    base_path = "/".join(parts[1:3]) if len(parts) > 2 else ""
     logger.info(f"Processing new report for committee: {committee_id}")
 
     # Read report content
@@ -57,6 +69,15 @@ def process_new_report(report_blob: func.InputStream) -> None:
         logger.warning("No recipients configured, skipping email")
         return
 
+    # Build blob URLs for PDF and CSV
+    pdf_url = None
+    csv_url = None
+    if BLOB_ACCOUNT_URL and base_path:
+        if report.pdf_url:
+            pdf_url = _build_blob_url(base_path, _get_filename_from_url(report.pdf_url))
+        if report.csv_url:
+            csv_url = _build_blob_url(base_path, _get_filename_from_url(report.csv_url))
+
     # Initialize services
     summary_service: SummaryService = AzureOpenAISummaryService()
     email_service: EmailService = AzureEmailService()
@@ -71,6 +92,8 @@ def process_new_report(report_blob: func.InputStream) -> None:
         recipients=recipients,
         report=report,
         summary=summary_text,
+        pdf_url=pdf_url,
+        csv_url=csv_url,
     )
 
     if email_result.success:
@@ -100,6 +123,9 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
 
         # Get the most recent (last alphabetically = most recent year-quarter)
         latest_blob = sorted(report_blobs)[-1]
+        # Extract base path (e.g., "C00718866/2024-Q1" from "C00718866/2024-Q1/report.json")
+        base_path = "/".join(latest_blob.split("/")[:-1])
+
         report_content = blob_service.download_bytes(latest_blob)
         if not report_content:
             return func.HttpResponse("Failed to read report", status_code=500)
@@ -108,6 +134,15 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logger.error(f"Failed to read report for {committee_id}: {e}")
         return func.HttpResponse(f"Error reading report: {e}", status_code=500)
+
+    # Build blob URLs for PDF and CSV
+    pdf_url = None
+    csv_url = None
+    if BLOB_ACCOUNT_URL and base_path:
+        if report.pdf_url:
+            pdf_url = _build_blob_url(base_path, _get_filename_from_url(report.pdf_url))
+        if report.csv_url:
+            csv_url = _build_blob_url(base_path, _get_filename_from_url(report.csv_url))
 
     # Generate AI summary
     try:
@@ -119,6 +154,6 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
         summary_text = f"New report filed by {get_display_name(report)}. (AI summary unavailable)"
 
     # Build HTML preview
-    html_content = build_report_preview_html(report, summary_text)
+    html_content = build_report_preview_html(report, summary_text, pdf_url=pdf_url, csv_url=csv_url)
 
     return func.HttpResponse(html_content, mimetype="text/html", status_code=200)

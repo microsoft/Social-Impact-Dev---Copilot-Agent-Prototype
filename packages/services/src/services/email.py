@@ -9,8 +9,6 @@ from azure.communication.email import EmailClient
 from azure.identity import DefaultAzureCredential
 
 from .templates import (
-    build_filing_notification_html,
-    build_filing_notification_plain_text,
     build_report_html,
     build_report_plain_text,
 )
@@ -45,19 +43,14 @@ class EmailService(Protocol):
         message: EmailMessage,
     ) -> EmailResult: ...
 
-    def send_summary_email(
-        self,
-        recipients: list[str],
-        filings: list[dict],
-        summary: str,
-        file_urls: list[str],
-    ) -> EmailResult: ...
-
     def send_report_email(
         self,
         recipients: list[str],
         report: Any,
         summary: str,
+        *,
+        pdf_url: str | None = None,
+        csv_url: str | None = None,
     ) -> EmailResult: ...
 
 
@@ -127,55 +120,14 @@ class AzureEmailService:
             logger.error(f"Failed to send email: {e}")
             return EmailResult(success=False, error=str(e))
 
-    def send_summary_email(
-        self,
-        recipients: list[str],
-        filings: list[dict],
-        summary: str,
-        file_urls: list[str],
-    ) -> EmailResult:
-        """Send a summary email with filing information.
-
-        Args:
-            recipients: List of email addresses to send to.
-            filings: List of filing dictionaries with metadata.
-            summary: AI-generated or fallback summary text.
-            file_urls: List of URLs to the filed documents.
-
-        Returns:
-            EmailResult with success status and message ID or error.
-        """
-        if not recipients:
-            logger.warning("No recipients provided, skipping email")
-            return EmailResult(success=False, error="No recipients provided")
-
-        filing_count = len(filings)
-        html_content = build_filing_notification_html(
-            filing_count=filing_count,
-            summary=summary,
-            files=filings,
-            file_urls=file_urls,
-        )
-        plain_text_content = build_filing_notification_plain_text(
-            filing_count=filing_count,
-            summary=summary,
-            files=filings,
-            file_urls=file_urls,
-        )
-
-        message = EmailMessage(
-            subject=f"FEC Filing Update: {filing_count} New File(s)",
-            html_content=html_content,
-            plain_text_content=plain_text_content,
-        )
-
-        return self.send_email(recipients, message)
-
     def send_report_email(
         self,
         recipients: list[str],
         report,
         summary: str,
+        *,
+        pdf_url: str | None = None,
+        csv_url: str | None = None,
     ) -> EmailResult:
         """Send an email summarizing a report.
 
@@ -183,6 +135,8 @@ class AzureEmailService:
             recipients: List of email addresses to send to.
             report: Report (Filings) object with filing details.
             summary: AI-generated summary text.
+            pdf_url: Optional blob URL for PDF download.
+            csv_url: Optional blob URL for CSV download.
 
         Returns:
             EmailResult with success status and message ID or error.
@@ -193,8 +147,10 @@ class AzureEmailService:
             logger.warning("No recipients provided, skipping email")
             return EmailResult(success=False, error="No recipients provided")
 
-        html_content = build_report_html(report, summary)
-        plain_text_content = build_report_plain_text(report, summary)
+        html_content = build_report_html(report, summary, pdf_url=pdf_url, csv_url=csv_url)
+        plain_text_content = build_report_plain_text(
+            report, summary, pdf_url=pdf_url, csv_url=csv_url
+        )
 
         display_name = get_display_name(report)
         message = EmailMessage(
