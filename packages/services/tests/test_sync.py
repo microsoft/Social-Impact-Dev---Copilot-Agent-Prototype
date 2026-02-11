@@ -155,8 +155,8 @@ def test_sync_reports_downloads_files(mock_fec_client, mock_blob_service, mock_h
         "results": [
             {
                 "file_number": 12345,
-                "csv_url": "https://example.com/12345.csv",
-                "pdf_url": "https://example.com/12345.pdf",
+                "csv_url": "https://docquery.fec.gov/csv/12345.csv",
+                "pdf_url": "https://docquery.fec.gov/pdf/12345.pdf",
             }
         ]
     }
@@ -211,8 +211,8 @@ def test_process_filing_with_csv_and_pdf(mock_fec_client, mock_blob_service, moc
     filing = Filings.from_dict(
         {
             "file_number": 12345,
-            "csv_url": "https://example.com/12345.csv",
-            "pdf_url": "https://example.com/12345.pdf",
+            "csv_url": "https://docquery.fec.gov/csv/12345.csv",
+            "pdf_url": "https://docquery.fec.gov/pdf/12345.pdf",
         }
     )
 
@@ -220,3 +220,43 @@ def test_process_filing_with_csv_and_pdf(mock_fec_client, mock_blob_service, moc
     # 2 files: formatted CSV and XLSX (PDF/raw CSV use original FEC URL)
     assert result == 2
     assert mock_http_client.get.call_count == 1
+
+
+def test_download_file_blocks_untrusted_domains(
+    mock_fec_client, mock_blob_service, mock_http_client
+):
+    """Test that SSRF protection blocks downloads from untrusted domains."""
+    service = SyncService(
+        fec_client=mock_fec_client,
+        blob_service=mock_blob_service,
+        http_client=mock_http_client,
+    )
+
+    # Untrusted domain should be blocked
+    result = service._download_file("https://evil.com/malicious.csv")
+    assert result is None
+    mock_http_client.get.assert_not_called()
+
+    # FEC domain should be allowed
+    mock_response = Mock()
+    mock_response.content = b"data"
+    mock_response.raise_for_status = Mock()
+    mock_http_client.get.return_value = mock_response
+
+    result = service._download_file("https://docquery.fec.gov/csv/12345.csv")
+    assert result == b"data"
+    mock_http_client.get.assert_called_once()
+
+
+def test_download_file_blocks_invalid_schemes(mock_fec_client, mock_blob_service, mock_http_client):
+    """Test that SSRF protection blocks non-HTTP(S) schemes."""
+    service = SyncService(
+        fec_client=mock_fec_client,
+        blob_service=mock_blob_service,
+        http_client=mock_http_client,
+    )
+
+    # File scheme should be blocked
+    result = service._download_file("file:///etc/passwd")
+    assert result is None
+    mock_http_client.get.assert_not_called()
