@@ -196,6 +196,14 @@ def download_file(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         content = blob_service.download_bytes(blob_path)
+
+        # Fallback: if formatted CSV doesn't exist, try raw CSV
+        if not content and filename.endswith("_formatted.csv"):
+            raw_filename = filename.replace("_formatted.csv", ".csv")
+            blob_path = f"{committee_id}/{year_quarter}/{raw_filename}"
+            content = blob_service.download_bytes(blob_path)
+            filename = raw_filename
+
         if not content:
             return func.HttpResponse(f"File not found: {blob_path}", status_code=404)
 
