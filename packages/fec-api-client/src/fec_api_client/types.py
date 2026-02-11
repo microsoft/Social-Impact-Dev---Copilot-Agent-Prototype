@@ -1,5 +1,14 @@
 from typing import Literal
 
+# Trusted FEC domains for file downloads (SSRF protection)
+FEC_DOWNLOAD_DOMAINS = frozenset(
+    {
+        "docquery.fec.gov",
+        "www.fec.gov",
+        "fec.gov",
+    }
+)
+
 # FEC report type codes for API parameters
 ReportTypeCode = Literal[
     "Q1",  # April Quarterly

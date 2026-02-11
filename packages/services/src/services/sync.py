@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from urllib.parse import urlparse
 
 import httpx
-from fec_api_client import FecApiClient, Filings
+from fec_api_client import FEC_DOWNLOAD_DOMAINS, FecApiClient, Filings
 
 from .constants import QUARTERLY_REPORT_TYPES
 from .format import add_headers_to_csv, create_xlsx
@@ -146,7 +147,23 @@ class SyncService:
             return False
 
     def _download_file(self, url: str) -> bytes | None:
-        """Download a file from URL and return its content."""
+        """Download a file from URL and return its content.
+
+        Only downloads from allowlisted FEC domains for SSRF protection.
+        """
+        # Validate URL domain (SSRF protection)
+        try:
+            parsed = urlparse(url)
+            if parsed.hostname not in FEC_DOWNLOAD_DOMAINS:
+                logger.warning(f"Blocked download from untrusted domain: {parsed.hostname}")
+                return None
+            if parsed.scheme not in ("https", "http"):
+                logger.warning(f"Blocked download with invalid scheme: {parsed.scheme}")
+                return None
+        except Exception as e:
+            logger.warning(f"Failed to parse URL {url}: {e}")
+            return None
+
         try:
             response = self.http_client.get(url)
             response.raise_for_status()
