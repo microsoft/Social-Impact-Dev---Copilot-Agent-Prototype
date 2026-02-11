@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 
@@ -8,9 +7,10 @@ from services import (
     AzureEmailService,
     AzureOpenAISummaryService,
     EmailService,
-    QuarterlyReport,
+    Filings,
     SummaryService,
-    build_quarterly_report_preview_html,
+    build_report_preview_html,
+    get_display_name,
     parse_comma_list,
 )
 
@@ -28,7 +28,7 @@ BLOB_CONTAINER_NAME = os.getenv("BLOB_CONTAINER_NAME", "fec-filings")
     connection="BLOB_CONNECTION_STRING",
 )
 def process_new_report(report_blob: func.InputStream) -> None:
-    """Blob trigger that sends email when a new quarterly report is synced."""
+    """Blob trigger that sends email when a new report is synced."""
     blob_name = report_blob.name
     if not blob_name:
         logger.error("Report blob name is empty")
@@ -46,8 +46,8 @@ def process_new_report(report_blob: func.InputStream) -> None:
         return
 
     try:
-        report_data = json.loads(report_content.decode("utf-8"))
-    except json.JSONDecodeError as e:
+        report = Filings.from_json(report_content.decode("utf-8"))
+    except Exception as e:
         logger.error(f"Invalid JSON in report {blob_name}: {e}")
         return
 
@@ -61,16 +61,13 @@ def process_new_report(report_blob: func.InputStream) -> None:
     summary_service: SummaryService = AzureOpenAISummaryService()
     email_service: EmailService = AzureEmailService()
 
-    # Create QuarterlyReport from filing data
-    report = QuarterlyReport.from_filing(report_data, committee_id)
-
     # Generate AI summary
-    summary_result = summary_service.generate_quarterly_summary(report)
-    fallback = f"New quarterly report filed by {report.committee_name}."
+    summary_result = summary_service.generate_summary(report)
+    fallback = f"New report filed by {get_display_name(report)}."
     summary_text = summary_result.summary or fallback
 
     # Send email
-    email_result = email_service.send_quarterly_report_email(
+    email_result = email_service.send_report_email(
         recipients=recipients,
         report=report,
         summary=summary_text,
@@ -107,28 +104,21 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
         if not report_content:
             return func.HttpResponse("Failed to read report", status_code=500)
 
-        report_data = json.loads(report_content.decode("utf-8"))
+        report = Filings.from_json(report_content.decode("utf-8"))
     except Exception as e:
         logger.error(f"Failed to read report for {committee_id}: {e}")
         return func.HttpResponse(f"Error reading report: {e}", status_code=500)
 
-    # Create QuarterlyReport
-    report = QuarterlyReport.from_filing(report_data, committee_id)
-
     # Generate AI summary
     try:
         summary_service: SummaryService = AzureOpenAISummaryService()
-        summary_result = summary_service.generate_quarterly_summary(report)
-        summary_text = (
-            summary_result.summary or f"New quarterly report filed by {report.committee_name}."
-        )
+        summary_result = summary_service.generate_summary(report)
+        summary_text = summary_result.summary or f"New report filed by {get_display_name(report)}."
     except Exception as e:
         logger.warning(f"AI summary failed, using fallback: {e}")
-        summary_text = (
-            f"New quarterly report filed by {report.committee_name}. (AI summary unavailable)"
-        )
+        summary_text = f"New report filed by {get_display_name(report)}. (AI summary unavailable)"
 
     # Build HTML preview
-    html_content = build_quarterly_report_preview_html(report, summary_text)
+    html_content = build_report_preview_html(report, summary_text)
 
     return func.HttpResponse(html_content, mimetype="text/html", status_code=200)

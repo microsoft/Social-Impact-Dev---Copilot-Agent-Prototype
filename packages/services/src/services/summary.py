@@ -3,9 +3,12 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from openai import AzureOpenAI
+
+if TYPE_CHECKING:
+    from .reports import Report
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +25,7 @@ class SummaryResult:
 class SummaryService(Protocol):
     """Protocol for AI summary generation services."""
 
-    def generate_quarterly_summary(self, report) -> SummaryResult: ...
+    def generate_summary(self, report: Report) -> SummaryResult: ...
 
 
 class AzureOpenAISummaryService:
@@ -60,16 +63,16 @@ class AzureOpenAISummaryService:
             api_version=api_version,
         )
 
-    def generate_quarterly_summary(self, report) -> SummaryResult:
-        """Generate a summary for a quarterly report.
+    def generate_summary(self, report: Report) -> SummaryResult:
+        """Generate a summary for a report.
 
         Args:
-            report: QuarterlyReport object with filing details.
+            report: Report (Filings) object with filing details.
 
         Returns:
             SummaryResult with the generated summary or error.
         """
-        report_text = self._format_quarterly_report(report)
+        report_text = self._format_report(report)
 
         try:
             response = self._client.chat.completions.create(
@@ -78,7 +81,7 @@ class AzureOpenAISummaryService:
                     {
                         "role": "system",
                         "content": (
-                            "You are a helpful assistant that summarizes FEC quarterly "
+                            "You are a helpful assistant that summarizes FEC "
                             "campaign finance reports. Provide a clear, concise summary "
                             "that highlights key financial information including total "
                             "receipts, disbursements, and cash on hand. "
@@ -87,7 +90,7 @@ class AzureOpenAISummaryService:
                     },
                     {
                         "role": "user",
-                        "content": f"Please summarize this quarterly FEC filing:\n\n{report_text}",
+                        "content": f"Please summarize this FEC filing:\n\n{report_text}",
                     },
                 ],
                 max_tokens=1000,
@@ -102,13 +105,15 @@ class AzureOpenAISummaryService:
             return SummaryResult(success=True, summary=summary)
 
         except Exception as e:
-            logger.error(f"Failed to generate quarterly summary: {e}")
+            logger.error(f"Failed to generate summary: {e}")
             return SummaryResult(success=False, error=str(e))
 
-    def _format_quarterly_report(self, report) -> str:
-        """Format a QuarterlyReport into readable text for summarization."""
+    def _format_report(self, report: Report) -> str:
+        """Format a Report into readable text for summarization."""
+        from .reports import get_display_name
+
         lines = [
-            f"Candidate: {report.candidate_name}",
+            f"Candidate/Committee: {get_display_name(report)}",
             f"Committee: {report.committee_name}",
             f"Report Type: {report.report_type}",
             f"Form Type: {report.form_type}",
@@ -120,7 +125,7 @@ class AzureOpenAISummaryService:
             lines.append(f"Total Receipts: ${report.total_receipts:,.2f}")
         if report.total_disbursements is not None:
             lines.append(f"Total Disbursements: ${report.total_disbursements:,.2f}")
-        if report.cash_on_hand is not None:
-            lines.append(f"Cash on Hand: ${report.cash_on_hand:,.2f}")
+        if report.cash_on_hand_end_period is not None:
+            lines.append(f"Cash on Hand: ${report.cash_on_hand_end_period:,.2f}")
 
         return "\n".join(lines)

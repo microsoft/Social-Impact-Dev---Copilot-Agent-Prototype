@@ -68,7 +68,7 @@ def test_init_raises_without_deployment():
         AzureOpenAISummaryService(endpoint="https://test.com", api_key="key")
 
 
-# generate_quarterly_summary tests
+# generate_summary tests
 
 
 @pytest.fixture
@@ -83,11 +83,11 @@ def mock_report():
     report.receipt_date = "2024-04-15"
     report.total_receipts = 100000.00
     report.total_disbursements = 50000.00
-    report.cash_on_hand = 50000.00
+    report.cash_on_hand_end_period = 50000.00
     return report
 
 
-def test_generate_quarterly_summary_success(mock_openai_client, mock_report):
+def test_generate_summary_success(mock_openai_client, mock_report):
     mock_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
@@ -101,14 +101,14 @@ def test_generate_quarterly_summary_success(mock_openai_client, mock_report):
         deployment="gpt-4",
     )
 
-    result = service.generate_quarterly_summary(mock_report)
+    result = service.generate_summary(mock_report)
 
     assert result.success is True
     assert result.summary == "This is a summary of the quarterly report."
     mock_client.chat.completions.create.assert_called_once()
 
 
-def test_generate_quarterly_summary_empty_response(mock_openai_client, mock_report):
+def test_generate_summary_empty_response(mock_openai_client, mock_report):
     mock_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
@@ -122,13 +122,13 @@ def test_generate_quarterly_summary_empty_response(mock_openai_client, mock_repo
         deployment="gpt-4",
     )
 
-    result = service.generate_quarterly_summary(mock_report)
+    result = service.generate_summary(mock_report)
 
     assert result.success is False
     assert result.error == "Empty response from model"
 
 
-def test_generate_quarterly_summary_handles_exception(mock_openai_client, mock_report):
+def test_generate_summary_handles_exception(mock_openai_client, mock_report):
     mock_client = MagicMock()
     mock_client.chat.completions.create.side_effect = Exception("API error")
     mock_openai_client.return_value = mock_client
@@ -139,24 +139,24 @@ def test_generate_quarterly_summary_handles_exception(mock_openai_client, mock_r
         deployment="gpt-4",
     )
 
-    result = service.generate_quarterly_summary(mock_report)
+    result = service.generate_summary(mock_report)
 
     assert result.success is False
     assert result.error is not None
     assert "API error" in result.error
 
 
-# _format_quarterly_report tests
+# _format_report tests
 
 
-def test_format_quarterly_report(mock_openai_client, mock_report):
+def test_format_report(mock_openai_client, mock_report):
     service = AzureOpenAISummaryService(
         endpoint="https://test.openai.azure.com",
         api_key="test-key",
         deployment="gpt-4",
     )
 
-    result = service._format_quarterly_report(mock_report)
+    result = service._format_report(mock_report)
 
     assert "Test Candidate" in result
     assert "Test Committee" in result
@@ -168,7 +168,7 @@ def test_format_quarterly_report(mock_openai_client, mock_report):
     assert "$50,000.00" in result
 
 
-def test_format_quarterly_report_missing_financials(mock_openai_client):
+def test_format_report_missing_financials(mock_openai_client):
     report = MagicMock()
     report.candidate_name = "Test Candidate"
     report.committee_name = "Test Committee"
@@ -179,7 +179,7 @@ def test_format_quarterly_report_missing_financials(mock_openai_client):
     report.receipt_date = "2024-04-15"
     report.total_receipts = None
     report.total_disbursements = None
-    report.cash_on_hand = None
+    report.cash_on_hand_end_period = None
 
     service = AzureOpenAISummaryService(
         endpoint="https://test.openai.azure.com",
@@ -187,7 +187,7 @@ def test_format_quarterly_report_missing_financials(mock_openai_client):
         deployment="gpt-4",
     )
 
-    result = service._format_quarterly_report(report)
+    result = service._format_report(report)
 
     assert "Test Candidate" in result
     assert "Total Receipts" not in result

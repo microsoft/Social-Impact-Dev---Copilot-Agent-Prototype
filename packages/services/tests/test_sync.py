@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, Mock
 
 import pytest
+from fec_api_client import Filings
 from services.sync import SyncService
 
 
@@ -68,7 +69,7 @@ def test_sync_reports_stores_reports(mock_fec_client, mock_blob_service, mock_ht
     assert "C00000001" in result
     assert "C00000002" in result
     assert result["C00000001"] is not None
-    assert result["C00000001"]["file_number"] == 12345
+    assert result["C00000001"].file_number == 12345
 
     # Verify reports were stored with new path structure
     upload_calls = mock_blob_service.upload_bytes.call_args_list
@@ -226,7 +227,8 @@ def test_process_filing_no_urls(mock_fec_client, mock_blob_service, mock_http_cl
         blob_service=mock_blob_service,
         http_client=mock_http_client,
     )
-    result = service._process_filing("C00123456/2024-Q1", {})
+    filing = Filings.from_dict({})
+    result = service._process_filing("C00123456/2024-Q1", filing)
     assert result == 0
 
 
@@ -241,11 +243,13 @@ def test_process_filing_with_csv_and_pdf(mock_fec_client, mock_blob_service, moc
     mock_response.content = b"data"
     mock_http_client.get.return_value = mock_response
 
-    filing = {
-        "file_number": 12345,
-        "csv_url": "https://example.com/12345.csv",
-        "pdf_url": "https://example.com/12345.pdf",
-    }
+    filing = Filings.from_dict(
+        {
+            "file_number": 12345,
+            "csv_url": "https://example.com/12345.csv",
+            "pdf_url": "https://example.com/12345.pdf",
+        }
+    )
 
     result = service._process_filing("C00123456/2024-Q1", filing)
     assert result == 2
