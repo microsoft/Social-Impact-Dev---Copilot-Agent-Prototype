@@ -15,6 +15,7 @@ from .quarterly_reports import (
 from .storage import AzureBlobStorageService, BlobStorageService
 from .summary import AzureOpenAISummaryService, SummaryResult, SummaryService
 from .sync import SyncService
+from .templates import build_quarterly_report_preview_html
 from .utils import parse_comma_list
 
 __all__ = [
@@ -34,5 +35,6 @@ __all__ = [
     "SummaryResult",
     "SummaryService",
     "SyncService",
+    "build_quarterly_report_preview_html",
     "parse_comma_list",
 ]

@@ -16,34 +16,6 @@ def mock_default_credential():
         yield mock
 
 
-# parse_recipient_list tests
-
-
-def test_parse_recipient_list_parses_comma_separated():
-    result = AzureEmailService.parse_recipient_list("a@example.com, b@example.com")
-    assert result == ["a@example.com", "b@example.com"]
-
-
-def test_parse_recipient_list_strips_whitespace():
-    result = AzureEmailService.parse_recipient_list("  a@example.com  ,  b@example.com  ")
-    assert result == ["a@example.com", "b@example.com"]
-
-
-def test_parse_recipient_list_filters_empty_entries():
-    result = AzureEmailService.parse_recipient_list("a@example.com,,b@example.com,")
-    assert result == ["a@example.com", "b@example.com"]
-
-
-def test_parse_recipient_list_returns_empty_for_empty_string():
-    result = AzureEmailService.parse_recipient_list("")
-    assert result == []
-
-
-def test_parse_recipient_list_returns_empty_for_whitespace():
-    result = AzureEmailService.parse_recipient_list("   ,   ,   ")
-    assert result == []
-
-
 # __init__ tests
 
 

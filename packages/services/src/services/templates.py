@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .quarterly_reports import QuarterlyReport
+
 
 def build_filing_notification_html(
     filing_count: int,
@@ -79,3 +84,143 @@ def build_filing_notification_plain_text(
 
     lines.extend(["", "-" * 40, "This is an automated notification from the FEC Data Sync system."])
     return "\n".join(lines)
+
+
+def _build_quarterly_financials_html(report: QuarterlyReport) -> str:
+    """Build HTML list items for financial data."""
+    financials = ""
+    if report.total_receipts is not None:
+        financials += f"<li><strong>Total Receipts:</strong> ${report.total_receipts:,.2f}</li>"
+    if report.total_disbursements is not None:
+        financials += (
+            f"<li><strong>Total Disbursements:</strong> ${report.total_disbursements:,.2f}</li>"
+        )
+    if report.cash_on_hand is not None:
+        financials += f"<li><strong>Cash on Hand:</strong> ${report.cash_on_hand:,.2f}</li>"
+    return financials
+
+
+def _build_quarterly_links_html(report: QuarterlyReport) -> str:
+    """Build HTML links for PDF and CSV downloads."""
+    links = ""
+    if report.pdf_url:
+        links += f'<a href="{report.pdf_url}" style="color: #0066cc;">View PDF</a>'
+    if report.csv_url:
+        if links:
+            links += " | "
+        links += f'<a href="{report.csv_url}" style="color: #0066cc;">Download CSV</a>'
+    return links
+
+
+def build_quarterly_report_html(report: QuarterlyReport, summary: str) -> str:
+    """Build HTML content for quarterly report email."""
+    financials = _build_quarterly_financials_html(report)
+    links = _build_quarterly_links_html(report)
+    period = f"{report.coverage_start_date} to {report.coverage_end_date}"
+
+    return f"""<html>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <h2 style="color: #1a1a1a;">{report.candidate_name} - {report.report_type} Report</h2>
+
+    <div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
+        <p><strong>Committee:</strong> {report.committee_name}</p>
+        <p><strong>Period:</strong> {period}</p>
+        <p><strong>Filed:</strong> {report.receipt_date}</p>
+    </div>
+
+    {"<h3>Financial Summary</h3><ul>" + financials + "</ul>" if financials else ""}
+
+    <h3>AI Summary</h3>
+    <div style="background: #e8f4f8; padding: 15px; border-radius: 5px;">
+        <p>{summary}</p>
+    </div>
+
+    {f"<p>{links}</p>" if links else ""}
+
+    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+    <p style="font-size: 12px; color: #666;">
+        This is an automated notification from the FEC Filing Monitor.
+    </p>
+</body>
+</html>"""
+
+
+def build_quarterly_report_plain_text(report: QuarterlyReport, summary: str) -> str:
+    """Build plain text content for quarterly report email."""
+    lines = [
+        f"{report.candidate_name} - {report.report_type} Report",
+        "=" * 50,
+        "",
+        f"Committee: {report.committee_name}",
+        f"Report Period: {report.coverage_start_date} to {report.coverage_end_date}",
+        f"Filed: {report.receipt_date}",
+        "",
+    ]
+
+    if report.total_receipts is not None:
+        lines.append(f"Total Receipts: ${report.total_receipts:,.2f}")
+    if report.total_disbursements is not None:
+        lines.append(f"Total Disbursements: ${report.total_disbursements:,.2f}")
+    if report.cash_on_hand is not None:
+        lines.append(f"Cash on Hand: ${report.cash_on_hand:,.2f}")
+
+    lines.extend(
+        [
+            "",
+            "AI Summary",
+            "-" * 30,
+            summary,
+            "",
+        ]
+    )
+
+    if report.pdf_url:
+        lines.append(f"PDF: {report.pdf_url}")
+    if report.csv_url:
+        lines.append(f"CSV: {report.csv_url}")
+
+    return "\n".join(lines)
+
+
+def build_quarterly_report_preview_html(report: QuarterlyReport, summary: str) -> str:
+    """Build HTML preview page for quarterly report (for browser viewing)."""
+    financials = _build_quarterly_financials_html(report)
+    links = _build_quarterly_links_html(report)
+    period = f"{report.coverage_start_date} to {report.coverage_end_date}"
+
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>FEC Report Preview: {report.committee_name}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333;
+               max-width: 800px; margin: 40px auto; padding: 20px; }}
+        .header {{ background: #1a1a1a; color: white; padding: 20px; border-radius: 5px; }}
+        .info-box {{ background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+        .summary-box {{ background: #e8f4f8; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+        .footer {{ font-size: 12px; color: #666; border-top: 1px solid #ddd;
+                   padding-top: 20px; margin-top: 30px; }}
+        a {{ color: #0066cc; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{report.candidate_name} - {report.report_type} Report</h1>
+        <p>Preview of email notification</p>
+    </div>
+    <div class="info-box">
+        <p><strong>Committee:</strong> {report.committee_name}</p>
+        <p><strong>Period:</strong> {period}</p>
+        <p><strong>Filed:</strong> {report.receipt_date}</p>
+    </div>
+    {"<h3>Financial Summary</h3><ul>" + financials + "</ul>" if financials else ""}
+    <h3>AI Summary</h3>
+    <div class="summary-box">
+        <p>{summary}</p>
+    </div>
+    {f"<p>{links}</p>" if links else ""}
+    <div class="footer">
+        <p>This is a preview of the automated notification from the FEC Filing Monitor.</p>
+    </div>
+</body>
+</html>"""

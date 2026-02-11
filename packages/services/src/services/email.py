@@ -8,8 +8,12 @@ from typing import Any, Protocol
 from azure.communication.email import EmailClient
 from azure.identity import DefaultAzureCredential
 
-from .templates import build_filing_notification_html, build_filing_notification_plain_text
-from .utils import parse_comma_list
+from .templates import (
+    build_filing_notification_html,
+    build_filing_notification_plain_text,
+    build_quarterly_report_html,
+    build_quarterly_report_plain_text,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -56,17 +60,9 @@ class EmailService(Protocol):
         summary: str,
     ) -> EmailResult: ...
 
-    @staticmethod
-    def parse_recipient_list(recipient_list: str) -> list[str]: ...
-
 
 class AzureEmailService:
     """Azure Communication Services email sender."""
-
-    @staticmethod
-    def parse_recipient_list(recipient_list: str) -> list[str]:
-        """Parse a comma-separated recipient list string into a list of email addresses."""
-        return parse_comma_list(recipient_list)
 
     def __init__(
         self,
@@ -195,8 +191,8 @@ class AzureEmailService:
             logger.warning("No recipients provided, skipping email")
             return EmailResult(success=False, error="No recipients provided")
 
-        html_content = self._build_quarterly_report_html(report, summary)
-        plain_text_content = self._build_quarterly_report_plain_text(report, summary)
+        html_content = build_quarterly_report_html(report, summary)
+        plain_text_content = build_quarterly_report_plain_text(report, summary)
 
         message = EmailMessage(
             subject=f"FEC Quarterly Report: {report.candidate_name} ({report.report_type})",
@@ -205,88 +201,3 @@ class AzureEmailService:
         )
 
         return self.send_email(recipients, message)
-
-    def _build_quarterly_report_html(self, report, summary: str) -> str:
-        """Build HTML content for quarterly report email."""
-        financials = ""
-        if report.total_receipts is not None:
-            financials += f"<li><strong>Total Receipts:</strong> ${report.total_receipts:,.2f}</li>"
-        if report.total_disbursements is not None:
-            financials += (
-                f"<li><strong>Total Disbursements:</strong> ${report.total_disbursements:,.2f}</li>"
-            )
-        if report.cash_on_hand is not None:
-            financials += f"<li><strong>Cash on Hand:</strong> ${report.cash_on_hand:,.2f}</li>"
-
-        links = ""
-        if report.pdf_url:
-            links += f'<a href="{report.pdf_url}" style="color: #0066cc;">View PDF</a>'
-        if report.csv_url:
-            if links:
-                links += " | "
-            links += f'<a href="{report.csv_url}" style="color: #0066cc;">Download CSV</a>'
-
-        period = f"{report.coverage_start_date} to {report.coverage_end_date}"
-        return f"""
-        <html>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <h2 style="color: #1a1a1a;">{report.candidate_name} - {report.report_type} Report</h2>
-
-            <div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
-                <p><strong>Committee:</strong> {report.committee_name}</p>
-                <p><strong>Period:</strong> {period}</p>
-                <p><strong>Filed:</strong> {report.receipt_date}</p>
-            </div>
-
-            {"<h3>Financial Summary</h3><ul>" + financials + "</ul>" if financials else ""}
-
-            <h3>AI Summary</h3>
-            <div style="background: #e8f4f8; padding: 15px; border-radius: 5px;">
-                <p>{summary}</p>
-            </div>
-
-            {f"<p>{links}</p>" if links else ""}
-
-            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-            <p style="font-size: 12px; color: #666;">
-                This is an automated notification from the FEC Filing Monitor.
-            </p>
-        </body>
-        </html>
-        """
-
-    def _build_quarterly_report_plain_text(self, report, summary: str) -> str:
-        """Build plain text content for quarterly report email."""
-        lines = [
-            f"{report.candidate_name} - {report.report_type} Report",
-            "=" * 50,
-            "",
-            f"Committee: {report.committee_name}",
-            f"Report Period: {report.coverage_start_date} to {report.coverage_end_date}",
-            f"Filed: {report.receipt_date}",
-            "",
-        ]
-
-        if report.total_receipts is not None:
-            lines.append(f"Total Receipts: ${report.total_receipts:,.2f}")
-        if report.total_disbursements is not None:
-            lines.append(f"Total Disbursements: ${report.total_disbursements:,.2f}")
-        if report.cash_on_hand is not None:
-            lines.append(f"Cash on Hand: ${report.cash_on_hand:,.2f}")
-
-        lines.extend(
-            [
-                "",
-                "AI Summary",
-                "-" * 30,
-                summary,
-                "",
-            ]
-        )
-
-        if report.pdf_url:
-            lines.append(f"PDF: {report.pdf_url}")
-        if report.csv_url:
-            lines.append(f"CSV: {report.csv_url}")
-
-        return "\n".join(lines)

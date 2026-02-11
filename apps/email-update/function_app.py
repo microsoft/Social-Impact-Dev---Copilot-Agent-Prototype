@@ -10,6 +10,7 @@ from services import (
     EmailService,
     QuarterlyReport,
     SummaryService,
+    build_quarterly_report_preview_html,
     parse_comma_list,
 )
 
@@ -128,65 +129,6 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     # Build HTML preview
-    html_content = _build_preview_html(report, summary_text)
+    html_content = build_quarterly_report_preview_html(report, summary_text)
 
     return func.HttpResponse(html_content, mimetype="text/html", status_code=200)
-
-
-def _build_preview_html(report: QuarterlyReport, summary: str) -> str:
-    """Build HTML preview for quarterly report email."""
-    financials = ""
-    if report.total_receipts is not None:
-        financials += f"<li><strong>Total Receipts:</strong> ${report.total_receipts:,.2f}</li>"
-    if report.total_disbursements is not None:
-        financials += (
-            f"<li><strong>Total Disbursements:</strong> ${report.total_disbursements:,.2f}</li>"
-        )
-    if report.cash_on_hand is not None:
-        financials += f"<li><strong>Cash on Hand:</strong> ${report.cash_on_hand:,.2f}</li>"
-
-    links = ""
-    if report.pdf_url:
-        links += f'<a href="{report.pdf_url}" style="color: #0066cc;">View PDF</a>'
-    if report.csv_url:
-        if links:
-            links += " | "
-        links += f'<a href="{report.csv_url}" style="color: #0066cc;">Download CSV</a>'
-
-    period = f"{report.coverage_start_date} to {report.coverage_end_date}"
-    # noqa: E501 - HTML template with inline styles
-    return f"""<!DOCTYPE html>
-<html>
-<head>
-    <title>FEC Report Preview: {report.committee_name}</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333;
-               max-width: 800px; margin: 40px auto; padding: 20px; }}
-        .header {{ background: #1a1a1a; color: white; padding: 20px; border-radius: 5px; }}
-        .info-box {{ background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-        .summary-box {{ background: #e8f4f8; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-        .footer {{ font-size: 12px; color: #666; border-top: 1px solid #ddd;
-                   padding-top: 20px; margin-top: 30px; }}
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>{report.candidate_name} - {report.report_type} Report</h1>
-        <p>Preview of email notification</p>
-    </div>
-    <div class="info-box">
-        <p><strong>Committee:</strong> {report.committee_name}</p>
-        <p><strong>Period:</strong> {period}</p>
-        <p><strong>Filed:</strong> {report.receipt_date}</p>
-    </div>
-    {"<h3>Financial Summary</h3><ul>" + financials + "</ul>" if financials else ""}
-    <h3>AI Summary</h3>
-    <div class="summary-box">
-        <p>{summary}</p>
-    </div>
-    {f"<p>{links}</p>" if links else ""}
-    <div class="footer">
-        <p>This is a preview of the automated notification from the FEC Filing Monitor.</p>
-    </div>
-</body>
-</html>"""
