@@ -1,0 +1,141 @@
+openapi: 3.0.3
+info:
+  title: FEC Email Update API
+  description: API for previewing and testing FEC report email notifications
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:7071/api
+    description: Local development
+  - url: https://{function-app-name}.azurewebsites.net/api
+    description: Azure Function App
+
+paths:
+  /preview/{committee_id}:
+    get:
+      summary: Preview email summary
+      description: Returns an HTML preview of the email that would be sent for the latest report
+      operationId: previewSummary
+      parameters:
+        - name: committee_id
+          in: path
+          required: true
+          description: FEC Committee ID (e.g., C00718866)
+          schema:
+            type: string
+            pattern: ^C[0-9]{8}$
+          example: C00718866
+      responses:
+        '200':
+          description: HTML preview of the email
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Missing committee_id
+        '404':
+          description: No reports found for committee
+        '500':
+          description: Server error
+
+  /download/{committee_id}/{year_quarter}/{filename}:
+    get:
+      summary: Download file from blob storage
+      description: Download a processed file (CSV, XLSX, PDF) from blob storage
+      operationId: downloadFile
+      parameters:
+        - name: committee_id
+          in: path
+          required: true
+          description: FEC Committee ID
+          schema:
+            type: string
+            pattern: ^C[0-9]{8}$
+          example: C00718866
+        - name: year_quarter
+          in: path
+          required: true
+          description: Year and quarter (e.g., 2024-Q1)
+          schema:
+            type: string
+            pattern: ^[0-9]{4}-(Q[1-4]|YE)$
+          example: 2024-Q1
+        - name: filename
+          in: path
+          required: true
+          description: Filename to download
+          schema:
+            type: string
+          example: 1234567.xlsx
+      responses:
+        '200':
+          description: File content
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Missing path parameters
+        '404':
+          description: File not found
+        '500':
+          description: Server error
+
+  /send-test-email/{committee_id}:
+    post:
+      summary: Send test email
+      description: Manually trigger sending an email for the latest report of a committee
+      operationId: sendTestEmail
+      parameters:
+        - name: committee_id
+          in: path
+          required: true
+          description: FEC Committee ID
+          schema:
+            type: string
+            pattern: ^C[0-9]{8}$
+          example: C00718866
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipients:
+                  type: array
+                  items:
+                    type: string
+                    format: email
+                  description: Override recipient list (uses EMAIL_RECIPIENT_LIST if not provided)
+                  example: ["test@example.com"]
+      responses:
+        '200':
+          description: Email sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message_id:
+                    type: string
+                  committee_name:
+                    type: string
+        '400':
+          description: Missing committee_id or no recipients configured
+        '404':
+          description: No reports found for committee
+        '500':
+          description: Failed to send email
