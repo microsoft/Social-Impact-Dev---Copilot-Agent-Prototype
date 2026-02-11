@@ -147,6 +147,8 @@ class AzureEmailService:
         Returns:
             EmailResult with success status and message ID or error.
         """
+        from fec_api_client import format_report_type
+
         from .reports import get_display_name
 
         if not recipients:
@@ -169,8 +171,9 @@ class AzureEmailService:
         )
 
         display_name = get_display_name(report)
+        report_type_display = format_report_type(report.report_type)
         message = EmailMessage(
-            subject=f"FEC Report: {display_name} ({report.report_type})",
+            subject=f"FEC Report: {display_name} ({report_type_display})",
             html_content=html_content,
             plain_text_content=plain_text_content,
         )

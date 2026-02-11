@@ -30,7 +30,7 @@ from .reports import (
 from .storage import AzureBlobStorageService, BlobStorageService
 from .sync import SyncService
 from .templates import build_report_preview_html
-from .utils import parse_comma_list
+from .utils import format_date, format_period, parse_comma_list
 
 __all__ = [
     "ALL_REPORT_TYPES",
@@ -47,6 +47,8 @@ __all__ = [
     "FORM_TYPE_COLUMNS",
     "FullAnalysisResult",
     "FormatService",
+    "format_date",
+    "format_period",
     "HeaderDef",
     "OpenAIAnalysisService",
     "ProcessingResult",

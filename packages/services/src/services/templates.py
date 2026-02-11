@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from fec_api_client import format_report_type
+
+from .utils import format_date, format_period
+
 if TYPE_CHECKING:
     from .analysis import FullAnalysisResult
     from .reports import Report
@@ -192,17 +196,19 @@ def build_report_html(
     links = _build_links_html(report, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url)
     analysis_section = _build_analysis_section_html(analysis)
     detailed_section = _build_detailed_analysis_html(analysis)
-    period = f"{report.coverage_start_date} to {report.coverage_end_date}"
+    period = format_period(report.coverage_start_date, report.coverage_end_date)
     display_name = get_display_name(report)
+    report_type_display = format_report_type(report.report_type)
+    filed_date = format_date(report.receipt_date)
 
     return f"""<html>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-    <h2 style="color: #1a1a1a;">{display_name} - {report.report_type} Report</h2>
+    <h2 style="color: #1a1a1a;">{display_name} - {report_type_display} Report</h2>
 
     <div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
         <p><strong>Committee:</strong> {report.committee_name}</p>
         <p><strong>Period:</strong> {period}</p>
-        <p><strong>Filed:</strong> {report.receipt_date}</p>
+        <p><strong>Filed:</strong> {filed_date}</p>
     </div>
 
     {"<h3>Financial Summary</h3><ul>" + financials + "</ul>" if financials else ""}
@@ -313,13 +319,17 @@ def build_report_plain_text(
     from .reports import get_display_name
 
     display_name = get_display_name(report)
+    report_type_display = format_report_type(report.report_type)
+    period = format_period(report.coverage_start_date, report.coverage_end_date)
+    filed_date = format_date(report.receipt_date)
+
     lines = [
-        f"{display_name} - {report.report_type} Report",
+        f"{display_name} - {report_type_display} Report",
         "=" * 50,
         "",
         f"Committee: {report.committee_name}",
-        f"Report Period: {report.coverage_start_date} to {report.coverage_end_date}",
-        f"Filed: {report.receipt_date}",
+        f"Report Period: {period}",
+        f"Filed: {filed_date}",
         "",
     ]
 
