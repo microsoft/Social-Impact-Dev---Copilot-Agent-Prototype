@@ -1,4 +1,4 @@
-# FEC Data Sync
+# FEC Data Sync & Email Update
 
 A prototype application that syncs Federal Election Commission (FEC) filings data to Azure and sends email notifications with AI-generated summaries when new filings are detected.
 
