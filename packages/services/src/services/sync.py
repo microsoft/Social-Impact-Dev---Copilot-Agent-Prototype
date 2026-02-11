@@ -46,18 +46,28 @@ class SyncService:
 
         for committee_id in self.committee_ids:
             report = self._fetch_latest_report(committee_id)
+
+            if not report:
+                results[committee_id] = None
+                continue
+
+            base_path = self._get_report_path(committee_id, report)
+            blob_path = f"{base_path}/report.json"
+
+            if self.blob_service.exists(blob_path):
+                logger.info(f"Report already synced, skipping: {blob_path}")
+                results[committee_id] = None
+                continue
+
+            self.blob_service.upload_bytes(
+                blob_path,
+                json.dumps(report).encode(),
+                content_type="application/json",
+            )
+            logger.info(f"Stored report for {committee_id}: {blob_path}")
+
+            self._process_filing(base_path, report)
             results[committee_id] = report
-
-            if report:
-                blob_path = f"reports/{committee_id}.json"
-                self.blob_service.upload_bytes(
-                    blob_path,
-                    json.dumps(report).encode(),
-                    content_type="application/json",
-                )
-                logger.info(f"Stored report for {committee_id}: {blob_path}")
-
-                self._process_filing(report)
 
         return results
 
@@ -89,28 +99,33 @@ class SyncService:
             logger.error(f"Failed to fetch report for {committee_id}: {e}")
             return None
 
-    def _process_filing(self, filing: dict) -> int:
-        """Process a single filing, downloading CSV and PDF if available."""
-        file_number = filing.get("file_number")
-        if not file_number:
-            return 0
+    def _get_report_path(self, committee_id: str, report: dict) -> str:
+        """Build the base path for a report: {committee_id}/{year}-{report_type}."""
+        report_year = report.get("report_year", "unknown")
+        report_type = report.get("report_type", "unknown")
+        return f"{committee_id}/{report_year}-{report_type}"
 
+    def _process_filing(self, base_path: str, filing: dict) -> int:
+        """Process a single filing, downloading CSV and PDF if available."""
         files_uploaded = 0
-        base_path = f"filings/{file_number}"
 
         csv_url = filing.get("csv_url")
         if csv_url:
-            if self._download_and_store_file(csv_url, f"{base_path}/{file_number}.csv", "text/csv"):
+            filename = self._get_filename_from_url(csv_url)
+            if self._download_and_store_file(csv_url, f"{base_path}/{filename}", "text/csv"):
                 files_uploaded += 1
 
         pdf_url = filing.get("pdf_url")
         if pdf_url:
-            if self._download_and_store_file(
-                pdf_url, f"{base_path}/{file_number}.pdf", "application/pdf"
-            ):
+            filename = self._get_filename_from_url(pdf_url)
+            if self._download_and_store_file(pdf_url, f"{base_path}/{filename}", "application/pdf"):
                 files_uploaded += 1
 
         return files_uploaded
+
+    def _get_filename_from_url(self, url: str) -> str:
+        """Extract the filename from a URL."""
+        return url.rstrip("/").split("/")[-1]
 
     def _download_and_store_file(
         self,

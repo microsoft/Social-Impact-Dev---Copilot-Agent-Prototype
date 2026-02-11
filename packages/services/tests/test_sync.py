@@ -50,11 +50,18 @@ def test_sync_reports_stores_reports(mock_fec_client, mock_blob_service, mock_ht
     mock_response = Mock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "results": [{"file_number": 12345, "committee_name": "Test Committee"}]
+        "results": [
+            {
+                "file_number": 12345,
+                "committee_name": "Test Committee",
+                "report_year": 2024,
+                "report_type": "Q1",
+            }
+        ]
     }
     mock_fec_client.get_v1_filings.return_value = mock_response
 
-    mock_blob_service.exists.return_value = True  # Skip file downloads
+    mock_blob_service.exists.return_value = False  # Report doesn't exist yet
 
     result = service.sync_reports()
 
@@ -63,9 +70,9 @@ def test_sync_reports_stores_reports(mock_fec_client, mock_blob_service, mock_ht
     assert result["C00000001"] is not None
     assert result["C00000001"]["file_number"] == 12345
 
-    # Verify reports were stored
+    # Verify reports were stored with new path structure
     upload_calls = mock_blob_service.upload_bytes.call_args_list
-    report_calls = [c for c in upload_calls if c[0][0].startswith("reports/")]
+    report_calls = [c for c in upload_calls if c[0][0].endswith("/report.json")]
     assert len(report_calls) == 2
 
 
@@ -213,13 +220,13 @@ def test_download_stores_new_file(mock_fec_client, mock_blob_service, mock_http_
 # _process_filing tests
 
 
-def test_process_filing_no_file_number(mock_fec_client, mock_blob_service, mock_http_client):
+def test_process_filing_no_urls(mock_fec_client, mock_blob_service, mock_http_client):
     service = SyncService(
         fec_client=mock_fec_client,
         blob_service=mock_blob_service,
         http_client=mock_http_client,
     )
-    result = service._process_filing({})
+    result = service._process_filing("C00123456/2024-Q1", {})
     assert result == 0
 
 
@@ -240,6 +247,6 @@ def test_process_filing_with_csv_and_pdf(mock_fec_client, mock_blob_service, moc
         "pdf_url": "https://example.com/12345.pdf",
     }
 
-    result = service._process_filing(filing)
+    result = service._process_filing("C00123456/2024-Q1", filing)
     assert result == 2
     assert mock_http_client.get.call_count == 2
