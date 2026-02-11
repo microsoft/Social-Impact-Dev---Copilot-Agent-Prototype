@@ -200,17 +200,16 @@ az-create-rg:
 	az group create --name $(AZURE_RESOURCE_GROUP) --location $(AZURE_LOCATION)
 
 # Deploy Azure infrastructure using Bicep
+# Set environment variables to override defaults: ENVIRONMENT, BASE_NAME, FEC_API_KEY, etc.
 deploy-infra:
 ifndef FEC_API_KEY
 	$(error FEC_API_KEY is required. Set it with: export FEC_API_KEY=your-key)
 endif
 	@echo "Deploying infrastructure to $(AZURE_RESOURCE_GROUP)..."
-	az deployment group create \
+	ENVIRONMENT=$(ENVIRONMENT) BASE_NAME=$(BASE_NAME) az deployment group create \
 		--resource-group $(AZURE_RESOURCE_GROUP) \
 		--template-file infra/main.bicep \
-		--parameters infra/main.bicepparam \
-		--parameters environment=$(ENVIRONMENT) \
-		--parameters baseName=$(BASE_NAME)
+		--parameters infra/main.bicepparam
 	@echo "Infrastructure deployed successfully!"
 
 # Deploy data-sync function app code

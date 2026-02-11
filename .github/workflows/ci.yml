@@ -34,13 +34,15 @@ jobs:
 
       - name: Validate Bicep
         uses: azure/arm-deploy@v2
+        env:
+          FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
         with:
           scope: resourcegroup
           subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
           deploymentMode: Validate
-          parameters: fecApiKey=${{ secrets.FEC_API_KEY }}
+          parameters: ./infra/main.bicepparam
           failOnStdErr: false
 
   checks:

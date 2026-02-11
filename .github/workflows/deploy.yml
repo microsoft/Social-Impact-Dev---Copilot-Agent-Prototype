@@ -51,22 +51,23 @@ jobs:
       - name: Deploy Bicep
         id: deploy
         uses: azure/arm-deploy@v2
+        env:
+          ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+          FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
+          FEC_COMMITTEE_IDS: ${{ vars.FEC_COMMITTEE_IDS }}
+          FEC_REPORT_TYPES: ${{ vars.FEC_REPORT_TYPES }}
+          EMAIL_CONNECTION_STRING: ${{ secrets.EMAIL_CONNECTION_STRING }}
+          EMAIL_SENDER_ADDRESS: ${{ vars.EMAIL_SENDER_ADDRESS }}
+          EMAIL_RECIPIENT_LIST: ${{ vars.EMAIL_RECIPIENT_LIST }}
+          AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_DEPLOYMENT: ${{ vars.AZURE_OPENAI_DEPLOYMENT }}
         with:
           scope: resourcegroup
           subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
-          parameters: >
-            environment=${{ github.event.inputs.environment || 'dev' }}
-            fecApiKey=${{ secrets.FEC_API_KEY }}
-            fecCommitteeIds=${{ vars.FEC_COMMITTEE_IDS || '' }}
-            fecReportTypes=${{ vars.FEC_REPORT_TYPES || '' }}
-            emailConnectionString=${{ secrets.EMAIL_CONNECTION_STRING || '' }}
-            emailSenderAddress=${{ vars.EMAIL_SENDER_ADDRESS || '' }}
-            emailRecipientList=${{ vars.EMAIL_RECIPIENT_LIST }}
-            azureOpenAIEndpoint=${{ vars.AZURE_OPENAI_ENDPOINT || '' }}
-            azureOpenAIApiKey=${{ secrets.AZURE_OPENAI_API_KEY || '' }}
-            azureOpenAIDeployment=${{ vars.AZURE_OPENAI_DEPLOYMENT || '' }}
+          parameters: ./infra/main.bicepparam
           failOnStdErr: false
 
   deploy-data-sync:
