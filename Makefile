@@ -1,4 +1,4 @@
-.PHONY: help install lint test build azurite-start azurite-stop run-data-sync run-email-update clean az-register-providers build-data-sync build-email-update build-functions deploy-infra deploy-data-sync deploy-email-update deploy-all
+.PHONY: help install lint test build azurite-start azurite-stop run-data-sync run-email-update clean az-register-providers build-data-sync build-email-update build-functions deploy-infra deploy-data-sync deploy-email-update deploy-all demo
 
 VENV_PATH := $(shell pwd)/.venv/bin
 AZURITE_CONN := DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;
@@ -18,6 +18,7 @@ help:
 	@echo "  test                 Run tests"
 	@echo ""
 	@echo "Local Testing:"
+	@echo "  demo                 Run demo data sync (requires local.settings.json)"
 	@echo "  azurite-start        Start Azurite (Azure Storage emulator)"
 	@echo "  azurite-stop         Stop Azurite"
 	@echo "  run-data-sync        Run data-sync function locally"
@@ -75,6 +76,23 @@ client = BlobServiceClient.from_connection_string('$(AZURITE_CONN)'); \
 azurite-stop:
 	@pkill -f azurite 2>/dev/null || true
 	@echo "Azurite stopped"
+
+# Demo: sync FEC committee quarterly reports
+demo:
+	@echo "=== FEC Data Sync Demo ==="
+	@# Start Azurite if not running
+	@pgrep -f azurite > /dev/null || (echo "Starting Azurite..." && make azurite-start)
+	@# Require existing local.settings.json
+	@if [ ! -f apps/data-sync/local.settings.json ]; then \
+		echo "Error: apps/data-sync/local.settings.json not found."; \
+		echo "Copy from local.settings.json.example and configure your settings."; \
+		exit 1; \
+	fi
+	@echo "Using apps/data-sync/local.settings.json"
+	@echo "Starting function app..."
+	@echo "Once running, trigger sync at: http://localhost:7071/api/sync"
+	@echo ""
+	@cd apps/data-sync && PATH="$(VENV_PATH):$$PATH" func start
 
 # Run data-sync function locally
 run-data-sync: _check-azurite
