@@ -5,7 +5,15 @@ from collections.abc import Callable
 from urllib.parse import urlparse
 
 import httpx
-from fec_api_client import FEC_DOWNLOAD_DOMAINS, CommitteeDetail, FecApiClient, Filings
+import json
+
+from fec_api_client import (
+    FEC_DOWNLOAD_DOMAINS,
+    CandidateDetail,
+    CommitteeDetail,
+    FecApiClient,
+    Filings,
+)
 
 from .constants import QUARTERLY_REPORT_TYPES
 from .format import add_headers_to_csv, create_xlsx
@@ -65,6 +73,8 @@ class SyncService:
             if committee and committee.state and not filing.state:
                 filing.state = committee.state
 
+            self.get_candidates(committee_id)
+
             self._process_filing(base_path, filing)
 
             self.blob_service.upload_bytes(
@@ -112,6 +122,58 @@ class SyncService:
 
         except Exception as e:
             logger.warning(f"Failed to fetch committee {committee_id}: {e}")
+            return None
+
+    def get_candidates(self, committee_id: str) -> list[CandidateDetail]:
+        """Get candidates for a committee, using cached data if available."""
+        blob_path = f"{committee_id}/candidates.json"
+
+        cached = self.blob_service.download_bytes(blob_path)
+        if cached:
+            data = json.loads(cached.decode("utf-8"))
+            return [CandidateDetail.from_dict(c) for c in data]
+
+        committee = self.get_committee(committee_id)
+        if not committee or not committee.candidate_ids:
+            return []
+
+        candidates: list[CandidateDetail] = []
+        for candidate_id in committee.candidate_ids:
+            candidate = self._fetch_candidate(candidate_id)
+            if candidate:
+                candidates.append(candidate)
+
+        if candidates:
+            data = [c.to_dict() for c in candidates]
+            self.blob_service.upload_bytes(
+                blob_path,
+                json.dumps(data).encode(),
+                content_type="application/json",
+            )
+            logger.info(f"Cached {len(candidates)} candidates: {blob_path}")
+
+        return candidates
+
+    def _fetch_candidate(self, candidate_id: str) -> CandidateDetail | None:
+        """Fetch candidate details from FEC API."""
+        try:
+            response = self.fec_client.get_v1_candidate_candidate_id(
+                candidate_id=candidate_id,
+                api_key=self.api_key,
+            )
+
+            if response.status_code != 200:
+                logger.warning(f"Failed to fetch candidate {candidate_id}: {response.status_code}")
+                return None
+
+            results = response.json().get("results", [])
+            if not results:
+                return None
+
+            return CandidateDetail.from_dict(results[0])
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch candidate {candidate_id}: {e}")
             return None
 
     def _fetch_latest_report(self, committee_id: str) -> Filings | None:
