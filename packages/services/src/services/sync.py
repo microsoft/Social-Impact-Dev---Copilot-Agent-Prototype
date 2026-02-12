@@ -61,14 +61,14 @@ class SyncService:
                 results[committee_id] = None
                 continue
 
+            self._process_filing(base_path, filing)
+
             self.blob_service.upload_bytes(
                 blob_path,
                 filing.to_json().encode(),
                 content_type="application/json",
             )
             logger.info(f"Stored report for {committee_id}: {blob_path}")
-
-            self._process_filing(base_path, filing)
             results[committee_id] = filing
 
         return results
