@@ -5,7 +5,7 @@ from collections.abc import Callable
 from urllib.parse import urlparse
 
 import httpx
-from fec_api_client import FEC_DOWNLOAD_DOMAINS, FecApiClient, Filings
+from fec_api_client import FEC_DOWNLOAD_DOMAINS, CommitteeDetail, FecApiClient, Filings
 
 from .constants import QUARTERLY_REPORT_TYPES
 from .format import add_headers_to_csv, create_xlsx
@@ -61,6 +61,10 @@ class SyncService:
                 results[committee_id] = None
                 continue
 
+            committee = self.get_committee(committee_id)
+            if committee and committee.state and not filing.state:
+                filing.state = committee.state
+
             self._process_filing(base_path, filing)
 
             self.blob_service.upload_bytes(
@@ -72,6 +76,43 @@ class SyncService:
             results[committee_id] = filing
 
         return results
+
+    def get_committee(self, committee_id: str) -> CommitteeDetail | None:
+        """Get committee details, using cached data if available."""
+        blob_path = f"{committee_id}/committee.json"
+
+        cached = self.blob_service.download_bytes(blob_path)
+        if cached:
+            return CommitteeDetail.from_json(cached.decode("utf-8"))
+
+        try:
+            response = self.fec_client.get_v1_committee_committee_id(
+                committee_id=committee_id,
+                api_key=self.api_key,
+            )
+
+            if response.status_code != 200:
+                logger.warning(f"Failed to fetch committee {committee_id}: {response.status_code}")
+                return None
+
+            results = response.json().get("results", [])
+            if not results:
+                return None
+
+            committee = CommitteeDetail.from_dict(results[0])
+
+            self.blob_service.upload_bytes(
+                blob_path,
+                committee.to_json().encode(),
+                content_type="application/json",
+            )
+            logger.info(f"Cached committee details: {blob_path}")
+
+            return committee
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch committee {committee_id}: {e}")
+            return None
 
     def _fetch_latest_report(self, committee_id: str) -> Filings | None:
         """Fetch the latest quarterly report for a committee."""

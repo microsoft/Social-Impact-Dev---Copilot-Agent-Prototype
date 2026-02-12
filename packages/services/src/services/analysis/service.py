@@ -34,7 +34,7 @@ from .extractors import (
 )
 
 if TYPE_CHECKING:
-    from fec_api_client import Filings
+    from fec_api_client import CommitteeDetail, Filings
 
     from ..format import ParsedFECFile
     from ..storage import BlobStorageService
@@ -304,6 +304,23 @@ class OpenAIAnalysisService:
 
         return result
 
+    def _get_committee(self, committee_id: str) -> CommitteeDetail | None:
+        """Load committee details from blob storage."""
+        if not self.blob_service:
+            return None
+
+        from fec_api_client import CommitteeDetail
+
+        blob_path = f"{committee_id}/committee.json"
+        try:
+            cached = self.blob_service.download_bytes(blob_path)
+            if cached:
+                return CommitteeDetail.from_json(cached.decode("utf-8"))
+        except Exception as e:
+            logger.debug(f"No cached committee found at {blob_path}: {e}")
+
+        return None
+
     def run_full_analysis(
         self,
         parsed: ParsedFECFile,
@@ -318,6 +335,11 @@ class OpenAIAnalysisService:
         3. Run detailed AI analyzers (industry, grouped donations)
         4. Compile summary last with all extracted statistics
         """
+        if not report.state and report.committee_id:
+            committee = self._get_committee(report.committee_id)
+            if committee and committee.state:
+                report.state = committee.state
+
         # Phase 1: Extract all data (no AI)
         logger.info("Phase 1: Extracting data...")
         maxed_extraction = self._maxed_donors_extractor.extract(parsed, report)

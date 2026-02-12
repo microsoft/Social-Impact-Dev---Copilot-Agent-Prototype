@@ -1,4 +1,4 @@
-from fec_api_client import Filings
+from fec_api_client import CommitteeDetail, Filings
 from fec_api_client.types import ReportTypeCode
 
 from .analysis import (
@@ -40,6 +40,7 @@ __all__ = [
     "AzureEmailService",
     "BlobStorageService",
     "ColumnType",
+    "CommitteeDetail",
     "EmailMessage",
     "EmailResult",
     "EmailService",
