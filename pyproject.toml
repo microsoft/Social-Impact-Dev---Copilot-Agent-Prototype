@@ -31,7 +31,20 @@ services = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["packages"]
-addopts = ["--import-mode=importlib"]
+addopts = ["--import-mode=importlib", "--cov=packages/services/src", "--cov-fail-under=80"]
+
+[tool.coverage.run]
+source = ["packages/services/src"]
+omit = ["**/tests/**"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
 
 [tool.ruff]
 line-length = 100
