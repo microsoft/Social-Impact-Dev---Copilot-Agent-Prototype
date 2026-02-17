@@ -2,7 +2,6 @@
 
 from types import SimpleNamespace
 
-import pytest
 from services.analysis.analyzers import AnalysisResult
 from services.analysis.service import FullAnalysisResult
 from services.templates import (
@@ -177,9 +176,7 @@ class TestBuildAnalysisSectionHtml:
 
     def test_geography_section(self):
         """Test geography section."""
-        analysis = make_test_analysis(
-            geography_stats={"in_state_pct": 60.0, "out_state_pct": 40.0}
-        )
+        analysis = make_test_analysis(geography_stats={"in_state_pct": 60.0, "out_state_pct": 40.0})
         result = _build_analysis_section_html(analysis)
         assert "Geography" in result
         assert "60.0% in-state" in result
@@ -187,9 +184,7 @@ class TestBuildAnalysisSectionHtml:
 
     def test_donor_size_section(self):
         """Test donor size section."""
-        analysis = make_test_analysis(
-            donor_size_stats={"small_pct": 15.0, "big_pct": 85.0}
-        )
+        analysis = make_test_analysis(donor_size_stats={"small_pct": 15.0, "big_pct": 85.0})
         result = _build_analysis_section_html(analysis)
         assert "Donor Composition" in result
         assert "15.0% from small donors" in result
@@ -226,9 +221,7 @@ class TestBuildAnalysisSectionHtml:
 
     def test_expenditures_hidden_when_zero(self):
         """Test that expenditures section is hidden when count is zero."""
-        analysis = make_test_analysis(
-            expenditures_stats={"flagged_count": 0, "flagged_total": 0}
-        )
+        analysis = make_test_analysis(expenditures_stats={"flagged_count": 0, "flagged_total": 0})
         result = _build_analysis_section_html(analysis)
         # Should not show section header since no stats are shown
         assert "Flagged Expenditures" not in result
@@ -250,9 +243,7 @@ class TestBuildDetailedAnalysisHtml:
 
     def test_industry_narrative(self):
         """Test with industry narrative."""
-        analysis = make_test_analysis(
-            industry_narrative="Tech sector dominates donations."
-        )
+        analysis = make_test_analysis(industry_narrative="Tech sector dominates donations.")
         result = _build_detailed_analysis_html(analysis)
         assert "Detailed Analysis" in result
         assert "Industry/Employer Analysis" in result
@@ -513,9 +504,7 @@ class TestBuildReportPreviewHtml:
     def test_with_analysis(self):
         """Test preview with analysis."""
         report = make_test_report()
-        analysis = make_test_analysis(
-            industry_narrative="Industry insights here."
-        )
+        analysis = make_test_analysis(industry_narrative="Industry insights here.")
         result = build_report_preview_html(report, "Summary", analysis=analysis)
 
         assert "Industry insights here" in result

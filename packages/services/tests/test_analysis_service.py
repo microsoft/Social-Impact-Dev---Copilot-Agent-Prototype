@@ -1,6 +1,6 @@
 """Tests for the analysis service module."""
 
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import MagicMock, patch
 
 import pytest
 from services.analysis.analyzers import AnalysisResult
@@ -259,9 +259,7 @@ class TestOpenAIAnalysisService:
         result = service.generate_summary(mock_report, base_path="C00123456/2024-Q1")
 
         assert result == "Cached summary text"
-        mock_blob_service.download_bytes.assert_called_once_with(
-            "C00123456/2024-Q1/summary.txt"
-        )
+        mock_blob_service.download_bytes.assert_called_once_with("C00123456/2024-Q1/summary.txt")
         # AI analyzer should not be called when cache hits
         mock_get_analyzer.assert_not_called()
 
@@ -274,9 +272,7 @@ class TestOpenAIAnalysisService:
         },
     )
     @patch("services.analysis.analyzers.AzureOpenAI")
-    def test_generate_summary_with_cache_miss(
-        self, mock_openai_class, mock_blob_service
-    ):
+    def test_generate_summary_with_cache_miss(self, mock_openai_class, mock_blob_service):
         """Test generate_summary calls AI when cache misses."""
         mock_blob_service.download_bytes.return_value = None
 
@@ -370,9 +366,7 @@ class TestOpenAIAnalysisService:
     def test_cache_analysis_does_nothing_without_blob_service(self):
         """Test _cache_analysis does nothing without blob service."""
         service = OpenAIAnalysisService(blob_service=None)
-        result = AnalysisResult(
-            feature="test", data={}, stats={}, narrative="test"
-        )
+        result = AnalysisResult(feature="test", data={}, stats={}, narrative="test")
 
         # Should not raise
         service._cache_analysis("some/path.json", result)
@@ -472,9 +466,7 @@ class TestOpenAIAnalysisService:
             narrative="",
         )
 
-        result = service._format_analysis_stats(
-            maxed, geography, donor_size, funding, expenditure
-        )
+        result = service._format_analysis_stats(maxed, geography, donor_size, funding, expenditure)
 
         assert "Maxed Donors ($3,500): 10 donors" in result
         assert "$35,000.00" in result
@@ -554,9 +546,7 @@ class TestExtractOnly:
         """Create a mock report."""
         return make_mock_report()
 
-    def test_extract_only_returns_all_extractions(
-        self, sample_parsed_file, mock_report
-    ):
+    def test_extract_only_returns_all_extractions(self, sample_parsed_file, mock_report):
         """Test extract_only returns all extraction results."""
         service = OpenAIAnalysisService()
 

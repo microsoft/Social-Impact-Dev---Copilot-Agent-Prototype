@@ -92,9 +92,7 @@ class TestReportService:
         return service
 
     @pytest.fixture
-    def report_service(
-        self, mock_blob_service, mock_analysis_service, mock_email_service
-    ):
+    def report_service(self, mock_blob_service, mock_analysis_service, mock_email_service):
         """Create a ReportService with mocked dependencies."""
         return ReportService(
             blob_service=mock_blob_service,
@@ -102,9 +100,7 @@ class TestReportService:
             email_service=mock_email_service,
         )
 
-    def test_init(
-        self, mock_blob_service, mock_analysis_service, mock_email_service
-    ):
+    def test_init(self, mock_blob_service, mock_analysis_service, mock_email_service):
         """Test ReportService initialization."""
         service = ReportService(
             blob_service=mock_blob_service,
@@ -123,15 +119,11 @@ class TestReportService:
         assert result.emails_sent == 0
         assert result.errors == []
 
-    def test_process_committees_no_report_found(
-        self, report_service, mock_blob_service
-    ):
+    def test_process_committees_no_report_found(self, report_service, mock_blob_service):
         """Test processing when no report is found in storage."""
         mock_blob_service.download_bytes.return_value = None
 
-        result = report_service.process_committees(
-            ["C00123456"], ["test@example.com"]
-        )
+        result = report_service.process_committees(["C00123456"], ["test@example.com"])
 
         assert result.committees_processed == 0
         assert result.emails_sent == 0
@@ -154,9 +146,7 @@ class TestReportService:
         }
         mock_blob_service.download_bytes.return_value = json.dumps(report_data).encode()
 
-        result = report_service.process_committees(
-            ["C00123456"], ["test@example.com"]
-        )
+        result = report_service.process_committees(["C00123456"], ["test@example.com"])
 
         assert result.committees_processed == 1
         assert result.emails_sent == 1
@@ -182,9 +172,7 @@ class TestReportService:
             error="SMTP connection failed",
         )
 
-        result = report_service.process_committees(
-            ["C00123456"], ["test@example.com"]
-        )
+        result = report_service.process_committees(["C00123456"], ["test@example.com"])
 
         assert result.committees_processed == 1
         assert result.emails_sent == 0
@@ -223,9 +211,7 @@ class TestReportService:
         # which is then recorded as "No report in storage"
         mock_blob_service.download_bytes.side_effect = Exception("Storage error")
 
-        result = report_service.process_committees(
-            ["C00123456"], ["test@example.com"]
-        )
+        result = report_service.process_committees(["C00123456"], ["test@example.com"])
 
         assert result.committees_processed == 0
         assert result.emails_sent == 0
@@ -235,9 +221,7 @@ class TestReportService:
         # was caught in _read_report_from_storage
         assert "No report in storage" in result.errors[0]
 
-    def test_read_report_from_storage_success(
-        self, report_service, mock_blob_service
-    ):
+    def test_read_report_from_storage_success(self, report_service, mock_blob_service):
         """Test reading report from storage successfully."""
         report_data = {
             "committee_id": "C00123456",
@@ -250,13 +234,9 @@ class TestReportService:
 
         assert result is not None
         assert result.committee_name == "Test Committee"
-        mock_blob_service.download_bytes.assert_called_once_with(
-            "reports/C00123456.json"
-        )
+        mock_blob_service.download_bytes.assert_called_once_with("reports/C00123456.json")
 
-    def test_read_report_from_storage_not_found(
-        self, report_service, mock_blob_service
-    ):
+    def test_read_report_from_storage_not_found(self, report_service, mock_blob_service):
         """Test reading report that doesn't exist."""
         mock_blob_service.download_bytes.return_value = None
 
@@ -264,9 +244,7 @@ class TestReportService:
 
         assert result is None
 
-    def test_read_report_from_storage_exception(
-        self, report_service, mock_blob_service
-    ):
+    def test_read_report_from_storage_exception(self, report_service, mock_blob_service):
         """Test reading report when exception occurs."""
         mock_blob_service.download_bytes.side_effect = Exception("Connection error")
 
