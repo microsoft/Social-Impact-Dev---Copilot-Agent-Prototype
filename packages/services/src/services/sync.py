@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
 from urllib.parse import urlparse
 
 import httpx
-import json
-
 from fec_api_client import (
     FEC_DOWNLOAD_DOMAINS,
     CandidateDetail,
