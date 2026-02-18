@@ -77,6 +77,8 @@ class AzureBlobStorageService:
         if not self.container_name:
             raise ValueError("container_name must be set")
         blob_client = self._client.get_blob_client(container=self.container_name, blob=blob_name)
+        if not blob_client.exists():
+            return None
         blob = blob_client.download_blob().readall()
         if isinstance(blob, bytes):
             return blob
