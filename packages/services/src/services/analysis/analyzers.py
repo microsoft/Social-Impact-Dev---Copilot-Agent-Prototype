@@ -145,13 +145,11 @@ class MaxedDonorsAnalyzer:
         report: Filings,
     ) -> AnalysisResult:
         """Analyze maxed donors and generate narrative."""
-        from ..reports import get_display_name
-
         stats = extraction.stats
         data = extraction.data
 
         period = f"{report.coverage_start_date} to {report.coverage_end_date}"
-        committee_name = get_display_name(report)
+        committee_name = report.committee_name
 
         employers_list = self._format_top_list(data.get("top_employers", []))
         occupations_list = self._format_top_list(data.get("top_occupations", []))
@@ -396,13 +394,11 @@ class IndustryAnalyzer:
         report: Filings,
     ) -> AnalysisResult:
         """Analyze employer/industry patterns."""
-        from ..reports import get_display_name
-
         stats = extraction.stats
         data = extraction.data
 
         period = f"{report.coverage_start_date} to {report.coverage_end_date}"
-        committee_name = get_display_name(report)
+        committee_name = report.committee_name
 
         top_employers = data.get("top_employers", [])[:10]
         employers_list = (
@@ -504,13 +500,11 @@ class GroupedDonationsAnalyzer:
         report: Filings,
     ) -> AnalysisResult:
         """Analyze donation patterns for potential fundraising events."""
-        from ..reports import get_display_name
-
         stats = extraction.stats
         data = extraction.data
 
         period = f"{report.coverage_start_date} to {report.coverage_end_date}"
-        committee_name = get_display_name(report)
+        committee_name = report.committee_name
 
         sig_dates = data.get("significant_dates", [])[:5]
         dates_list = (
@@ -662,9 +656,7 @@ class SummaryAnalyzer:
         Returns:
             SummaryResult with the generated summary.
         """
-        from ..reports import get_display_name
-
-        display_name = get_display_name(report)
+        display_name = report.committee_name
         user_message = SUMMARY_USER_TEMPLATE.format(
             display_name=display_name,
             committee_name=report.committee_name,

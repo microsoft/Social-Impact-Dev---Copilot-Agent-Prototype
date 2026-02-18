@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from azure.communication.email import EmailClient
 from azure.identity import DefaultAzureCredential
+from fec_api_client import format_report_type
 
 from .templates import (
     build_report_html,
@@ -147,10 +148,6 @@ class AzureEmailService:
         Returns:
             EmailResult with success status and message ID or error.
         """
-        from fec_api_client import format_report_type
-
-        from .reports import get_display_name
-
         if not recipients:
             logger.warning("No recipients provided, skipping email")
             return EmailResult(success=False, error="No recipients provided")
@@ -170,7 +167,7 @@ class AzureEmailService:
             analysis=analysis,
         )
 
-        display_name = get_display_name(report)
+        display_name = report.committee_name
         report_type_display = format_report_type(report.report_type)
         message = EmailMessage(
             subject=f"FEC Report: {display_name} ({report_type_display})",
