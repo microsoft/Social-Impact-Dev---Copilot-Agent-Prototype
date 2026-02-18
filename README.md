@@ -52,6 +52,37 @@ export FEC_API_KEY=your-key
 make deploy-all
 ```
 
+## Configuration
+
+### Committee IDs
+
+The `FEC_COMMITTEE_IDS` environment variable specifies which FEC committees to monitor. Committee IDs are unique identifiers assigned by the FEC, starting with "C" followed by 8 digits.
+
+```bash
+# Single committee
+export FEC_COMMITTEE_IDS="C00703975"
+
+# Multiple committees (comma-separated)
+export FEC_COMMITTEE_IDS="C00703975,C00618371,C00401224"
+```
+
+You can find committee IDs on the [FEC website][fec-committees] by searching for a committee name.
+
+### Report Types
+
+The `FEC_REPORT_TYPES` environment variable filters which types of filings to sync. Currently, only quarterly reports are supported:
+
+| Code | Description |
+|------|-------------|
+| `Q1` | April Quarterly (Jan 1 - Mar 31) |
+| `Q2` | July Quarterly (Apr 1 - Jun 30) |
+| `Q3` | October Quarterly (Jul 1 - Sep 30) |
+| `YE` | Year-End (Oct 1 - Dec 31) |
+
+```bash
+export FEC_REPORT_TYPES="Q1,Q2,Q3,YE"
+```
+
 ## Project Structure
 
 ```
@@ -111,3 +142,4 @@ See [LICENSE][license] for details.
 [docs-deploy]: ./docs/deployment.md
 [docs-infra]: ./docs/infrastructure.md
 [license]: ./LICENSE
+[fec-committees]: https://www.fec.gov/data/committees/
