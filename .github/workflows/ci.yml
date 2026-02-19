@@ -13,8 +13,10 @@ jobs:
   bicep:
     name: Validate Bicep
     runs-on: ubuntu-latest
-    # Skip on fork PRs (secrets not available)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Skip on fork PRs (secrets not available) and dependabot branches
+    if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      && !startsWith(github.head_ref || '', 'dependabot/')
     environment: dev
 
     permissions:
