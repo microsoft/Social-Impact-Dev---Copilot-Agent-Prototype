@@ -36,7 +36,7 @@ from .extractors import (
 if TYPE_CHECKING:
     from fec_api_client import CommitteeDetail, Filings
 
-    from ..format import ParsedFECFile
+    from ..report.format import ParsedFECFile
     from ..storage import BlobStorageService
 
 logger = logging.getLogger(__name__)

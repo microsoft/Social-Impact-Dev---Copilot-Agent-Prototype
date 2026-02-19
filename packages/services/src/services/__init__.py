@@ -7,13 +7,6 @@ from .analysis import (
     FullAnalysisResult,
     OpenAIAnalysisService,
 )
-from .constants import (
-    ALL_REPORT_TYPES,
-    FORM_TYPE_COLUMNS,
-    QUARTERLY_REPORT_TYPES,
-    ColumnType,
-    HeaderDef,
-)
 from .email import (
     AzureEmailService,
     EmailMessage,
@@ -23,9 +16,20 @@ from .email import (
     format_date,
     format_period,
 )
-from .format import FormatService, add_headers_to_csv, create_xlsx, parse_fec_csv
+from .report import (
+    ALL_REPORT_TYPES,
+    FORM_TYPE_COLUMNS,
+    QUARTERLY_REPORT_TYPES,
+    ColumnType,
+    FormatService,
+    HeaderDef,
+    ParsedFECFile,
+    SyncService,
+    add_headers_to_csv,
+    create_xlsx,
+    parse_fec_csv,
+)
 from .storage import AzureBlobStorageService, BlobStorageService
-from .sync import SyncService
 from .utils import parse_comma_list
 
 __all__ = [
@@ -49,6 +53,7 @@ __all__ = [
     "format_period",
     "HeaderDef",
     "OpenAIAnalysisService",
+    "ParsedFECFile",
     "QUARTERLY_REPORT_TYPES",
     "ReportTypeCode",
     "SyncService",

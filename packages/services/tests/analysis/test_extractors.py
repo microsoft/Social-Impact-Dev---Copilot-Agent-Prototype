@@ -9,7 +9,7 @@ from services.analysis.extractors import (
     _get_column,
     _parse_currency,
 )
-from services.format import ParsedFECFile
+from services.report.format import ParsedFECFile
 
 
 class TestParsingHelpers:

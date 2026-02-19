@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 from fec_api_client import Filings
-from services.sync import SyncService
+from services.report.sync import SyncService
 
 
 @pytest.fixture

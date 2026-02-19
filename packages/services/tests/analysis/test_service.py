@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from services.analysis.analyzers import AnalysisResult
 from services.analysis.service import FullAnalysisResult, OpenAIAnalysisService
-from services.format import ParsedFECFile
+from services.report.format import ParsedFECFile
 
 
 def make_mock_report(candidate_name=None, committee_name="Test Committee"):

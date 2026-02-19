@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Protocol
 if TYPE_CHECKING:
     from fec_api_client import Filings
 
-    from ..format import ParsedFECFile
+    from ..report.format import ParsedFECFile
 
 
 # =============================================================================
