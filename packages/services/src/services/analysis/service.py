@@ -75,9 +75,7 @@ class FullAnalysisResult:
         if self.industry and self.industry.narrative:
             narratives.append(f"**Industry Analysis:** {self.industry.narrative}")
         if self.unusual_expenditures and self.unusual_expenditures.narrative:
-            narratives.append(
-                f"**Unusual Expenditures:** {self.unusual_expenditures.narrative}"
-            )
+            narratives.append(f"**Unusual Expenditures:** {self.unusual_expenditures.narrative}")
         if self.grouped_donations and self.grouped_donations.narrative:
             narratives.append(f"**Grouped Donations:** {self.grouped_donations.narrative}")
         return "\n\n".join(narratives)
@@ -418,8 +416,7 @@ class OpenAIAnalysisService:
         # Max out donors
         ms = max_out.stats
         lines.append(
-            f"- Max Out Donors ($3,500): {ms.get('count', 0)} donors, "
-            f"${ms.get('total', 0):,.2f}"
+            f"- Max Out Donors ($3,500): {ms.get('count', 0)} donors, ${ms.get('total', 0):,.2f}"
         )
 
         # Geography

@@ -164,9 +164,7 @@ class TestBuildAnalysisSectionHtml:
 
     def test_max_out_donors_section(self):
         """Test maxed donors section."""
-        analysis = make_test_analysis(
-            max_out_donors_stats={"count": 10, "total": 35000.0}
-        )
+        analysis = make_test_analysis(max_out_donors_stats={"count": 10, "total": 35000.0})
         result = _build_analysis_section_html(analysis)
         assert "Analysis Summary" in result
         assert "Max Out Donors ($3,500)" in result
@@ -207,7 +205,6 @@ class TestBuildAnalysisSectionHtml:
         assert "5.0% parties" in result
         assert "3.0% transfers" in result
         assert "2.0% loans" in result
-
 
 
 class TestBuildDetailedAnalysisHtml:
@@ -345,9 +342,7 @@ class TestBuildReportHtml:
     def test_with_analysis(self):
         """Test with analysis data."""
         report = make_test_report()
-        analysis = make_test_analysis(
-            max_out_donors_stats={"count": 5, "total": 17500.0}
-        )
+        analysis = make_test_analysis(max_out_donors_stats={"count": 5, "total": 17500.0})
         result = build_report_html(report, "Summary", analysis=analysis)
 
         assert "Analysis Summary" in result
@@ -467,9 +462,7 @@ class TestBuildReportPlainText:
     def test_with_analysis(self):
         """Test with analysis data."""
         report = make_test_report()
-        analysis = make_test_analysis(
-            max_out_donors_stats={"count": 5, "total": 17500.0}
-        )
+        analysis = make_test_analysis(max_out_donors_stats={"count": 5, "total": 17500.0})
         result = build_report_plain_text(report, "Summary", analysis=analysis)
 
         assert "Analysis Summary" in result

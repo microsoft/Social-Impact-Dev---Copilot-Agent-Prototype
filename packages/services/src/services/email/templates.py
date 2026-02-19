@@ -237,9 +237,7 @@ def _build_analysis_section_plain_text(analysis: FullAnalysisResult | None) -> l
     # Maxed donors
     if analysis.max_out_donors and analysis.max_out_donors.stats.get("count", 0) > 0:
         stats = analysis.max_out_donors.stats
-        lines.append(
-            f"  Max Out Donors: {stats['count']} donors, ${stats['total']:,.2f}"
-        )
+        lines.append(f"  Max Out Donors: {stats['count']} donors, ${stats['total']:,.2f}")
 
     # Geography
     if analysis.geography:
@@ -276,9 +274,7 @@ def _build_analysis_section_plain_text(analysis: FullAnalysisResult | None) -> l
         lines.extend(["", "Industry Analysis:", f"  {analysis.industry.narrative}"])
 
     if analysis.unusual_expenditures and analysis.unusual_expenditures.narrative:
-        lines.extend(
-            ["", "Unusual Expenditures:", f"  {analysis.unusual_expenditures.narrative}"]
-        )
+        lines.extend(["", "Unusual Expenditures:", f"  {analysis.unusual_expenditures.narrative}"])
 
     if analysis.grouped_donations and analysis.grouped_donations.narrative:
         lines.extend(["", "Donation Patterns:", f"  {analysis.grouped_donations.narrative}"])
