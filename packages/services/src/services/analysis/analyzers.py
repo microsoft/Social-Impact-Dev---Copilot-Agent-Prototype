@@ -8,10 +8,10 @@ Standard Statistics (no AI):
 - B & E. GeographyAnalyzer (formats stats, no AI)
 - C. DonorSizeAnalyzer (formats stats, no AI)
 - D. FundingSourceAnalyzer (formats stats, no AI)
-- F. ExpenditureAnalyzer (formats stats, no AI)
 
 Detailed AI Analysis:
 - IndustryAnalyzer (AI-powered)
+- UnusualExpendituresAnalyzer (AI-powered)
 - GroupedDonationsAnalyzer (AI-powered)
 - SummaryAnalyzer (AI-powered, compiled last with all data)
 """
@@ -32,6 +32,8 @@ from .prompts import (
     INDUSTRY_USER_TEMPLATE,
     SUMMARY_SYSTEM_PROMPT,
     SUMMARY_USER_TEMPLATE,
+    UNUSUAL_EXPENDITURES_SYSTEM_PROMPT,
+    UNUSUAL_EXPENDITURES_USER_TEMPLATE,
 )
 
 if TYPE_CHECKING:
@@ -265,42 +267,6 @@ class FundingSourceAnalyzer:
         )
 
 
-class ExpenditureAnalyzer:
-    """Analyzer for interesting expenditures (no AI - just formats stats)."""
-
-    feature_name = "expenditures"
-
-    def analyze(
-        self,
-        extraction: ExtractionResult,
-        report: Filings,
-    ) -> AnalysisResult:
-        """Format expenditure statistics into a narrative."""
-        stats = extraction.stats
-        data = extraction.data
-
-        flagged_count = stats.get("flagged_count", 0)
-        flagged_total = stats.get("flagged_total", 0)
-        total_expenditures = stats.get("total_expenditures", 0)
-
-        if flagged_count == 0:
-            narrative = "No expenditures flagged for review."
-        else:
-            flagged = data.get("flagged_expenditures", [])[:5]
-            top_items = ", ".join(f"{e['payee']} (${e['amount']:,.0f})" for e in flagged)
-            narrative = (
-                f"{flagged_count} expenditures flagged (${flagged_total:,.2f} of "
-                f"${total_expenditures:,.2f} total). Top items: {top_items}."
-            )
-
-        return AnalysisResult(
-            feature=self.feature_name,
-            data=data,
-            stats=stats,
-            narrative=narrative,
-        )
-
-
 # =============================================================================
 # Detailed AI Analysis
 # =============================================================================
@@ -410,6 +376,100 @@ class IndustryAnalyzer:
             names = ", ".join(e["employer"] for e in top_employers)
             return f"Top employers: {names}."
         return "Employer data available but AI analysis unavailable."
+
+
+class UnusualExpendituresAnalyzer:
+    """Analyzer for unusual/interesting expenditures (AI-powered)."""
+
+    feature_name = "unusual_expenditures"
+
+    def __init__(self) -> None:
+        self._client: AzureOpenAI | None = None
+        self._deployment: str | None = None
+
+    def _ensure_client(self) -> None:
+        """Lazy-load OpenAI client."""
+        if self._client is None:
+            self._client, self._deployment = _get_openai_client()
+
+    def analyze(
+        self,
+        extraction: ExtractionResult,
+        report: Filings,
+    ) -> AnalysisResult:
+        """Analyze unusual expenditures and explain why they're noteworthy."""
+        stats = extraction.stats
+        data = extraction.data
+
+        flagged_count = stats.get("flagged_count", 0)
+        flagged_total = stats.get("flagged_total", 0)
+
+        # Skip AI if no flagged expenditures
+        if flagged_count == 0:
+            return AnalysisResult(
+                feature=self.feature_name,
+                data=data,
+                stats=stats,
+                narrative="No unusual expenditures identified.",
+            )
+
+        period = f"{report.coverage_start_date} to {report.coverage_end_date}"
+        committee_name = report.committee_name
+
+        flagged = data.get("flagged_expenditures", [])[:15]
+        expenditures_list = (
+            "\n".join(
+                f"- {e['payee']}: ${e['amount']:,.2f} - {e.get('purpose', 'No purpose listed')}"
+                for e in flagged
+            )
+            or "- None"
+        )
+
+        keywords = data.get("keywords_used", [])
+        keywords_str = ", ".join(keywords[:10]) if keywords else "various"
+
+        self._ensure_client()
+        if self._client is None or self._deployment is None:
+            raise ValueError("OpenAI client not initialized")
+
+        user_message = UNUSUAL_EXPENDITURES_USER_TEMPLATE.format(
+            committee_name=committee_name,
+            report_period=period,
+            flagged_count=flagged_count,
+            flagged_total=flagged_total,
+            expenditures_list=expenditures_list,
+            keywords=keywords_str,
+        )
+
+        try:
+            response = self._client.chat.completions.create(
+                model=self._deployment,
+                messages=[
+                    {"role": "system", "content": UNUSUAL_EXPENDITURES_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_message},
+                ],
+                max_tokens=300,
+                temperature=0.3,
+            )
+            narrative = response.choices[0].message.content or ""
+            logger.info(f"Generated unusual expenditures analysis for {committee_name}")
+        except Exception as e:
+            logger.error(f"Failed to generate unusual expenditures analysis: {e}")
+            narrative = self._generate_fallback(stats, data)
+
+        return AnalysisResult(
+            feature=self.feature_name,
+            data=data,
+            stats=stats,
+            narrative=narrative.strip(),
+        )
+
+    def _generate_fallback(self, stats: dict, data: dict) -> str:
+        flagged = data.get("flagged_expenditures", [])[:3]
+        if flagged:
+            items = ", ".join(f"{e['payee']} (${e['amount']:,.0f})" for e in flagged)
+            return f"Unusual expenditures flagged: {items}."
+        return "Expenditure data available but AI analysis unavailable."
 
 
 class GroupedDonationsAnalyzer:

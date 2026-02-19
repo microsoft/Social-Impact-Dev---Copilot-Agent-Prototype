@@ -74,15 +74,6 @@ def _build_analysis_section_html(analysis: FullAnalysisResult | None) -> str:
         if parts:
             sections.append(f"<li><strong>Funding Sources:</strong> {', '.join(parts)}</li>")
 
-    # Flagged expenditures
-    if analysis.expenditures:
-        es = analysis.expenditures.stats
-        if es.get("flagged_count", 0) > 0:
-            sections.append(
-                f"<li><strong>Flagged Expenditures:</strong> {es['flagged_count']} "
-                f"items (${es.get('flagged_total', 0):,.2f})</li>"
-            )
-
     if not sections:
         return ""
 
@@ -109,6 +100,18 @@ def _build_detailed_analysis_html(analysis: FullAnalysisResult | None) -> str:
                         margin-bottom: 10px;">
                 <strong>Industry/Employer Analysis:</strong>
                 <p style="margin: 5px 0 0 0;">{analysis.industry.narrative}</p>
+            </div>
+            """
+        )
+
+    # Unusual expenditures
+    if analysis.unusual_expenditures and analysis.unusual_expenditures.narrative:
+        sections.append(
+            f"""
+            <div style="background: #f0f7e6; padding: 15px; border-radius: 5px;
+                        margin-bottom: 10px;">
+                <strong>Unusual Expenditures:</strong>
+                <p style="margin: 5px 0 0 0;">{analysis.unusual_expenditures.narrative}</p>
             </div>
             """
         )
@@ -268,18 +271,14 @@ def _build_analysis_section_plain_text(analysis: FullAnalysisResult | None) -> l
         if parts:
             lines.append(f"  Funding Sources: {', '.join(parts)}")
 
-    # Flagged expenditures
-    if analysis.expenditures:
-        es = analysis.expenditures.stats
-        if es.get("flagged_count", 0) > 0:
-            lines.append(
-                f"  Flagged Expenditures: {es['flagged_count']} items "
-                f"(${es.get('flagged_total', 0):,.2f})"
-            )
-
     # Detailed analysis narratives
     if analysis.industry and analysis.industry.narrative:
         lines.extend(["", "Industry Analysis:", f"  {analysis.industry.narrative}"])
+
+    if analysis.unusual_expenditures and analysis.unusual_expenditures.narrative:
+        lines.extend(
+            ["", "Unusual Expenditures:", f"  {analysis.unusual_expenditures.narrative}"]
+        )
 
     if analysis.grouped_donations and analysis.grouped_donations.narrative:
         lines.extend(["", "Donation Patterns:", f"  {analysis.grouped_donations.narrative}"])

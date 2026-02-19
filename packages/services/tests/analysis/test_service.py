@@ -77,11 +77,11 @@ class TestFullAnalysisResult:
                 stats={},
                 narrative="Funding sources narrative",
             ),
-            expenditures=AnalysisResult(
-                feature="expenditures",
+            unusual_expenditures=AnalysisResult(
+                feature="unusual_expenditures",
                 data={},
                 stats={},
-                narrative="Expenditures narrative",
+                narrative="Unusual expenditures narrative",
             ),
             industry=AnalysisResult(
                 feature="industry",
@@ -104,7 +104,7 @@ class TestFullAnalysisResult:
         assert "**Geography:** Geography narrative" in combined
         assert "**Donor Size:** Donor size narrative" in combined
         assert "**Funding Sources:** Funding sources narrative" in combined
-        assert "**Expenditures:** Expenditures narrative" in combined
+        assert "**Unusual Expenditures:** Unusual expenditures narrative" in combined
         assert "**Industry Analysis:** Industry narrative" in combined
         assert "**Grouped Donations:** Grouped donations narrative" in combined
         # Check sections are separated by double newlines
@@ -166,8 +166,8 @@ class TestFullAnalysisResult:
                 stats={"individuals_pct": 80.0, "pacs_pct": 20.0},
                 narrative="",
             ),
-            expenditures=AnalysisResult(
-                feature="expenditures",
+            unusual_expenditures=AnalysisResult(
+                feature="unusual_expenditures",
                 data={},
                 stats={"flagged_count": 5, "flagged_total": 10000},
                 narrative="",
@@ -192,7 +192,7 @@ class TestFullAnalysisResult:
         assert stats["geography"]["in_state_pct"] == 60.0
         assert stats["donor_size"]["small_pct"] == 25.0
         assert stats["funding_sources"]["individuals_pct"] == 80.0
-        assert stats["expenditures"]["flagged_count"] == 5
+        assert stats["unusual_expenditures"]["flagged_count"] == 5
         assert stats["industry"]["top_industry"] == "Tech"
         assert stats["grouped_donations"]["groups_found"] == 3
 
@@ -243,7 +243,7 @@ class TestOpenAIAnalysisService:
         assert service._geography_analyzer is None
         assert service._donor_size_analyzer is None
         assert service._funding_source_analyzer is None
-        assert service._expenditure_analyzer is None
+        assert service._unusual_expenditures_analyzer is None
         assert service._industry_analyzer is None
         assert service._grouped_donations_analyzer is None
         assert service._summary_analyzer is None
@@ -427,7 +427,7 @@ class TestOpenAIAnalysisService:
         assert result.geography is not None
         assert result.donor_size is not None
         assert result.funding_sources is not None
-        assert result.expenditures is not None
+        assert result.unusual_expenditures is not None
         assert result.industry is not None
         assert result.grouped_donations is not None
 
@@ -459,21 +459,14 @@ class TestOpenAIAnalysisService:
             stats={"individuals_pct": 80.0, "pacs_pct": 15.0, "parties_pct": 5.0},
             narrative="",
         )
-        expenditure = AnalysisResult(
-            feature="expenditures",
-            data={},
-            stats={"flagged_count": 3, "flagged_total": 5000},
-            narrative="",
-        )
 
-        result = service._format_analysis_stats(maxed, geography, donor_size, funding, expenditure)
+        result = service._format_analysis_stats(maxed, geography, donor_size, funding)
 
         assert "Max Out Donors ($3,500): 10 donors" in result
         assert "$35,000.00" in result
         assert "Geography: 60.0% in-state" in result
         assert "Donor Size: 15.0% from small donors" in result
         assert "Funding Sources: 80.0% individuals" in result
-        assert "Flagged Expenditures: 3 items" in result
 
     def test_analyze_max_out_donors_with_cache_hit(
         self, mock_blob_service, mock_report, sample_parsed_file
@@ -555,7 +548,7 @@ class TestExtractOnly:
         assert "geography" in result
         assert "donor_size" in result
         assert "funding_sources" in result
-        assert "expenditures" in result
+        assert "unusual_expenditures" in result
         assert "industry" in result
         assert "grouped_donations" in result
 

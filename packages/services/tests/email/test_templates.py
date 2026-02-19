@@ -49,8 +49,8 @@ def make_test_analysis(
     geography_stats=None,
     donor_size_stats=None,
     funding_sources_stats=None,
-    expenditures_stats=None,
     industry_narrative=None,
+    unusual_expenditures_narrative=None,
     grouped_donations_narrative=None,
 ):
     """Create a test FullAnalysisResult with the given data."""
@@ -88,14 +88,6 @@ def make_test_analysis(
         )
         if funding_sources_stats
         else None,
-        expenditures=AnalysisResult(
-            feature="expenditures",
-            data={},
-            stats=expenditures_stats or {},
-            narrative="",
-        )
-        if expenditures_stats
-        else None,
         industry=AnalysisResult(
             feature="industry",
             data={},
@@ -103,6 +95,14 @@ def make_test_analysis(
             narrative=industry_narrative or "",
         )
         if industry_narrative
+        else None,
+        unusual_expenditures=AnalysisResult(
+            feature="unusual_expenditures",
+            data={},
+            stats={},
+            narrative=unusual_expenditures_narrative or "",
+        )
+        if unusual_expenditures_narrative
         else None,
         grouped_donations=AnalysisResult(
             feature="grouped_donations",
@@ -208,22 +208,6 @@ class TestBuildAnalysisSectionHtml:
         assert "3.0% transfers" in result
         assert "2.0% loans" in result
 
-    def test_expenditures_section(self):
-        """Test flagged expenditures section."""
-        analysis = make_test_analysis(
-            expenditures_stats={"flagged_count": 5, "flagged_total": 10000.0}
-        )
-        result = _build_analysis_section_html(analysis)
-        assert "Flagged Expenditures" in result
-        assert "5 items" in result
-        assert "$10,000.00" in result
-
-    def test_expenditures_hidden_when_zero(self):
-        """Test that expenditures section is hidden when count is zero."""
-        analysis = make_test_analysis(expenditures_stats={"flagged_count": 0, "flagged_total": 0})
-        result = _build_analysis_section_html(analysis)
-        # Should not show section header since no stats are shown
-        assert "Flagged Expenditures" not in result
 
 
 class TestBuildDetailedAnalysisHtml:
@@ -258,15 +242,28 @@ class TestBuildDetailedAnalysisHtml:
         assert "Donation Patterns" in result
         assert "Notable same-day donation patterns" in result
 
-    def test_both_narratives(self):
-        """Test with both narratives."""
+    def test_unusual_expenditures_narrative(self):
+        """Test with unusual expenditures narrative."""
+        analysis = make_test_analysis(
+            unusual_expenditures_narrative="Travel and resort expenditures detected."
+        )
+        result = _build_detailed_analysis_html(analysis)
+        assert "Detailed Analysis" in result
+        assert "Unusual Expenditures" in result
+        assert "Travel and resort expenditures detected" in result
+
+    def test_all_narratives(self):
+        """Test with all narratives."""
         analysis = make_test_analysis(
             industry_narrative="Industry analysis text.",
+            unusual_expenditures_narrative="Unusual spending detected.",
             grouped_donations_narrative="Donation patterns text.",
         )
         result = _build_detailed_analysis_html(analysis)
         assert "Industry/Employer Analysis" in result
         assert "Industry analysis text" in result
+        assert "Unusual Expenditures" in result
+        assert "Unusual spending detected" in result
         assert "Donation Patterns" in result
         assert "Donation patterns text" in result
 
@@ -398,8 +395,8 @@ class TestBuildAnalysisSectionPlainText:
             geography_stats={"in_state_pct": 60.0, "out_state_pct": 40.0},
             donor_size_stats={"small_pct": 15.0, "big_pct": 85.0},
             funding_sources_stats={"individuals_pct": 80.0, "pacs_pct": 20.0},
-            expenditures_stats={"flagged_count": 3, "flagged_total": 5000.0},
             industry_narrative="Tech sector dominates.",
+            unusual_expenditures_narrative="Resort expenditures flagged.",
             grouped_donations_narrative="Same-day patterns found.",
         )
         result = _build_analysis_section_plain_text(analysis)
@@ -410,8 +407,8 @@ class TestBuildAnalysisSectionPlainText:
         assert "Geography" in text
         assert "Donor Composition" in text
         assert "Funding Sources" in text
-        assert "Flagged Expenditures" in text
         assert "Industry Analysis" in text
+        assert "Unusual Expenditures" in text
         assert "Donation Patterns" in text
 
 

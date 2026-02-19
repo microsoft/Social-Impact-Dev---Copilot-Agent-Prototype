@@ -15,13 +15,13 @@ from typing import TYPE_CHECKING, Protocol
 from .analyzers import (
     AnalysisResult,
     DonorSizeAnalyzer,
-    ExpenditureAnalyzer,
     FundingSourceAnalyzer,
     GeographyAnalyzer,
     GroupedDonationsAnalyzer,
     IndustryAnalyzer,
     MaxOutDonorsAnalyzer,
     SummaryAnalyzer,
+    UnusualExpendituresAnalyzer,
 )
 from .extractors import (
     DonorSizeExtractor,
@@ -51,8 +51,9 @@ class FullAnalysisResult:
     geography: AnalysisResult | None = None
     donor_size: AnalysisResult | None = None
     funding_sources: AnalysisResult | None = None
-    expenditures: AnalysisResult | None = None
+    # Detailed AI analyses
     industry: AnalysisResult | None = None
+    unusual_expenditures: AnalysisResult | None = None
     grouped_donations: AnalysisResult | None = None
 
     # All extracted stats for summary compilation
@@ -71,10 +72,12 @@ class FullAnalysisResult:
             narratives.append(f"**Donor Size:** {self.donor_size.narrative}")
         if self.funding_sources and self.funding_sources.narrative:
             narratives.append(f"**Funding Sources:** {self.funding_sources.narrative}")
-        if self.expenditures and self.expenditures.narrative:
-            narratives.append(f"**Expenditures:** {self.expenditures.narrative}")
         if self.industry and self.industry.narrative:
             narratives.append(f"**Industry Analysis:** {self.industry.narrative}")
+        if self.unusual_expenditures and self.unusual_expenditures.narrative:
+            narratives.append(
+                f"**Unusual Expenditures:** {self.unusual_expenditures.narrative}"
+            )
         if self.grouped_donations and self.grouped_donations.narrative:
             narratives.append(f"**Grouped Donations:** {self.grouped_donations.narrative}")
         return "\n\n".join(narratives)
@@ -90,10 +93,10 @@ class FullAnalysisResult:
             stats["donor_size"] = self.donor_size.stats
         if self.funding_sources:
             stats["funding_sources"] = self.funding_sources.stats
-        if self.expenditures:
-            stats["expenditures"] = self.expenditures.stats
         if self.industry:
             stats["industry"] = self.industry.stats
+        if self.unusual_expenditures:
+            stats["unusual_expenditures"] = self.unusual_expenditures.stats
         if self.grouped_donations:
             stats["grouped_donations"] = self.grouped_donations.stats
         return stats
@@ -180,7 +183,7 @@ class OpenAIAnalysisService:
         self._geography_analyzer: GeographyAnalyzer | None = None
         self._donor_size_analyzer: DonorSizeAnalyzer | None = None
         self._funding_source_analyzer: FundingSourceAnalyzer | None = None
-        self._expenditure_analyzer: ExpenditureAnalyzer | None = None
+        self._unusual_expenditures_analyzer: UnusualExpendituresAnalyzer | None = None
         self._industry_analyzer: IndustryAnalyzer | None = None
         self._grouped_donations_analyzer: GroupedDonationsAnalyzer | None = None
         self._summary_analyzer: SummaryAnalyzer | None = None
@@ -206,10 +209,10 @@ class OpenAIAnalysisService:
             self._funding_source_analyzer = FundingSourceAnalyzer()
         return self._funding_source_analyzer
 
-    def _get_expenditure_analyzer(self) -> ExpenditureAnalyzer:
-        if self._expenditure_analyzer is None:
-            self._expenditure_analyzer = ExpenditureAnalyzer()
-        return self._expenditure_analyzer
+    def _get_unusual_expenditures_analyzer(self) -> UnusualExpendituresAnalyzer:
+        if self._unusual_expenditures_analyzer is None:
+            self._unusual_expenditures_analyzer = UnusualExpendituresAnalyzer()
+        return self._unusual_expenditures_analyzer
 
     def _get_industry_analyzer(self) -> IndustryAnalyzer:
         if self._industry_analyzer is None:
@@ -354,13 +357,13 @@ class OpenAIAnalysisService:
         geography_result = self._get_geography_analyzer().analyze(geography_extraction, report)
         donor_size_result = self._get_donor_size_analyzer().analyze(donor_size_extraction, report)
         funding_result = self._get_funding_source_analyzer().analyze(funding_extraction, report)
-        expenditure_result = self._get_expenditure_analyzer().analyze(
-            expenditure_extraction, report
-        )
 
         # Phase 2b: Detailed AI analyzers
         logger.info("Phase 2b: Running AI analyzers...")
         industry_result = self._get_industry_analyzer().analyze(industry_extraction, report)
+        unusual_expenditures_result = self._get_unusual_expenditures_analyzer().analyze(
+            expenditure_extraction, report
+        )
         grouped_result = self._get_grouped_donations_analyzer().analyze(grouped_extraction, report)
 
         # Phase 3: Compile summary last with all data
@@ -370,7 +373,6 @@ class OpenAIAnalysisService:
             geography_result,
             donor_size_result,
             funding_result,
-            expenditure_result,
         )
         summary = self.generate_summary(report, base_path, analysis_stats)
 
@@ -380,8 +382,10 @@ class OpenAIAnalysisService:
             self._cache_analysis(f"{base_path}/analysis/geography.json", geography_result)
             self._cache_analysis(f"{base_path}/analysis/donor_size.json", donor_size_result)
             self._cache_analysis(f"{base_path}/analysis/funding.json", funding_result)
-            self._cache_analysis(f"{base_path}/analysis/expenditures.json", expenditure_result)
             self._cache_analysis(f"{base_path}/analysis/industry.json", industry_result)
+            self._cache_analysis(
+                f"{base_path}/analysis/unusual_expenditures.json", unusual_expenditures_result
+            )
             self._cache_analysis(f"{base_path}/analysis/grouped_donations.json", grouped_result)
 
         return FullAnalysisResult(
@@ -390,15 +394,14 @@ class OpenAIAnalysisService:
             geography=geography_result,
             donor_size=donor_size_result,
             funding_sources=funding_result,
-            expenditures=expenditure_result,
             industry=industry_result,
+            unusual_expenditures=unusual_expenditures_result,
             grouped_donations=grouped_result,
             all_stats={
                 "max_out_donors": max_out_extraction.stats,
                 "geography": geography_extraction.stats,
                 "donor_size": donor_size_extraction.stats,
                 "funding_sources": funding_extraction.stats,
-                "expenditures": expenditure_extraction.stats,
             },
         )
 
@@ -408,12 +411,11 @@ class OpenAIAnalysisService:
         geography: AnalysisResult,
         donor_size: AnalysisResult,
         funding: AnalysisResult,
-        expenditure: AnalysisResult,
     ) -> str:
         """Format all statistics for the summary prompt."""
         lines = []
 
-        # Maxed donors
+        # Max out donors
         ms = max_out.stats
         lines.append(
             f"- Max Out Donors ($3,500): {ms.get('count', 0)} donors, "
@@ -439,13 +441,6 @@ class OpenAIAnalysisService:
         lines.append(
             f"- Funding Sources: {fs.get('individuals_pct', 0):.1f}% individuals, "
             f"{fs.get('pacs_pct', 0):.1f}% PACs, {fs.get('parties_pct', 0):.1f}% parties"
-        )
-
-        # Expenditures
-        es = expenditure.stats
-        lines.append(
-            f"- Flagged Expenditures: {es.get('flagged_count', 0)} items "
-            f"(${es.get('flagged_total', 0):,.2f})"
         )
 
         return "\n".join(lines)
@@ -523,7 +518,7 @@ class OpenAIAnalysisService:
                 "data": self._funding_source_extractor.extract(parsed, report).data,
                 "stats": self._funding_source_extractor.extract(parsed, report).stats,
             },
-            "expenditures": {
+            "unusual_expenditures": {
                 "data": self._expenditure_extractor.extract(parsed, report).data,
                 "stats": self._expenditure_extractor.extract(parsed, report).stats,
             },
