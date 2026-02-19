@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from services.analysis.extractors import (
+    FundingSourceExtractor,
     GeographyExtractor,
     MaxedDonorsExtractor,
     _format_name,
@@ -666,3 +667,263 @@ class TestGeographyExtractor:
         assert result.stats["in_state_pct"] + result.stats["out_state_pct"] == 100.0
         assert result.stats["in_state_pct"] == 50.0  # $2000 of $4000
         assert result.stats["out_state_pct"] == 50.0
+
+
+class TestFundingSourceExtractor:
+    """Tests for FundingSourceExtractor to verify funding source categorization."""
+
+    @pytest.fixture
+    def extractor(self):
+        return FundingSourceExtractor()
+
+    @pytest.fixture
+    def mock_report(self):
+        """Create a mock report."""
+        return SimpleNamespace(committee_name="Test Committee")
+
+    def _make_contribution_row(self, form_type: str, amount: str, name: str = "Donor") -> list[str]:
+        """Create a contribution row with the given form type and amount.
+
+        Form types:
+        - SA11AI: Individual contributions
+        - SA11B: Political party contributions
+        - SA11C: PAC contributions
+        - SA12: Transfers from affiliated committees
+        - SA13: Loans received
+        - SA14-SA17: Other receipts
+        """
+        return [
+            form_type,  # 0: Form Type
+            "C00123456",  # 1: Committee ID
+            "TXN001",  # 2: Transaction ID
+            "",  # 3
+            "",  # 4
+            "IND",  # 5: Entity Type
+            "",  # 6: Organization Name
+            name,  # 7: Last Name
+            "",  # 8: First Name
+            "",  # 9: Middle Name
+            "",  # 10
+            "",  # 11
+            "",  # 12
+            "",  # 13
+            "Seattle",  # 14: City
+            "WA",  # 15: State
+            "98101",  # 16: ZIP
+            "",  # 17
+            "",  # 18
+            "20240101",  # 19: Date
+            amount,  # 20: Contribution Amount
+            amount,  # 21: Aggregate
+            "",  # 22
+            "",  # 23
+            "",  # 24
+        ]
+
+    def test_all_percentages_add_up_to_100(self, extractor, mock_report):
+        """Test that all funding source percentages add up to 100%."""
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("SA11AI", "5000.00"),  # Individual
+                self._make_contribution_row("SA11B", "1000.00"),  # Party
+                self._make_contribution_row("SA11C", "2000.00"),  # PAC
+                self._make_contribution_row("SA12", "1500.00"),  # Transfer
+                self._make_contribution_row("SA13", "500.00"),  # Loan
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        total_pct = (
+            result.stats["individuals_pct"]
+            + result.stats["pacs_pct"]
+            + result.stats["parties_pct"]
+            + result.stats["transfers_pct"]
+            + result.stats["loans_pct"]
+        )
+        assert abs(total_pct - 100.0) < 0.01
+
+    def test_individual_contributions_correctly_identified(self, extractor, mock_report):
+        """Test that SA11AI form types are categorized as individual contributions."""
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("SA11AI", "1000.00"),
+                self._make_contribution_row("SA11AI", "2000.00"),
+                self._make_contribution_row("SA11C", "500.00"),  # PAC for comparison
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert result.stats["individuals_total"] == 3000.0
+        assert result.stats["individuals_count"] == 2
+        # 3000 / 3500 total = 85.71%
+        assert abs(result.stats["individuals_pct"] - 85.71) < 0.1
+
+    def test_pac_contributions_correctly_identified(self, extractor, mock_report):
+        """Test that SA11C form types are categorized as PAC contributions."""
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("SA11C", "5000.00", "Some PAC"),
+                self._make_contribution_row("SA11C", "3000.00", "Another PAC"),
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert result.stats["pacs_total"] == 8000.0
+        assert result.stats["pacs_count"] == 2
+        assert result.stats["pacs_pct"] == 100.0
+
+    def test_party_contributions_correctly_identified(self, extractor, mock_report):
+        """Test that SA11B form types are categorized as party contributions."""
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("SA11B", "10000.00", "State Party"),
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert result.stats["parties_total"] == 10000.0
+        assert result.stats["parties_pct"] == 100.0
+
+    def test_transfers_correctly_identified(self, extractor, mock_report):
+        """Test that SA12 form types are categorized as transfers."""
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("SA12", "25000.00", "Affiliated Committee"),
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert result.stats["transfers_total"] == 25000.0
+        assert result.stats["transfers_pct"] == 100.0
+
+    def test_loans_correctly_identified(self, extractor, mock_report):
+        """Test that SA13 form types are categorized as loans."""
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("SA13", "50000.00", "Candidate"),
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert result.stats["loans_total"] == 50000.0
+        assert result.stats["loans_pct"] == 100.0
+
+    def test_empty_contributions(self, extractor, mock_report):
+        """Test that empty contributions result in zero percentages."""
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert result.stats["individuals_pct"] == 0.0
+        assert result.stats["pacs_pct"] == 0.0
+        assert result.stats["parties_pct"] == 0.0
+        assert result.stats["transfers_pct"] == 0.0
+        assert result.stats["loans_pct"] == 0.0
+        assert result.stats["total"] == 0.0
+
+    def test_individuals_pct_represents_individual_vs_groups(self, extractor, mock_report):
+        """Test that individuals_pct correctly shows individual vs group contributions.
+
+        This is the key metric: what percentage of funding comes from individual
+        contributors vs organized groups (PACs, parties, transfers).
+        """
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                # Individual contributions: $6000 total
+                self._make_contribution_row("SA11AI", "3000.00", "Person1"),
+                self._make_contribution_row("SA11AI", "2000.00", "Person2"),
+                self._make_contribution_row("SA11AI", "1000.00", "Person3"),
+                # Group contributions: $4000 total
+                self._make_contribution_row("SA11C", "2500.00", "Big PAC"),
+                self._make_contribution_row("SA11B", "1000.00", "State Party"),
+                self._make_contribution_row("SA12", "500.00", "Affiliated Cmte"),
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        # Total: $10,000
+        assert result.stats["total"] == 10000.0
+
+        # Individuals: $6000 / $10000 = 60%
+        assert result.stats["individuals_pct"] == 60.0
+        assert result.stats["individuals_total"] == 6000.0
+        assert result.stats["individuals_count"] == 3
+
+        # PACs: $2500 / $10000 = 25%
+        assert result.stats["pacs_pct"] == 25.0
+
+        # Parties: $1000 / $10000 = 10%
+        assert result.stats["parties_pct"] == 10.0
+
+        # Transfers: $500 / $10000 = 5%
+        assert result.stats["transfers_pct"] == 5.0
+
+        # All percentages should add to 100%
+        total_pct = (
+            result.stats["individuals_pct"]
+            + result.stats["pacs_pct"]
+            + result.stats["parties_pct"]
+            + result.stats["transfers_pct"]
+            + result.stats["loans_pct"]
+        )
+        assert total_pct == 100.0
+
+    def test_other_sa_forms_categorized_as_other(self, extractor, mock_report):
+        """Test that other SA form types (SA14, SA15, etc.) are categorized as other."""
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("SA14", "1000.00"),  # Offsets
+                self._make_contribution_row("SA15", "500.00"),  # Other receipts
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert result.stats["other_total"] == 1500.0
+        # Other is tracked in data but not in stats percentage
+        assert result.stats["total"] == 1500.0
