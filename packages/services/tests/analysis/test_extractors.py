@@ -320,6 +320,159 @@ class TestMaxedDonorsExtractor:
         assert top_employers["Tech Company"] == 2
         assert top_employers["Other Corp"] == 1
 
+    def test_percentage_uses_aggregate_not_amount(self, extractor, mock_report):
+        """Test that percentage calculation uses aggregate from maxed donors.
+
+        This tests the scenario where a donor's aggregate includes contributions
+        from previous reports (aggregate > amount in current report).
+        """
+        # Maxed donor: gave $1000 this quarter but has $3500 aggregate
+        maxed_row = [
+            "SA11AI",
+            "C00123456",
+            "TXN001",
+            "",
+            "",
+            "IND",
+            "",
+            "Doe",
+            "John",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "Seattle",
+            "WA",
+            "",
+            "",
+            "",
+            "20240101",
+            "1000.00",  # Amount this quarter
+            "3500.00",  # Aggregate (maxed out)
+            "",
+            "Tech Company",
+            "Engineer",
+        ]
+        # Non-maxed donor
+        non_maxed_row = [
+            "SA11AI",
+            "C00123456",
+            "TXN002",
+            "",
+            "",
+            "IND",
+            "",
+            "Smith",
+            "Jane",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "Portland",
+            "OR",
+            "",
+            "",
+            "",
+            "20240101",
+            "1500.00",
+            "1500.00",
+            "",
+            "Other Company",
+            "Manager",
+        ]
+
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[maxed_row, non_maxed_row],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        # Total individual contributions this quarter = $1000 + $1500 = $2500
+        assert result.stats["total_individual_contributions"] == 2500.0
+        # Total from maxed = aggregate of maxed donors = $3500
+        assert result.stats["total"] == 3500.0
+        # Percentage = $3500 / $2500 = 140% (can exceed 100%!)
+        assert result.stats["pct_of_individual"] == 140.0
+
+    def test_maxed_threshold_is_3500(self, extractor, mock_report):
+        """Test that the default max out threshold is $3,500."""
+        assert extractor.limit == 3500.0
+
+        # Donor just below limit should not be maxed
+        just_below_row = [
+            "SA11AI",
+            "C00123456",
+            "TXN001",
+            "",
+            "",
+            "IND",
+            "",
+            "Doe",
+            "John",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "Seattle",
+            "WA",
+            "",
+            "",
+            "",
+            "20240101",
+            "3499.99",
+            "3499.99",
+            "",
+            "Company",
+            "Job",
+        ]
+        # Donor at exactly the limit should be maxed
+        at_limit_row = [
+            "SA11AI",
+            "C00123456",
+            "TXN002",
+            "",
+            "",
+            "IND",
+            "",
+            "Smith",
+            "Jane",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "Portland",
+            "OR",
+            "",
+            "",
+            "",
+            "20240101",
+            "3500.00",
+            "3500.00",
+            "",
+            "Company",
+            "Job",
+        ]
+
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[just_below_row, at_limit_row],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        # Only the donor at exactly $3500 should be maxed
+        assert result.stats["count"] == 1
+        assert result.data["donors"][0]["name"] == "Jane Smith"
+
 
 class TestGeographyExtractor:
     """Tests for GeographyExtractor to ensure in-state/out-of-state percentages are correct."""
