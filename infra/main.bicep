@@ -198,7 +198,6 @@ module emailFunctionApp 'email-update-app.bicep' = {
     azureOpenAIEndpoint: !empty(azureOpenAIEndpoint) ? azureOpenAIEndpoint : openAI.outputs.endpoint
     azureOpenAIApiKey: !empty(azureOpenAIApiKey) ? azureOpenAIApiKey : openAIRef.listKeys().key1
     azureOpenAIDeployment: !empty(azureOpenAIDeployment) ? azureOpenAIDeployment : openAI.outputs.deploymentName
-    fecCommitteeIds: fecCommitteeIds
   }
 }
 
