@@ -2,18 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from fec_api_client import Filings, format_report_type
 
-from fec_api_client import format_report_type
-
+from .analysis import FullAnalysisResult
 from .utils import format_date, format_period
 
-if TYPE_CHECKING:
-    from .analysis import FullAnalysisResult
-    from .reports import Report
 
-
-def _build_financials_html(report: Report) -> str:
+def _build_financials_html(report: Filings) -> str:
     """Build HTML list items for financial data."""
     financials = ""
     if report.total_receipts is not None:
@@ -141,7 +136,7 @@ def _build_detailed_analysis_html(analysis: FullAnalysisResult | None) -> str:
 
 
 def _build_links_html(
-    report: Report,
+    report: Filings,
     *,
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
@@ -171,7 +166,7 @@ def _build_links_html(
 
 
 def build_report_html(
-    report: Report,
+    report: Filings,
     summary: str,
     *,
     formatted_csv_url: str | None = None,
@@ -190,14 +185,12 @@ def build_report_html(
         analysis: Full analysis result with all features.
         maxed_donors_analysis: Deprecated, use analysis instead.
     """
-    from .reports import get_display_name
-
     financials = _build_financials_html(report)
     links = _build_links_html(report, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url)
     analysis_section = _build_analysis_section_html(analysis)
     detailed_section = _build_detailed_analysis_html(analysis)
     period = format_period(report.coverage_start_date, report.coverage_end_date)
-    display_name = get_display_name(report)
+    display_name = report.committee_name
     report_type_display = format_report_type(report.report_type)
     filed_date = format_date(report.receipt_date)
 
@@ -297,7 +290,7 @@ def _build_analysis_section_plain_text(analysis: FullAnalysisResult | None) -> l
 
 
 def build_report_plain_text(
-    report: Report,
+    report: Filings,
     summary: str,
     *,
     formatted_csv_url: str | None = None,
@@ -316,9 +309,7 @@ def build_report_plain_text(
         analysis: Full analysis result with all features.
         maxed_donors_analysis: Deprecated, use analysis instead.
     """
-    from .reports import get_display_name
-
-    display_name = get_display_name(report)
+    display_name = report.committee_name
     report_type_display = format_report_type(report.report_type)
     period = format_period(report.coverage_start_date, report.coverage_end_date)
     filed_date = format_date(report.receipt_date)
@@ -371,7 +362,7 @@ def build_report_plain_text(
 
 
 def build_report_preview_html(
-    report: Report,
+    report: Filings,
     summary: str,
     *,
     formatted_csv_url: str | None = None,

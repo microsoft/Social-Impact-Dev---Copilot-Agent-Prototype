@@ -373,15 +373,15 @@ class TestBuildReportHtml:
         assert "Original FEC Filing" in result
         assert "Processed Data" in result
 
-    def test_with_candidate_name(self):
-        """Test that candidate name is used for display."""
+    def test_uses_committee_name(self):
+        """Test that committee name is used for display."""
         report = make_test_report(
             candidate_name="John Smith",
             committee_name="Smith for Congress",
         )
         result = build_report_html(report, "Summary")
 
-        assert "John Smith" in result
+        assert "Smith for Congress" in result
 
 
 class TestBuildAnalysisSectionPlainText:

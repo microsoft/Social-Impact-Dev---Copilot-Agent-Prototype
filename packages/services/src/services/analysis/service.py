@@ -242,10 +242,8 @@ class OpenAIAnalysisService:
         Returns:
             Summary text.
         """
-        from ..reports import get_display_name
-
         cache_path = f"{base_path}/summary.txt" if base_path else None
-        fallback = f"New report filed by {get_display_name(report)}."
+        fallback = f"New report filed by {report.committee_name}."
 
         # Try to get cached result
         if cache_path and self.blob_service:
