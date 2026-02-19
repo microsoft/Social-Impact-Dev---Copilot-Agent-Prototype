@@ -165,14 +165,13 @@ class TestBuildAnalysisSectionHtml:
     def test_maxed_donors_section(self):
         """Test maxed donors section."""
         analysis = make_test_analysis(
-            maxed_donors_stats={"count": 10, "total": 35000.0, "pct_of_individual": 25.5}
+            maxed_donors_stats={"count": 10, "total": 35000.0}
         )
         result = _build_analysis_section_html(analysis)
         assert "Analysis Summary" in result
         assert "Maxed Donors ($3,500)" in result
         assert "10 donors" in result
         assert "$35,000.00" in result
-        assert "25.5%" in result
 
     def test_geography_section(self):
         """Test geography section."""
@@ -350,7 +349,7 @@ class TestBuildReportHtml:
         """Test with analysis data."""
         report = make_test_report()
         analysis = make_test_analysis(
-            maxed_donors_stats={"count": 5, "total": 17500.0, "pct_of_individual": 20.0}
+            maxed_donors_stats={"count": 5, "total": 17500.0}
         )
         result = build_report_html(report, "Summary", analysis=analysis)
 
@@ -395,7 +394,7 @@ class TestBuildAnalysisSectionPlainText:
     def test_with_all_sections(self):
         """Test with all analysis sections."""
         analysis = make_test_analysis(
-            maxed_donors_stats={"count": 10, "total": 35000.0, "pct_of_individual": 25.0},
+            maxed_donors_stats={"count": 10, "total": 35000.0},
             geography_stats={"in_state_pct": 60.0, "out_state_pct": 40.0},
             donor_size_stats={"small_pct": 15.0, "big_pct": 85.0},
             funding_sources_stats={"individuals_pct": 80.0, "pacs_pct": 20.0},
@@ -472,7 +471,7 @@ class TestBuildReportPlainText:
         """Test with analysis data."""
         report = make_test_report()
         analysis = make_test_analysis(
-            maxed_donors_stats={"count": 5, "total": 17500.0, "pct_of_individual": 20.0}
+            maxed_donors_stats={"count": 5, "total": 17500.0}
         )
         result = build_report_plain_text(report, "Summary", analysis=analysis)
 

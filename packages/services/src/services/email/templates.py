@@ -36,8 +36,7 @@ def _build_analysis_section_html(analysis: FullAnalysisResult | None) -> str:
         stats = analysis.maxed_donors.stats
         sections.append(
             f"<li><strong>Maxed Donors ($3,500):</strong> {stats['count']} donors, "
-            f"${stats['total']:,.2f} ({stats.get('pct_of_individual', 0):.1f}% of "
-            f"individual contributions)</li>"
+            f"${stats['total']:,.2f}</li>"
         )
 
     # Geography
@@ -236,8 +235,7 @@ def _build_analysis_section_plain_text(analysis: FullAnalysisResult | None) -> l
     if analysis.maxed_donors and analysis.maxed_donors.stats.get("count", 0) > 0:
         stats = analysis.maxed_donors.stats
         lines.append(
-            f"  Maxed Donors: {stats['count']} donors, ${stats['total']:,.2f} "
-            f"({stats.get('pct_of_individual', 0):.1f}% of individual)"
+            f"  Maxed Donors: {stats['count']} donors, ${stats['total']:,.2f}"
         )
 
     # Geography

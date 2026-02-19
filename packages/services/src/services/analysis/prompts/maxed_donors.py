@@ -20,7 +20,6 @@ financial commitment to the campaign.
 **Summary Statistics:**
 - Total maxed donors: {count}
 - Total contributed by maxed donors: ${total:,.2f}
-- Percentage of individual contributions: {pct:.1f}%
 
 **Top Employers (by number of maxed donors):**
 {employers_list}

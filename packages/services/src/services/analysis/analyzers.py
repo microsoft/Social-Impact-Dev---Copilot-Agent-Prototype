@@ -168,7 +168,6 @@ class MaxedDonorsAnalyzer:
             report_period=period,
             count=stats.get("count", 0),
             total=stats.get("total", 0),
-            pct=stats.get("pct_of_individual", 0),
             employers_list=employers_list,
             occupations_list=occupations_list,
             states_list=states_list,
@@ -206,7 +205,6 @@ class MaxedDonorsAnalyzer:
     def _generate_fallback_narrative(self, stats: dict, data: dict) -> str:
         count = stats.get("count", 0)
         total = stats.get("total", 0)
-        pct = stats.get("pct_of_individual", 0)
 
         top_employers = data.get("top_employers", [])
         employer_text = ""
@@ -217,8 +215,7 @@ class MaxedDonorsAnalyzer:
 
         return (
             f"{count} donors reached the $3,500 contribution limit, "
-            f"contributing ${total:,.2f} ({pct:.1f}% of individual contributions)."
-            f"{employer_text}"
+            f"contributing ${total:,.2f}.{employer_text}"
         )
 
 

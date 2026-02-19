@@ -251,7 +251,6 @@ class MaxedDonorsExtractor:
     def extract(self, parsed: ParsedQuarterlyCSV, report: Filings) -> ExtractionResult:
         """Extract maxed-out donors from contributions."""
         maxed_donors: list[MaxedDonor] = []
-        total_individual_contributions = 0.0
 
         for row in parsed.contributions:
             form_type = _get_column(row, ScheduleAColumns.FORM_TYPE).upper()
@@ -259,10 +258,7 @@ class MaxedDonorsExtractor:
             if not form_type.startswith("SA11AI"):
                 continue
 
-            amount = _parse_currency(_get_column(row, ScheduleAColumns.CONTRIBUTION_AMOUNT))
             aggregate = _parse_currency(_get_column(row, ScheduleAColumns.CONTRIBUTION_AGGREGATE))
-
-            total_individual_contributions += amount
 
             if aggregate >= self.limit:
                 first = _get_column(row, ScheduleAColumns.FIRST_NAME)
@@ -285,10 +281,6 @@ class MaxedDonorsExtractor:
         occupation_counts = Counter(d.occupation for d in unique_donors if d.occupation)
         state_counts = Counter(d.state for d in unique_donors if d.state)
 
-        pct_of_individual = 0.0
-        if total_individual_contributions > 0:
-            pct_of_individual = (total_from_maxed / total_individual_contributions) * 100
-
         return ExtractionResult(
             data={
                 "donors": [
@@ -309,8 +301,6 @@ class MaxedDonorsExtractor:
             stats={
                 "count": len(unique_donors),
                 "total": total_from_maxed,
-                "total_individual_contributions": total_individual_contributions,
-                "pct_of_individual": pct_of_individual,
             },
             raw_items=[
                 {

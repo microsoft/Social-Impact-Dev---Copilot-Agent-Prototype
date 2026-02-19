@@ -417,7 +417,7 @@ class OpenAIAnalysisService:
         ms = maxed.stats
         lines.append(
             f"- Maxed Donors ($3,500): {ms.get('count', 0)} donors, "
-            f"${ms.get('total', 0):,.2f} ({ms.get('pct_of_individual', 0):.1f}% of individual)"
+            f"${ms.get('total', 0):,.2f}"
         )
 
         # Geography

@@ -438,7 +438,7 @@ class TestOpenAIAnalysisService:
         maxed = AnalysisResult(
             feature="maxed_donors",
             data={},
-            stats={"count": 10, "total": 35000, "pct_of_individual": 25.5},
+            stats={"count": 10, "total": 35000},
             narrative="",
         )
         geography = AnalysisResult(
@@ -470,7 +470,6 @@ class TestOpenAIAnalysisService:
 
         assert "Maxed Donors ($3,500): 10 donors" in result
         assert "$35,000.00" in result
-        assert "25.5% of individual" in result
         assert "Geography: 60.0% in-state" in result
         assert "Donor Size: 15.0% from small donors" in result
         assert "Funding Sources: 80.0% individuals" in result
