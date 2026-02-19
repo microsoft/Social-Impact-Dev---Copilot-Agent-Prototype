@@ -131,7 +131,7 @@ INTERESTING_EXPENDITURE_KEYWORDS = [
 
 
 @dataclass
-class MaxedDonor:
+class MaxOutDonor:
     """A donor who has reached the contribution limit."""
 
     name: str
@@ -242,16 +242,15 @@ class BaseExtractor(Protocol):
 # =============================================================================
 
 
-class MaxedDonorsExtractor:
+class MaxOutDonorsExtractor:
     """A. Extract donors who have reached the contribution limit ($3,500)."""
 
     def __init__(self, limit: float = MAX_CONTRIBUTION_LIMIT) -> None:
         self.limit = limit
 
     def extract(self, parsed: ParsedQuarterlyCSV, report: Filings) -> ExtractionResult:
-        """Extract maxed-out donors from contributions."""
-        maxed_donors: list[MaxedDonor] = []
-        total_individual_contributions = 0.0
+        """Extract max out donors from contributions."""
+        maxed_donors: list[MaxOutDonor] = []
 
         for row in parsed.contributions:
             form_type = _get_column(row, ScheduleAColumns.FORM_TYPE).upper()
@@ -259,17 +258,14 @@ class MaxedDonorsExtractor:
             if not form_type.startswith("SA11AI"):
                 continue
 
-            amount = _parse_currency(_get_column(row, ScheduleAColumns.CONTRIBUTION_AMOUNT))
             aggregate = _parse_currency(_get_column(row, ScheduleAColumns.CONTRIBUTION_AGGREGATE))
-
-            total_individual_contributions += amount
 
             if aggregate >= self.limit:
                 first = _get_column(row, ScheduleAColumns.FIRST_NAME)
                 last = _get_column(row, ScheduleAColumns.LAST_NAME)
                 middle = _get_column(row, ScheduleAColumns.MIDDLE_NAME)
 
-                donor = MaxedDonor(
+                donor = MaxOutDonor(
                     name=_format_name(first, last, middle),
                     employer=_get_column(row, ScheduleAColumns.EMPLOYER),
                     occupation=_get_column(row, ScheduleAColumns.OCCUPATION),
@@ -284,10 +280,6 @@ class MaxedDonorsExtractor:
         employer_counts = Counter(d.employer for d in unique_donors if d.employer)
         occupation_counts = Counter(d.occupation for d in unique_donors if d.occupation)
         state_counts = Counter(d.state for d in unique_donors if d.state)
-
-        pct_of_individual = 0.0
-        if total_individual_contributions > 0:
-            pct_of_individual = (total_from_maxed / total_individual_contributions) * 100
 
         return ExtractionResult(
             data={
@@ -309,8 +301,6 @@ class MaxedDonorsExtractor:
             stats={
                 "count": len(unique_donors),
                 "total": total_from_maxed,
-                "total_individual_contributions": total_individual_contributions,
-                "pct_of_individual": pct_of_individual,
             },
             raw_items=[
                 {
@@ -325,9 +315,9 @@ class MaxedDonorsExtractor:
             ],
         )
 
-    def _deduplicate_donors(self, donors: list[MaxedDonor]) -> list[MaxedDonor]:
+    def _deduplicate_donors(self, donors: list[MaxOutDonor]) -> list[MaxOutDonor]:
         """Deduplicate donors by name, keeping highest aggregate."""
-        seen: dict[str, MaxedDonor] = {}
+        seen: dict[str, MaxOutDonor] = {}
         for donor in donors:
             key = donor.name.lower()
             if key not in seen or donor.aggregate > seen[key].aggregate:

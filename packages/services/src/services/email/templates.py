@@ -32,12 +32,11 @@ def _build_analysis_section_html(analysis: FullAnalysisResult | None) -> str:
     sections = []
 
     # Maxed donors
-    if analysis.maxed_donors and analysis.maxed_donors.stats.get("count", 0) > 0:
-        stats = analysis.maxed_donors.stats
+    if analysis.max_out_donors and analysis.max_out_donors.stats.get("count", 0) > 0:
+        stats = analysis.max_out_donors.stats
         sections.append(
-            f"<li><strong>Maxed Donors ($3,500):</strong> {stats['count']} donors, "
-            f"${stats['total']:,.2f} ({stats.get('pct_of_individual', 0):.1f}% of "
-            f"individual contributions)</li>"
+            f"<li><strong>Max Out Donors ($3,500):</strong> {stats['count']} donors, "
+            f"${stats['total']:,.2f}</li>"
         )
 
     # Geography
@@ -75,15 +74,6 @@ def _build_analysis_section_html(analysis: FullAnalysisResult | None) -> str:
         if parts:
             sections.append(f"<li><strong>Funding Sources:</strong> {', '.join(parts)}</li>")
 
-    # Flagged expenditures
-    if analysis.expenditures:
-        es = analysis.expenditures.stats
-        if es.get("flagged_count", 0) > 0:
-            sections.append(
-                f"<li><strong>Flagged Expenditures:</strong> {es['flagged_count']} "
-                f"items (${es.get('flagged_total', 0):,.2f})</li>"
-            )
-
     if not sections:
         return ""
 
@@ -110,6 +100,18 @@ def _build_detailed_analysis_html(analysis: FullAnalysisResult | None) -> str:
                         margin-bottom: 10px;">
                 <strong>Industry/Employer Analysis:</strong>
                 <p style="margin: 5px 0 0 0;">{analysis.industry.narrative}</p>
+            </div>
+            """
+        )
+
+    # Unusual expenditures
+    if analysis.unusual_expenditures and analysis.unusual_expenditures.narrative:
+        sections.append(
+            f"""
+            <div style="background: #f0f7e6; padding: 15px; border-radius: 5px;
+                        margin-bottom: 10px;">
+                <strong>Unusual Expenditures:</strong>
+                <p style="margin: 5px 0 0 0;">{analysis.unusual_expenditures.narrative}</p>
             </div>
             """
         )
@@ -173,7 +175,7 @@ def build_report_html(
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
     # Deprecated: use analysis instead
-    maxed_donors_analysis=None,
+    max_out_donors_analysis=None,
 ) -> str:
     """Build HTML content for report email.
 
@@ -183,7 +185,7 @@ def build_report_html(
         formatted_csv_url: Optional URL to formatted CSV.
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
-        maxed_donors_analysis: Deprecated, use analysis instead.
+        max_out_donors_analysis: Deprecated, use analysis instead.
     """
     financials = _build_financials_html(report)
     links = _build_links_html(report, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url)
@@ -233,12 +235,9 @@ def _build_analysis_section_plain_text(analysis: FullAnalysisResult | None) -> l
     lines = ["", "Analysis Summary", "-" * 30]
 
     # Maxed donors
-    if analysis.maxed_donors and analysis.maxed_donors.stats.get("count", 0) > 0:
-        stats = analysis.maxed_donors.stats
-        lines.append(
-            f"  Maxed Donors: {stats['count']} donors, ${stats['total']:,.2f} "
-            f"({stats.get('pct_of_individual', 0):.1f}% of individual)"
-        )
+    if analysis.max_out_donors and analysis.max_out_donors.stats.get("count", 0) > 0:
+        stats = analysis.max_out_donors.stats
+        lines.append(f"  Max Out Donors: {stats['count']} donors, ${stats['total']:,.2f}")
 
     # Geography
     if analysis.geography:
@@ -270,18 +269,12 @@ def _build_analysis_section_plain_text(analysis: FullAnalysisResult | None) -> l
         if parts:
             lines.append(f"  Funding Sources: {', '.join(parts)}")
 
-    # Flagged expenditures
-    if analysis.expenditures:
-        es = analysis.expenditures.stats
-        if es.get("flagged_count", 0) > 0:
-            lines.append(
-                f"  Flagged Expenditures: {es['flagged_count']} items "
-                f"(${es.get('flagged_total', 0):,.2f})"
-            )
-
     # Detailed analysis narratives
     if analysis.industry and analysis.industry.narrative:
         lines.extend(["", "Industry Analysis:", f"  {analysis.industry.narrative}"])
+
+    if analysis.unusual_expenditures and analysis.unusual_expenditures.narrative:
+        lines.extend(["", "Unusual Expenditures:", f"  {analysis.unusual_expenditures.narrative}"])
 
     if analysis.grouped_donations and analysis.grouped_donations.narrative:
         lines.extend(["", "Donation Patterns:", f"  {analysis.grouped_donations.narrative}"])
@@ -297,7 +290,7 @@ def build_report_plain_text(
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
     # Deprecated: use analysis instead
-    maxed_donors_analysis=None,
+    max_out_donors_analysis=None,
 ) -> str:
     """Build plain text content for report email.
 
@@ -307,7 +300,7 @@ def build_report_plain_text(
         formatted_csv_url: Optional URL to formatted CSV.
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
-        maxed_donors_analysis: Deprecated, use analysis instead.
+        max_out_donors_analysis: Deprecated, use analysis instead.
     """
     display_name = report.committee_name
     report_type_display = format_report_type(report.report_type)
@@ -369,7 +362,7 @@ def build_report_preview_html(
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
     # Deprecated: use analysis instead
-    maxed_donors_analysis=None,
+    max_out_donors_analysis=None,
 ) -> str:
     """Build HTML preview page for report (for browser viewing).
 
@@ -381,7 +374,7 @@ def build_report_preview_html(
         formatted_csv_url: Optional URL to formatted CSV.
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
-        maxed_donors_analysis: Deprecated, use analysis instead.
+        max_out_donors_analysis: Deprecated, use analysis instead.
     """
     email_html = build_report_html(
         report,
