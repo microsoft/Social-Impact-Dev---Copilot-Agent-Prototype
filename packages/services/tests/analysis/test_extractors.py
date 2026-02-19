@@ -1,4 +1,4 @@
-"""Tests for the analysis module."""
+"""Tests for the analysis extractors module."""
 
 from unittest.mock import MagicMock
 
