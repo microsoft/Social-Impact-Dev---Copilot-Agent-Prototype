@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Protocol
 if TYPE_CHECKING:
     from fec_api_client import Filings
 
-    from ..report.format import ParsedFECFile
+    from ..report.format import ParsedQuarterlyCSV
 
 
 # =============================================================================
@@ -232,7 +232,7 @@ def _get_candidate_state(report: Filings) -> str | None:
 class BaseExtractor(Protocol):
     """Protocol for data extractors."""
 
-    def extract(self, parsed: ParsedFECFile, report: Filings) -> ExtractionResult:
+    def extract(self, parsed: ParsedQuarterlyCSV, report: Filings) -> ExtractionResult:
         """Extract data from parsed FEC file."""
         ...
 
@@ -248,7 +248,7 @@ class MaxedDonorsExtractor:
     def __init__(self, limit: float = MAX_CONTRIBUTION_LIMIT) -> None:
         self.limit = limit
 
-    def extract(self, parsed: ParsedFECFile, report: Filings) -> ExtractionResult:
+    def extract(self, parsed: ParsedQuarterlyCSV, report: Filings) -> ExtractionResult:
         """Extract maxed-out donors from contributions."""
         maxed_donors: list[MaxedDonor] = []
         total_individual_contributions = 0.0
@@ -341,7 +341,7 @@ class GeographyExtractor:
     def __init__(self, candidate_state: str | None = None) -> None:
         self.candidate_state = candidate_state
 
-    def extract(self, parsed: ParsedFECFile, report: Filings) -> ExtractionResult:
+    def extract(self, parsed: ParsedQuarterlyCSV, report: Filings) -> ExtractionResult:
         """Extract geographic breakdown of contributions."""
         # Try to determine candidate state from report if not provided
         candidate_state = self.candidate_state or _get_candidate_state(report)
@@ -413,7 +413,7 @@ class DonorSizeExtractor:
     def __init__(self, threshold: float = SMALL_DONOR_THRESHOLD) -> None:
         self.threshold = threshold
 
-    def extract(self, parsed: ParsedFECFile, report: Filings) -> ExtractionResult:
+    def extract(self, parsed: ParsedQuarterlyCSV, report: Filings) -> ExtractionResult:
         """Extract small vs large donor breakdown."""
         small_total = 0.0
         small_count = 0
@@ -469,7 +469,7 @@ class DonorSizeExtractor:
 class FundingSourceExtractor:
     """D. Extract funding source statistics (individuals, PACs, parties, etc.)."""
 
-    def extract(self, parsed: ParsedFECFile, report: Filings) -> ExtractionResult:
+    def extract(self, parsed: ParsedQuarterlyCSV, report: Filings) -> ExtractionResult:
         """Extract breakdown by funding source type."""
         sources: dict[str, dict] = {
             "individuals": {"total": 0.0, "count": 0, "items": []},
@@ -550,7 +550,7 @@ class ExpenditureExtractor:
     def __init__(self, keywords: list[str] | None = None) -> None:
         self.keywords = keywords or INTERESTING_EXPENDITURE_KEYWORDS
 
-    def extract(self, parsed: ParsedFECFile, report: Filings) -> ExtractionResult:
+    def extract(self, parsed: ParsedQuarterlyCSV, report: Filings) -> ExtractionResult:
         """Extract expenditures flagged as potentially interesting."""
         flagged: list[Expenditure] = []
         total_expenditures = 0.0
@@ -649,7 +649,7 @@ class ExpenditureExtractor:
 class IndustryExtractor:
     """Extract employer/industry breakdown for AI analysis."""
 
-    def extract(self, parsed: ParsedFECFile, report: Filings) -> ExtractionResult:
+    def extract(self, parsed: ParsedQuarterlyCSV, report: Filings) -> ExtractionResult:
         """Extract contributions grouped by employer and occupation (proxy for industry)."""
         employer_totals: dict[str, dict] = defaultdict(
             lambda: {"total": 0.0, "count": 0, "donors": []}
@@ -736,7 +736,7 @@ class IndustryExtractor:
 class GroupedDonationsExtractor:
     """Extract donations that may indicate fundraising events."""
 
-    def extract(self, parsed: ParsedFECFile, report: Filings) -> ExtractionResult:
+    def extract(self, parsed: ParsedQuarterlyCSV, report: Filings) -> ExtractionResult:
         """Extract donations grouped by date, location, or employer patterns."""
         contributions: list[Contribution] = []
 

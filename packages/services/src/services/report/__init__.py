@@ -9,7 +9,7 @@ from .constants import (
 )
 from .format import (
     FormatService,
-    ParsedFECFile,
+    ParsedQuarterlyCSV,
     Section,
     add_headers_to_csv,
     create_xlsx,
@@ -23,7 +23,7 @@ __all__ = [
     "FORM_TYPE_COLUMNS",
     "FormatService",
     "HeaderDef",
-    "ParsedFECFile",
+    "ParsedQuarterlyCSV",
     "QUARTERLY_REPORT_TYPES",
     "Section",
     "SyncService",
