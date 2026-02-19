@@ -32,9 +32,10 @@ from .extractors import (
     IndustryExtractor,
     MaxOutDonorsExtractor,
 )
+from .types import CandidateDetail, CommitteeDetail, QuarterlyReport
 
 if TYPE_CHECKING:
-    from fec_api_client import CommitteeDetail, Filings
+    from fec_api_client import CommitteeDetail
 
     from ..report.format import ParsedQuarterlyCSV
     from ..storage import BlobStorageService
@@ -105,9 +106,12 @@ class AnalysisService(Protocol):
 
     def generate_summary(
         self,
-        report: Filings,
+        report: QuarterlyReport,
         base_path: str | None = None,
         analysis_stats: str = "",
+        *,
+        committee: CommitteeDetail | None = None,
+        candidates: list[CandidateDetail] | None = None,
     ) -> str:
         """Generate summary for a report.
 
@@ -115,6 +119,8 @@ class AnalysisService(Protocol):
             report: Report metadata.
             base_path: Optional blob path for caching.
             analysis_stats: Pre-formatted analysis statistics for the summary.
+            committee: Optional committee details for richer context.
+            candidates: Optional list of associated candidates.
 
         Returns:
             Summary text.
@@ -123,8 +129,8 @@ class AnalysisService(Protocol):
 
     def analyze_max_out_donors(
         self,
-        parsed: ParsedQuarterlyCSV,
-        report: Filings,
+        parsed_csv: ParsedQuarterlyCSV,
+        report: QuarterlyReport,
         base_path: str | None = None,
     ) -> AnalysisResult:
         """Analyze max out donors."""
@@ -132,16 +138,21 @@ class AnalysisService(Protocol):
 
     def run_full_analysis(
         self,
-        parsed: ParsedQuarterlyCSV,
-        report: Filings,
+        parsed_csv: ParsedQuarterlyCSV,
+        report: QuarterlyReport,
         base_path: str | None = None,
+        *,
+        committee: CommitteeDetail | None = None,
+        candidates: list[CandidateDetail] | None = None,
     ) -> FullAnalysisResult:
         """Run all available analyses.
 
         Args:
-            parsed: Parsed FEC file.
+            parsed_csv: Parsed FEC CSV file.
             report: Report metadata.
             base_path: Optional blob path for caching.
+            committee: Optional committee details for richer context.
+            candidates: Optional list of associated candidates.
 
         Returns:
             FullAnalysisResult with all analyses.
@@ -229,9 +240,12 @@ class OpenAIAnalysisService:
 
     def generate_summary(
         self,
-        report: Filings,
+        report: QuarterlyReport,
         base_path: str | None = None,
         analysis_stats: str = "",
+        *,
+        committee: CommitteeDetail | None = None,
+        candidates: list[CandidateDetail] | None = None,
     ) -> str:
         """Generate AI summary for a report with caching.
 
@@ -239,6 +253,8 @@ class OpenAIAnalysisService:
             report: Report metadata.
             base_path: Optional blob path for caching.
             analysis_stats: Pre-formatted analysis statistics.
+            committee: Optional committee details for richer context.
+            candidates: Optional list of associated candidates.
 
         Returns:
             Summary text.
@@ -259,7 +275,12 @@ class OpenAIAnalysisService:
         # Generate summary with AI
         try:
             analyzer = self._get_summary_analyzer()
-            result = analyzer.analyze(report, analysis_stats=analysis_stats)
+            result = analyzer.analyze(
+                report,
+                analysis_stats=analysis_stats,
+                committee=committee,
+                candidates=candidates,
+            )
             summary_text = result.summary
         except Exception as e:
             logger.warning(f"AI summary failed, using fallback: {e}")
@@ -281,8 +302,8 @@ class OpenAIAnalysisService:
 
     def analyze_max_out_donors(
         self,
-        parsed: ParsedQuarterlyCSV,
-        report: Filings,
+        parsed_csv: ParsedQuarterlyCSV,
+        report: QuarterlyReport,
         base_path: str | None = None,
     ) -> AnalysisResult:
         """Analyze max out donors with caching."""
@@ -294,7 +315,7 @@ class OpenAIAnalysisService:
                 logger.info(f"Using cached max out donors analysis: {cache_path}")
                 return cached
 
-        extraction = self._max_out_donors_extractor.extract(parsed, report)
+        extraction = self._max_out_donors_extractor.extract(parsed_csv, report)
         analyzer = self._get_max_out_donors_analyzer()
         result = analyzer.analyze(extraction, report)
 
@@ -322,9 +343,12 @@ class OpenAIAnalysisService:
 
     def run_full_analysis(
         self,
-        parsed: ParsedQuarterlyCSV,
-        report: Filings,
+        parsed_csv: ParsedQuarterlyCSV,
+        report: QuarterlyReport,
         base_path: str | None = None,
+        *,
+        committee: CommitteeDetail | None = None,
+        candidates: list[CandidateDetail] | None = None,
     ) -> FullAnalysisResult:
         """Run all available analyses.
 
@@ -333,21 +357,34 @@ class OpenAIAnalysisService:
         2. Run standard stat analyzers (minimal/no AI)
         3. Run detailed AI analyzers (industry, grouped donations)
         4. Compile summary last with all extracted statistics
+
+        Args:
+            parsed_csv: Parsed FEC CSV file.
+            report: Report metadata.
+            base_path: Optional blob path for caching.
+            committee: Optional committee details for richer context.
+            candidates: Optional list of associated candidates.
+
+        Returns:
+            FullAnalysisResult with all analyses.
         """
-        if not report.state and report.committee_id:
+        # Load committee from cache if not provided
+        if committee is None and report.committee_id:
             committee = self._get_committee(report.committee_id)
-            if committee and committee.state:
-                report.state = committee.state
+
+        # Set state from committee if not on report
+        if not report.state and committee and committee.state:
+            report.state = committee.state
 
         # Phase 1: Extract all data (no AI)
         logger.info("Phase 1: Extracting data...")
-        max_out_extraction = self._max_out_donors_extractor.extract(parsed, report)
-        geography_extraction = self._geography_extractor.extract(parsed, report)
-        donor_size_extraction = self._donor_size_extractor.extract(parsed, report)
-        funding_extraction = self._funding_source_extractor.extract(parsed, report)
-        expenditure_extraction = self._expenditure_extractor.extract(parsed, report)
-        industry_extraction = self._industry_extractor.extract(parsed, report)
-        grouped_extraction = self._grouped_donations_extractor.extract(parsed, report)
+        max_out_extraction = self._max_out_donors_extractor.extract(parsed_csv, report)
+        geography_extraction = self._geography_extractor.extract(parsed_csv, report)
+        donor_size_extraction = self._donor_size_extractor.extract(parsed_csv, report)
+        funding_extraction = self._funding_source_extractor.extract(parsed_csv, report)
+        expenditure_extraction = self._expenditure_extractor.extract(parsed_csv, report)
+        industry_extraction = self._industry_extractor.extract(parsed_csv, report)
+        grouped_extraction = self._grouped_donations_extractor.extract(parsed_csv, report)
 
         # Phase 2a: Standard stat analyzers (minimal/no AI)
         logger.info("Phase 2a: Running standard analyzers...")
@@ -372,7 +409,13 @@ class OpenAIAnalysisService:
             donor_size_result,
             funding_result,
         )
-        summary = self.generate_summary(report, base_path, analysis_stats)
+        summary = self.generate_summary(
+            report,
+            base_path,
+            analysis_stats,
+            committee=committee,
+            candidates=candidates,
+        )
 
         # Cache individual analyses
         if base_path and self.blob_service:
@@ -486,13 +529,13 @@ class OpenAIAnalysisService:
 
     def extract_only(
         self,
-        parsed: ParsedQuarterlyCSV,
-        report: Filings,
+        parsed_csv: ParsedQuarterlyCSV,
+        report: QuarterlyReport,
     ) -> dict:
         """Extract data without AI analysis (useful for testing).
 
         Args:
-            parsed: Parsed FEC file.
+            parsed_csv: Parsed FEC CSV file.
             report: Report metadata.
 
         Returns:
@@ -500,31 +543,31 @@ class OpenAIAnalysisService:
         """
         return {
             "max_out_donors": {
-                "data": self._max_out_donors_extractor.extract(parsed, report).data,
-                "stats": self._max_out_donors_extractor.extract(parsed, report).stats,
+                "data": self._max_out_donors_extractor.extract(parsed_csv, report).data,
+                "stats": self._max_out_donors_extractor.extract(parsed_csv, report).stats,
             },
             "geography": {
-                "data": self._geography_extractor.extract(parsed, report).data,
-                "stats": self._geography_extractor.extract(parsed, report).stats,
+                "data": self._geography_extractor.extract(parsed_csv, report).data,
+                "stats": self._geography_extractor.extract(parsed_csv, report).stats,
             },
             "donor_size": {
-                "data": self._donor_size_extractor.extract(parsed, report).data,
-                "stats": self._donor_size_extractor.extract(parsed, report).stats,
+                "data": self._donor_size_extractor.extract(parsed_csv, report).data,
+                "stats": self._donor_size_extractor.extract(parsed_csv, report).stats,
             },
             "funding_sources": {
-                "data": self._funding_source_extractor.extract(parsed, report).data,
-                "stats": self._funding_source_extractor.extract(parsed, report).stats,
+                "data": self._funding_source_extractor.extract(parsed_csv, report).data,
+                "stats": self._funding_source_extractor.extract(parsed_csv, report).stats,
             },
             "unusual_expenditures": {
-                "data": self._expenditure_extractor.extract(parsed, report).data,
-                "stats": self._expenditure_extractor.extract(parsed, report).stats,
+                "data": self._expenditure_extractor.extract(parsed_csv, report).data,
+                "stats": self._expenditure_extractor.extract(parsed_csv, report).stats,
             },
             "industry": {
-                "data": self._industry_extractor.extract(parsed, report).data,
-                "stats": self._industry_extractor.extract(parsed, report).stats,
+                "data": self._industry_extractor.extract(parsed_csv, report).data,
+                "stats": self._industry_extractor.extract(parsed_csv, report).stats,
             },
             "grouped_donations": {
-                "data": self._grouped_donations_extractor.extract(parsed, report).data,
-                "stats": self._grouped_donations_extractor.extract(parsed, report).stats,
+                "data": self._grouped_donations_extractor.extract(parsed_csv, report).data,
+                "stats": self._grouped_donations_extractor.extract(parsed_csv, report).stats,
             },
         }

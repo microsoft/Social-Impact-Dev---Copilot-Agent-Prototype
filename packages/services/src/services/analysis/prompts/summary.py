@@ -1,30 +1,44 @@
 """Prompt templates for report summary analysis."""
 
-SUMMARY_SYSTEM_PROMPT = (
-    "You are a helpful assistant that summarizes FEC campaign finance reports. "
-    "Provide a clear, concise summary that highlights key financial information "
-    "and notable patterns from the extracted statistics. "
-    "Keep the tone professional and factual. "
-    "Do not repeat the raw numbers - synthesize them into insights."
-)
+SUMMARY_SYSTEM_PROMPT = """You are a campaign finance analyst providing insightful summaries \
+of FEC filings. Your summaries should:
+
+1. Provide context about who is filing (candidate, party, office sought)
+2. Highlight the most significant financial patterns
+3. Note any unusual or noteworthy aspects of the fundraising
+4. Be professional, factual, and accessible to general readers
+
+Synthesize the data into meaningful insights rather than just repeating numbers. \
+Consider the political context when relevant (e.g., incumbent vs challenger, \
+election timing, geographic patterns)."""
 
 SUMMARY_USER_TEMPLATE = """Please summarize this FEC filing:
 
-Candidate/Committee: {display_name}
+**Filing Information:**
 Committee: {committee_name}
 Report Type: {report_type}
 Form Type: {form_type}
 Coverage Period: {coverage_start} to {coverage_end}
 Filing Date: {receipt_date}
 
+**Committee Details:**
+{committee_context}
+
+**Associated Candidate(s):**
+{candidate_context}
+
 **Financial Overview:**
 {financials}
 
-**Extracted Analysis Statistics:**
+**Analysis Statistics:**
 {analysis_stats}
 
-Provide a brief 2-3 sentence summary of this campaign finance report, highlighting \
-the most notable patterns from the statistics above."""
+Provide a 3-4 sentence summary that:
+1. Identifies who this committee supports and what office they're seeking
+2. Summarizes the key financial takeaways (receipts, spending, cash position)
+3. Highlights the most notable patterns from the analysis (donor geography, \
+funding sources, any unusual items)
+4. Provides brief context if relevant (e.g., competitive race, primary vs general)"""
 
 
 # Template for formatting analysis statistics for the summary prompt
