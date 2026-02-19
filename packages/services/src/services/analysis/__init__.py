@@ -25,7 +25,7 @@ from .analyzers import (
     GeographyAnalyzer,
     GroupedDonationsAnalyzer,
     IndustryAnalyzer,
-    MaxedDonorsAnalyzer,
+    MaxOutDonorsAnalyzer,
     SummaryAnalyzer,
     SummaryResult,
 )
@@ -37,8 +37,8 @@ from .extractors import (
     GeographyExtractor,
     GroupedDonationsExtractor,
     IndustryExtractor,
-    MaxedDonor,
-    MaxedDonorsExtractor,
+    MaxOutDonor,
+    MaxOutDonorsExtractor,
 )
 from .service import AnalysisService, FullAnalysisResult, OpenAIAnalysisService
 
@@ -49,7 +49,7 @@ __all__ = [
     "FullAnalysisResult",
     "SummaryResult",
     # Data classes
-    "MaxedDonor",
+    "MaxOutDonor",
     # Extractors (Phase 1 - Python data extraction)
     "DonorSizeExtractor",
     "ExpenditureExtractor",
@@ -57,7 +57,7 @@ __all__ = [
     "GeographyExtractor",
     "GroupedDonationsExtractor",
     "IndustryExtractor",
-    "MaxedDonorsExtractor",
+    "MaxOutDonorsExtractor",
     # Analyzers (Phase 2 - AI interpretation)
     "DonorSizeAnalyzer",
     "ExpenditureAnalyzer",
@@ -65,7 +65,7 @@ __all__ = [
     "GeographyAnalyzer",
     "GroupedDonationsAnalyzer",
     "IndustryAnalyzer",
-    "MaxedDonorsAnalyzer",
+    "MaxOutDonorsAnalyzer",
     "SummaryAnalyzer",
     # Service
     "AnalysisService",

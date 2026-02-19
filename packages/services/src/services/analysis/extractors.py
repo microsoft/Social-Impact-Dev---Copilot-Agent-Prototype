@@ -131,7 +131,7 @@ INTERESTING_EXPENDITURE_KEYWORDS = [
 
 
 @dataclass
-class MaxedDonor:
+class MaxOutDonor:
     """A donor who has reached the contribution limit."""
 
     name: str
@@ -242,15 +242,15 @@ class BaseExtractor(Protocol):
 # =============================================================================
 
 
-class MaxedDonorsExtractor:
+class MaxOutDonorsExtractor:
     """A. Extract donors who have reached the contribution limit ($3,500)."""
 
     def __init__(self, limit: float = MAX_CONTRIBUTION_LIMIT) -> None:
         self.limit = limit
 
     def extract(self, parsed: ParsedQuarterlyCSV, report: Filings) -> ExtractionResult:
-        """Extract maxed-out donors from contributions."""
-        maxed_donors: list[MaxedDonor] = []
+        """Extract max out donors from contributions."""
+        maxed_donors: list[MaxOutDonor] = []
 
         for row in parsed.contributions:
             form_type = _get_column(row, ScheduleAColumns.FORM_TYPE).upper()
@@ -265,7 +265,7 @@ class MaxedDonorsExtractor:
                 last = _get_column(row, ScheduleAColumns.LAST_NAME)
                 middle = _get_column(row, ScheduleAColumns.MIDDLE_NAME)
 
-                donor = MaxedDonor(
+                donor = MaxOutDonor(
                     name=_format_name(first, last, middle),
                     employer=_get_column(row, ScheduleAColumns.EMPLOYER),
                     occupation=_get_column(row, ScheduleAColumns.OCCUPATION),
@@ -315,9 +315,9 @@ class MaxedDonorsExtractor:
             ],
         )
 
-    def _deduplicate_donors(self, donors: list[MaxedDonor]) -> list[MaxedDonor]:
+    def _deduplicate_donors(self, donors: list[MaxOutDonor]) -> list[MaxOutDonor]:
         """Deduplicate donors by name, keeping highest aggregate."""
-        seen: dict[str, MaxedDonor] = {}
+        seen: dict[str, MaxOutDonor] = {}
         for donor in donors:
             key = donor.name.lower()
             if key not in seen or donor.aggregate > seen[key].aggregate:

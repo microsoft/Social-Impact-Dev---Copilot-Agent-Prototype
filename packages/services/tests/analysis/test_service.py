@@ -53,8 +53,8 @@ class TestFullAnalysisResult:
         """Test combined narrative with all sections populated."""
         result = FullAnalysisResult(
             summary="Summary text",
-            maxed_donors=AnalysisResult(
-                feature="maxed_donors",
+            max_out_donors=AnalysisResult(
+                feature="max_out_donors",
                 data={},
                 stats={},
                 narrative="Maxed donors narrative",
@@ -100,7 +100,7 @@ class TestFullAnalysisResult:
         combined = result.get_combined_narrative()
 
         assert "Summary text" in combined
-        assert "**Maxed Donors:** Maxed donors narrative" in combined
+        assert "**Max Out Donors:** Maxed donors narrative" in combined
         assert "**Geography:** Geography narrative" in combined
         assert "**Donor Size:** Donor size narrative" in combined
         assert "**Funding Sources:** Funding sources narrative" in combined
@@ -114,8 +114,8 @@ class TestFullAnalysisResult:
         """Test that sections with empty narratives are skipped."""
         result = FullAnalysisResult(
             summary="Summary",
-            maxed_donors=AnalysisResult(
-                feature="maxed_donors",
+            max_out_donors=AnalysisResult(
+                feature="max_out_donors",
                 data={},
                 stats={},
                 narrative="",  # Empty narrative
@@ -132,7 +132,7 @@ class TestFullAnalysisResult:
 
         assert "Summary" in combined
         assert "Geography info" in combined
-        assert "Maxed Donors" not in combined
+        assert "Max Out Donors" not in combined
 
     def test_get_stats_summary_empty(self):
         """Test stats summary with no analyses."""
@@ -142,8 +142,8 @@ class TestFullAnalysisResult:
     def test_get_stats_summary_all_sections(self):
         """Test stats summary with all sections populated."""
         result = FullAnalysisResult(
-            maxed_donors=AnalysisResult(
-                feature="maxed_donors",
+            max_out_donors=AnalysisResult(
+                feature="max_out_donors",
                 data={},
                 stats={"count": 10, "total": 35000},
                 narrative="",
@@ -188,7 +188,7 @@ class TestFullAnalysisResult:
 
         stats = result.get_stats_summary()
 
-        assert stats["maxed_donors"]["count"] == 10
+        assert stats["max_out_donors"]["count"] == 10
         assert stats["geography"]["in_state_pct"] == 60.0
         assert stats["donor_size"]["small_pct"] == 25.0
         assert stats["funding_sources"]["individuals_pct"] == 80.0
@@ -239,7 +239,7 @@ class TestOpenAIAnalysisService:
         service = OpenAIAnalysisService(blob_service=mock_blob_service)
 
         # Initially all analyzers should be None
-        assert service._maxed_donors_analyzer is None
+        assert service._max_out_donors_analyzer is None
         assert service._geography_analyzer is None
         assert service._donor_size_analyzer is None
         assert service._funding_source_analyzer is None
@@ -423,7 +423,7 @@ class TestOpenAIAnalysisService:
 
         assert isinstance(result, FullAnalysisResult)
         assert result.summary is not None
-        assert result.maxed_donors is not None
+        assert result.max_out_donors is not None
         assert result.geography is not None
         assert result.donor_size is not None
         assert result.funding_sources is not None
@@ -436,7 +436,7 @@ class TestOpenAIAnalysisService:
         service = OpenAIAnalysisService(blob_service=mock_blob_service)
 
         maxed = AnalysisResult(
-            feature="maxed_donors",
+            feature="max_out_donors",
             data={},
             stats={"count": 10, "total": 35000},
             narrative="",
@@ -468,21 +468,21 @@ class TestOpenAIAnalysisService:
 
         result = service._format_analysis_stats(maxed, geography, donor_size, funding, expenditure)
 
-        assert "Maxed Donors ($3,500): 10 donors" in result
+        assert "Max Out Donors ($3,500): 10 donors" in result
         assert "$35,000.00" in result
         assert "Geography: 60.0% in-state" in result
         assert "Donor Size: 15.0% from small donors" in result
         assert "Funding Sources: 80.0% individuals" in result
         assert "Flagged Expenditures: 3 items" in result
 
-    def test_analyze_maxed_donors_with_cache_hit(
+    def test_analyze_max_out_donors_with_cache_hit(
         self, mock_blob_service, mock_report, sample_parsed_file
     ):
-        """Test analyze_maxed_donors returns cached result."""
+        """Test analyze_max_out_donors returns cached result."""
         import json
 
         cached_data = {
-            "feature": "maxed_donors",
+            "feature": "max_out_donors",
             "data": {"donors": []},
             "stats": {"count": 5, "total": 17500},
             "narrative": "Cached narrative",
@@ -490,7 +490,7 @@ class TestOpenAIAnalysisService:
         mock_blob_service.download_bytes.return_value = json.dumps(cached_data).encode()
         service = OpenAIAnalysisService(blob_service=mock_blob_service)
 
-        result = service.analyze_maxed_donors(
+        result = service.analyze_max_out_donors(
             sample_parsed_file, mock_report, base_path="C00123456/2024-Q1"
         )
 
@@ -551,7 +551,7 @@ class TestExtractOnly:
 
         result = service.extract_only(sample_parsed_file, mock_report)
 
-        assert "maxed_donors" in result
+        assert "max_out_donors" in result
         assert "geography" in result
         assert "donor_size" in result
         assert "funding_sources" in result

@@ -45,7 +45,7 @@ def make_test_report(
 
 def make_test_analysis(
     *,
-    maxed_donors_stats=None,
+    max_out_donors_stats=None,
     geography_stats=None,
     donor_size_stats=None,
     funding_sources_stats=None,
@@ -56,13 +56,13 @@ def make_test_analysis(
     """Create a test FullAnalysisResult with the given data."""
     return FullAnalysisResult(
         summary="Test summary",
-        maxed_donors=AnalysisResult(
-            feature="maxed_donors",
+        max_out_donors=AnalysisResult(
+            feature="max_out_donors",
             data={},
-            stats=maxed_donors_stats or {},
+            stats=max_out_donors_stats or {},
             narrative="",
         )
-        if maxed_donors_stats
+        if max_out_donors_stats
         else None,
         geography=AnalysisResult(
             feature="geography",
@@ -162,14 +162,14 @@ class TestBuildAnalysisSectionHtml:
         result = _build_analysis_section_html(analysis)
         assert result == ""
 
-    def test_maxed_donors_section(self):
+    def test_max_out_donors_section(self):
         """Test maxed donors section."""
         analysis = make_test_analysis(
-            maxed_donors_stats={"count": 10, "total": 35000.0}
+            max_out_donors_stats={"count": 10, "total": 35000.0}
         )
         result = _build_analysis_section_html(analysis)
         assert "Analysis Summary" in result
-        assert "Maxed Donors ($3,500)" in result
+        assert "Max Out Donors ($3,500)" in result
         assert "10 donors" in result
         assert "$35,000.00" in result
 
@@ -349,12 +349,12 @@ class TestBuildReportHtml:
         """Test with analysis data."""
         report = make_test_report()
         analysis = make_test_analysis(
-            maxed_donors_stats={"count": 5, "total": 17500.0}
+            max_out_donors_stats={"count": 5, "total": 17500.0}
         )
         result = build_report_html(report, "Summary", analysis=analysis)
 
         assert "Analysis Summary" in result
-        assert "Maxed Donors" in result
+        assert "Max Out Donors" in result
 
     def test_with_links(self):
         """Test with download links."""
@@ -394,7 +394,7 @@ class TestBuildAnalysisSectionPlainText:
     def test_with_all_sections(self):
         """Test with all analysis sections."""
         analysis = make_test_analysis(
-            maxed_donors_stats={"count": 10, "total": 35000.0},
+            max_out_donors_stats={"count": 10, "total": 35000.0},
             geography_stats={"in_state_pct": 60.0, "out_state_pct": 40.0},
             donor_size_stats={"small_pct": 15.0, "big_pct": 85.0},
             funding_sources_stats={"individuals_pct": 80.0, "pacs_pct": 20.0},
@@ -406,7 +406,7 @@ class TestBuildAnalysisSectionPlainText:
         text = "\n".join(result)
 
         assert "Analysis Summary" in text
-        assert "Maxed Donors" in text
+        assert "Max Out Donors" in text
         assert "Geography" in text
         assert "Donor Composition" in text
         assert "Funding Sources" in text
@@ -471,12 +471,12 @@ class TestBuildReportPlainText:
         """Test with analysis data."""
         report = make_test_report()
         analysis = make_test_analysis(
-            maxed_donors_stats={"count": 5, "total": 17500.0}
+            max_out_donors_stats={"count": 5, "total": 17500.0}
         )
         result = build_report_plain_text(report, "Summary", analysis=analysis)
 
         assert "Analysis Summary" in result
-        assert "Maxed Donors" in result
+        assert "Max Out Donors" in result
 
 
 class TestBuildReportPreviewHtml:

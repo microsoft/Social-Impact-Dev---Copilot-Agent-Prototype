@@ -28,8 +28,9 @@ the most notable patterns from the statistics above."""
 
 
 # Template for formatting analysis statistics for the summary prompt
+# Note: This template is not currently used - formatting is done in service.py
 ANALYSIS_STATS_TEMPLATE = """
-- Maxed Donors ($3,500): {maxed_count} donors, ${maxed_total:,.2f} ({maxed_pct:.1f}% of individual)
+- Max Out Donors ($3,500): {max_out_count} donors, ${max_out_total:,.2f}
 - Geography: {in_state_pct:.1f}% in-state, {out_state_pct:.1f}% out-of-state
 - Donor Size: {small_pct:.1f}% from small donors ($25 or less), {big_pct:.1f}% from larger donors
 - Funding Sources: {individuals_pct:.1f}% individuals, {pacs_pct:.1f}% PACs, \

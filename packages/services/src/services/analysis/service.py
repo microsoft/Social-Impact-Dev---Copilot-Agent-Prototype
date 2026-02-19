@@ -20,7 +20,7 @@ from .analyzers import (
     GeographyAnalyzer,
     GroupedDonationsAnalyzer,
     IndustryAnalyzer,
-    MaxedDonorsAnalyzer,
+    MaxOutDonorsAnalyzer,
     SummaryAnalyzer,
 )
 from .extractors import (
@@ -30,7 +30,7 @@ from .extractors import (
     GeographyExtractor,
     GroupedDonationsExtractor,
     IndustryExtractor,
-    MaxedDonorsExtractor,
+    MaxOutDonorsExtractor,
 )
 
 if TYPE_CHECKING:
@@ -47,7 +47,7 @@ class FullAnalysisResult:
     """Result containing all analysis features."""
 
     summary: str | None = None
-    maxed_donors: AnalysisResult | None = None
+    max_out_donors: AnalysisResult | None = None
     geography: AnalysisResult | None = None
     donor_size: AnalysisResult | None = None
     funding_sources: AnalysisResult | None = None
@@ -63,8 +63,8 @@ class FullAnalysisResult:
         narratives = []
         if self.summary:
             narratives.append(self.summary)
-        if self.maxed_donors and self.maxed_donors.narrative:
-            narratives.append(f"**Maxed Donors:** {self.maxed_donors.narrative}")
+        if self.max_out_donors and self.max_out_donors.narrative:
+            narratives.append(f"**Max Out Donors:** {self.max_out_donors.narrative}")
         if self.geography and self.geography.narrative:
             narratives.append(f"**Geography:** {self.geography.narrative}")
         if self.donor_size and self.donor_size.narrative:
@@ -82,8 +82,8 @@ class FullAnalysisResult:
     def get_stats_summary(self) -> dict:
         """Get a summary of all statistics for the email template."""
         stats = {}
-        if self.maxed_donors:
-            stats["maxed_donors"] = self.maxed_donors.stats
+        if self.max_out_donors:
+            stats["max_out_donors"] = self.max_out_donors.stats
         if self.geography:
             stats["geography"] = self.geography.stats
         if self.donor_size:
@@ -120,13 +120,13 @@ class AnalysisService(Protocol):
         """
         ...
 
-    def analyze_maxed_donors(
+    def analyze_max_out_donors(
         self,
         parsed: ParsedQuarterlyCSV,
         report: Filings,
         base_path: str | None = None,
     ) -> AnalysisResult:
-        """Analyze maxed-out donors."""
+        """Analyze max out donors."""
         ...
 
     def run_full_analysis(
@@ -167,7 +167,7 @@ class OpenAIAnalysisService:
         self.blob_service = blob_service
 
         # Extractors (no AI)
-        self._maxed_donors_extractor = MaxedDonorsExtractor()
+        self._max_out_donors_extractor = MaxOutDonorsExtractor()
         self._geography_extractor = GeographyExtractor()
         self._donor_size_extractor = DonorSizeExtractor()
         self._funding_source_extractor = FundingSourceExtractor()
@@ -176,7 +176,7 @@ class OpenAIAnalysisService:
         self._grouped_donations_extractor = GroupedDonationsExtractor()
 
         # Analyzers (lazy-loaded to defer credential validation)
-        self._maxed_donors_analyzer: MaxedDonorsAnalyzer | None = None
+        self._max_out_donors_analyzer: MaxOutDonorsAnalyzer | None = None
         self._geography_analyzer: GeographyAnalyzer | None = None
         self._donor_size_analyzer: DonorSizeAnalyzer | None = None
         self._funding_source_analyzer: FundingSourceAnalyzer | None = None
@@ -186,10 +186,10 @@ class OpenAIAnalysisService:
         self._summary_analyzer: SummaryAnalyzer | None = None
 
     # Lazy-load analyzers
-    def _get_maxed_donors_analyzer(self) -> MaxedDonorsAnalyzer:
-        if self._maxed_donors_analyzer is None:
-            self._maxed_donors_analyzer = MaxedDonorsAnalyzer()
-        return self._maxed_donors_analyzer
+    def _get_max_out_donors_analyzer(self) -> MaxOutDonorsAnalyzer:
+        if self._max_out_donors_analyzer is None:
+            self._max_out_donors_analyzer = MaxOutDonorsAnalyzer()
+        return self._max_out_donors_analyzer
 
     def _get_geography_analyzer(self) -> GeographyAnalyzer:
         if self._geography_analyzer is None:
@@ -278,23 +278,23 @@ class OpenAIAnalysisService:
 
         return summary_text
 
-    def analyze_maxed_donors(
+    def analyze_max_out_donors(
         self,
         parsed: ParsedQuarterlyCSV,
         report: Filings,
         base_path: str | None = None,
     ) -> AnalysisResult:
-        """Analyze maxed-out donors with caching."""
-        cache_path = f"{base_path}/analysis/maxed_donors.json" if base_path else None
+        """Analyze max out donors with caching."""
+        cache_path = f"{base_path}/analysis/max_out_donors.json" if base_path else None
 
         if cache_path and self.blob_service:
             cached = self._get_cached_analysis(cache_path)
             if cached:
-                logger.info(f"Using cached maxed donors analysis: {cache_path}")
+                logger.info(f"Using cached max out donors analysis: {cache_path}")
                 return cached
 
-        extraction = self._maxed_donors_extractor.extract(parsed, report)
-        analyzer = self._get_maxed_donors_analyzer()
+        extraction = self._max_out_donors_extractor.extract(parsed, report)
+        analyzer = self._get_max_out_donors_analyzer()
         result = analyzer.analyze(extraction, report)
 
         if cache_path and self.blob_service:
@@ -340,7 +340,7 @@ class OpenAIAnalysisService:
 
         # Phase 1: Extract all data (no AI)
         logger.info("Phase 1: Extracting data...")
-        maxed_extraction = self._maxed_donors_extractor.extract(parsed, report)
+        max_out_extraction = self._max_out_donors_extractor.extract(parsed, report)
         geography_extraction = self._geography_extractor.extract(parsed, report)
         donor_size_extraction = self._donor_size_extractor.extract(parsed, report)
         funding_extraction = self._funding_source_extractor.extract(parsed, report)
@@ -350,7 +350,7 @@ class OpenAIAnalysisService:
 
         # Phase 2a: Standard stat analyzers (minimal/no AI)
         logger.info("Phase 2a: Running standard analyzers...")
-        maxed_result = self._get_maxed_donors_analyzer().analyze(maxed_extraction, report)
+        max_out_result = self._get_max_out_donors_analyzer().analyze(max_out_extraction, report)
         geography_result = self._get_geography_analyzer().analyze(geography_extraction, report)
         donor_size_result = self._get_donor_size_analyzer().analyze(donor_size_extraction, report)
         funding_result = self._get_funding_source_analyzer().analyze(funding_extraction, report)
@@ -366,7 +366,7 @@ class OpenAIAnalysisService:
         # Phase 3: Compile summary last with all data
         logger.info("Phase 3: Compiling summary...")
         analysis_stats = self._format_analysis_stats(
-            maxed_result,
+            max_out_result,
             geography_result,
             donor_size_result,
             funding_result,
@@ -376,7 +376,7 @@ class OpenAIAnalysisService:
 
         # Cache individual analyses
         if base_path and self.blob_service:
-            self._cache_analysis(f"{base_path}/analysis/maxed_donors.json", maxed_result)
+            self._cache_analysis(f"{base_path}/analysis/max_out_donors.json", max_out_result)
             self._cache_analysis(f"{base_path}/analysis/geography.json", geography_result)
             self._cache_analysis(f"{base_path}/analysis/donor_size.json", donor_size_result)
             self._cache_analysis(f"{base_path}/analysis/funding.json", funding_result)
@@ -386,7 +386,7 @@ class OpenAIAnalysisService:
 
         return FullAnalysisResult(
             summary=summary,
-            maxed_donors=maxed_result,
+            max_out_donors=max_out_result,
             geography=geography_result,
             donor_size=donor_size_result,
             funding_sources=funding_result,
@@ -394,7 +394,7 @@ class OpenAIAnalysisService:
             industry=industry_result,
             grouped_donations=grouped_result,
             all_stats={
-                "maxed_donors": maxed_extraction.stats,
+                "max_out_donors": max_out_extraction.stats,
                 "geography": geography_extraction.stats,
                 "donor_size": donor_size_extraction.stats,
                 "funding_sources": funding_extraction.stats,
@@ -404,7 +404,7 @@ class OpenAIAnalysisService:
 
     def _format_analysis_stats(
         self,
-        maxed: AnalysisResult,
+        max_out: AnalysisResult,
         geography: AnalysisResult,
         donor_size: AnalysisResult,
         funding: AnalysisResult,
@@ -414,9 +414,9 @@ class OpenAIAnalysisService:
         lines = []
 
         # Maxed donors
-        ms = maxed.stats
+        ms = max_out.stats
         lines.append(
-            f"- Maxed Donors ($3,500): {ms.get('count', 0)} donors, "
+            f"- Max Out Donors ($3,500): {ms.get('count', 0)} donors, "
             f"${ms.get('total', 0):,.2f}"
         )
 
@@ -507,9 +507,9 @@ class OpenAIAnalysisService:
             Dictionary with all extraction results.
         """
         return {
-            "maxed_donors": {
-                "data": self._maxed_donors_extractor.extract(parsed, report).data,
-                "stats": self._maxed_donors_extractor.extract(parsed, report).stats,
+            "max_out_donors": {
+                "data": self._max_out_donors_extractor.extract(parsed, report).data,
+                "stats": self._max_out_donors_extractor.extract(parsed, report).stats,
             },
             "geography": {
                 "data": self._geography_extractor.extract(parsed, report).data,

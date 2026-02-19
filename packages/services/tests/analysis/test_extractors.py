@@ -7,7 +7,7 @@ import pytest
 from services.analysis.extractors import (
     FundingSourceExtractor,
     GeographyExtractor,
-    MaxedDonorsExtractor,
+    MaxOutDonorsExtractor,
     _format_name,
     _get_column,
     _parse_currency,
@@ -44,10 +44,10 @@ class TestParsingHelpers:
         assert _format_name("", "Doe") == "Doe"
 
 
-class TestMaxedDonorsExtractor:
+class TestMaxOutDonorsExtractor:
     @pytest.fixture
     def extractor(self):
-        return MaxedDonorsExtractor(limit=3500.0)
+        return MaxOutDonorsExtractor(limit=3500.0)
 
     @pytest.fixture
     def mock_report(self):
@@ -66,7 +66,7 @@ class TestMaxedDonorsExtractor:
         assert result.stats["count"] == 0
         assert result.stats["total"] == 0
 
-    def test_extract_maxed_donors(self, extractor, mock_report):
+    def test_extract_max_out_donors(self, extractor, mock_report):
         # Create a contribution row with aggregate >= 3500
         # Format matches SCHEDULE_A_COLUMNS order
         contribution_row = [
@@ -113,7 +113,7 @@ class TestMaxedDonorsExtractor:
         assert result.data["donors"][0]["employer"] == "Tech Company"
         assert result.data["donors"][0]["state"] == "WA"
 
-    def test_extract_skips_non_maxed_donors(self, extractor, mock_report):
+    def test_extract_skips_non_max_out_donors(self, extractor, mock_report):
         # Contribution below limit
         contribution_row = [
             "SA11AI",
@@ -202,8 +202,8 @@ class TestMaxedDonorsExtractor:
         assert result.stats["count"] == 1
 
     def test_extract_calculates_percentages(self, extractor, mock_report):
-        # One maxed donor and one non-maxed
-        maxed_row = [
+        # One max out donor and one non-max out
+        max_out_row = [
             "SA11AI",
             "C00123456",
             "TXN001",
@@ -230,7 +230,7 @@ class TestMaxedDonorsExtractor:
             "Tech Company",
             "Engineer",
         ]
-        non_maxed_row = [
+        non_max_out_row = [
             "SA11AI",
             "C00123456",
             "TXN002",
@@ -262,7 +262,7 @@ class TestMaxedDonorsExtractor:
             version="8.5",
             header=["HDR"],
             summary=["F3"],
-            contributions=[maxed_row, non_maxed_row],
+            contributions=[max_out_row, non_max_out_row],
         )
 
         result = extractor.extract(parsed, mock_report)
@@ -319,11 +319,11 @@ class TestMaxedDonorsExtractor:
         assert top_employers["Tech Company"] == 2
         assert top_employers["Other Corp"] == 1
 
-    def test_maxed_threshold_is_3500(self, extractor, mock_report):
+    def test_max_out_threshold_is_3500(self, extractor, mock_report):
         """Test that the default max out threshold is $3,500."""
         assert extractor.limit == 3500.0
 
-        # Donor just below limit should not be maxed
+        # Donor just below limit should not be max out
         just_below_row = [
             "SA11AI",
             "C00123456",
@@ -351,7 +351,7 @@ class TestMaxedDonorsExtractor:
             "Company",
             "Job",
         ]
-        # Donor at exactly the limit should be maxed
+        # Donor at exactly the limit should be max out
         at_limit_row = [
             "SA11AI",
             "C00123456",
@@ -389,7 +389,7 @@ class TestMaxedDonorsExtractor:
 
         result = extractor.extract(parsed, mock_report)
 
-        # Only the donor at exactly $3500 should be maxed
+        # Only the donor at exactly $3500 should be max out
         assert result.stats["count"] == 1
         assert result.data["donors"][0]["name"] == "Jane Smith"
 

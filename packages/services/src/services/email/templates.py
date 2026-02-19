@@ -32,10 +32,10 @@ def _build_analysis_section_html(analysis: FullAnalysisResult | None) -> str:
     sections = []
 
     # Maxed donors
-    if analysis.maxed_donors and analysis.maxed_donors.stats.get("count", 0) > 0:
-        stats = analysis.maxed_donors.stats
+    if analysis.max_out_donors and analysis.max_out_donors.stats.get("count", 0) > 0:
+        stats = analysis.max_out_donors.stats
         sections.append(
-            f"<li><strong>Maxed Donors ($3,500):</strong> {stats['count']} donors, "
+            f"<li><strong>Max Out Donors ($3,500):</strong> {stats['count']} donors, "
             f"${stats['total']:,.2f}</li>"
         )
 
@@ -172,7 +172,7 @@ def build_report_html(
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
     # Deprecated: use analysis instead
-    maxed_donors_analysis=None,
+    max_out_donors_analysis=None,
 ) -> str:
     """Build HTML content for report email.
 
@@ -182,7 +182,7 @@ def build_report_html(
         formatted_csv_url: Optional URL to formatted CSV.
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
-        maxed_donors_analysis: Deprecated, use analysis instead.
+        max_out_donors_analysis: Deprecated, use analysis instead.
     """
     financials = _build_financials_html(report)
     links = _build_links_html(report, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url)
@@ -232,10 +232,10 @@ def _build_analysis_section_plain_text(analysis: FullAnalysisResult | None) -> l
     lines = ["", "Analysis Summary", "-" * 30]
 
     # Maxed donors
-    if analysis.maxed_donors and analysis.maxed_donors.stats.get("count", 0) > 0:
-        stats = analysis.maxed_donors.stats
+    if analysis.max_out_donors and analysis.max_out_donors.stats.get("count", 0) > 0:
+        stats = analysis.max_out_donors.stats
         lines.append(
-            f"  Maxed Donors: {stats['count']} donors, ${stats['total']:,.2f}"
+            f"  Max Out Donors: {stats['count']} donors, ${stats['total']:,.2f}"
         )
 
     # Geography
@@ -295,7 +295,7 @@ def build_report_plain_text(
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
     # Deprecated: use analysis instead
-    maxed_donors_analysis=None,
+    max_out_donors_analysis=None,
 ) -> str:
     """Build plain text content for report email.
 
@@ -305,7 +305,7 @@ def build_report_plain_text(
         formatted_csv_url: Optional URL to formatted CSV.
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
-        maxed_donors_analysis: Deprecated, use analysis instead.
+        max_out_donors_analysis: Deprecated, use analysis instead.
     """
     display_name = report.committee_name
     report_type_display = format_report_type(report.report_type)
@@ -367,7 +367,7 @@ def build_report_preview_html(
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
     # Deprecated: use analysis instead
-    maxed_donors_analysis=None,
+    max_out_donors_analysis=None,
 ) -> str:
     """Build HTML preview page for report (for browser viewing).
 
@@ -379,7 +379,7 @@ def build_report_preview_html(
         formatted_csv_url: Optional URL to formatted CSV.
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
-        maxed_donors_analysis: Deprecated, use analysis instead.
+        max_out_donors_analysis: Deprecated, use analysis instead.
     """
     email_html = build_report_html(
         report,

@@ -1,10 +1,10 @@
-"""AI-powered analysis from extracted data.
+"""Analysis from extracted data.
 
 Analyzers perform Phase 2 analysis: taking pre-computed statistics and
-generating human-readable insights using LLM.
+generating human-readable insights.
 
-Standard Statistics (minimal/no AI):
-- A. MaxedDonorsAnalyzer
+Standard Statistics (no AI):
+- A. MaxOutDonorsAnalyzer (formats stats, no AI)
 - B & E. GeographyAnalyzer (formats stats, no AI)
 - C. DonorSizeAnalyzer (formats stats, no AI)
 - D. FundingSourceAnalyzer (formats stats, no AI)
@@ -30,8 +30,6 @@ from .prompts import (
     GROUPED_DONATIONS_USER_TEMPLATE,
     INDUSTRY_SYSTEM_PROMPT,
     INDUSTRY_USER_TEMPLATE,
-    MAXED_DONORS_SYSTEM_PROMPT,
-    MAXED_DONORS_USER_TEMPLATE,
     SUMMARY_SYSTEM_PROMPT,
     SUMMARY_USER_TEMPLATE,
 )
@@ -106,56 +104,24 @@ def _get_openai_client(
 # =============================================================================
 
 
-class MaxedDonorsAnalyzer:
-    """Analyzer for maxed-out donors ($3,500 limit)."""
+class MaxOutDonorsAnalyzer:
+    """Analyzer for max out donors ($3,500 limit) - no AI, just formats stats."""
 
-    feature_name = "maxed_donors"
-
-    def __init__(
-        self,
-        endpoint: str | None = None,
-        api_key: str | None = None,
-        deployment: str | None = None,
-        api_version: str = "2024-02-15-preview",
-    ) -> None:
-        _endpoint = endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
-        _api_key = api_key or os.getenv("AZURE_OPENAI_API_KEY")
-        _deployment = deployment or os.getenv("AZURE_OPENAI_DEPLOYMENT")
-
-        if not _endpoint:
-            raise ValueError("endpoint or AZURE_OPENAI_ENDPOINT must be provided")
-        if not _api_key:
-            raise ValueError("api_key or AZURE_OPENAI_API_KEY must be provided")
-        if not _deployment:
-            raise ValueError("deployment or AZURE_OPENAI_DEPLOYMENT must be provided")
-
-        self.endpoint = _endpoint
-        self.api_key = _api_key
-        self.deployment = _deployment
-
-        self._client = AzureOpenAI(
-            azure_endpoint=self.endpoint,
-            api_key=self.api_key,
-            api_version=api_version,
-        )
+    feature_name = "max_out_donors"
 
     def analyze(
         self,
         extraction: ExtractionResult,
         report: Filings,
     ) -> AnalysisResult:
-        """Analyze maxed donors and generate narrative."""
+        """Format max out donor statistics into a narrative."""
         stats = extraction.stats
         data = extraction.data
 
-        period = f"{report.coverage_start_date} to {report.coverage_end_date}"
-        committee_name = report.committee_name
+        count = stats.get("count", 0)
+        total = stats.get("total", 0)
 
-        employers_list = self._format_top_list(data.get("top_employers", []))
-        occupations_list = self._format_top_list(data.get("top_occupations", []))
-        states_list = self._format_top_list(data.get("top_states", []))
-
-        if stats.get("count", 0) == 0:
+        if count == 0:
             return AnalysisResult(
                 feature=self.feature_name,
                 data=data,
@@ -163,59 +129,28 @@ class MaxedDonorsAnalyzer:
                 narrative="No donors reached the $3,500 contribution limit.",
             )
 
-        user_message = MAXED_DONORS_USER_TEMPLATE.format(
-            committee_name=committee_name,
-            report_period=period,
-            count=stats.get("count", 0),
-            total=stats.get("total", 0),
-            employers_list=employers_list,
-            occupations_list=occupations_list,
-            states_list=states_list,
-        )
+        top_employers = data.get("top_employers", [])
+        top_states = data.get("top_states", [])
 
-        try:
-            response = self._client.chat.completions.create(
-                model=self.deployment,
-                messages=[
-                    {"role": "system", "content": MAXED_DONORS_SYSTEM_PROMPT},
-                    {"role": "user", "content": user_message},
-                ],
-                max_tokens=300,
-                temperature=0.3,
-            )
-            narrative = response.choices[0].message.content or ""
-            logger.info(f"Generated maxed donors analysis for {committee_name}")
-        except Exception as e:
-            logger.error(f"Failed to generate maxed donors analysis: {e}")
-            narrative = self._generate_fallback_narrative(stats, data)
+        parts = [f"{count} donors reached the $3,500 limit, contributing ${total:,.2f}"]
+
+        if top_employers:
+            top_employer = top_employers[0][0]
+            employer_count = top_employers[0][1]
+            parts.append(f"Top employer: {top_employer} ({employer_count} donors)")
+
+        if top_states:
+            top_state = top_states[0][0]
+            state_count = top_states[0][1]
+            parts.append(f"Top state: {top_state} ({state_count} donors)")
+
+        narrative = ". ".join(parts) + "."
 
         return AnalysisResult(
             feature=self.feature_name,
             data=data,
             stats=stats,
-            narrative=narrative.strip(),
-        )
-
-    def _format_top_list(self, items: list[tuple[str, int]], max_items: int = 5) -> str:
-        if not items:
-            return "- None reported"
-        lines = [f"- {name}: {count} donor(s)" for name, count in items[:max_items]]
-        return "\n".join(lines)
-
-    def _generate_fallback_narrative(self, stats: dict, data: dict) -> str:
-        count = stats.get("count", 0)
-        total = stats.get("total", 0)
-
-        top_employers = data.get("top_employers", [])
-        employer_text = ""
-        if top_employers:
-            employer_text = (
-                f" The most common employer among maxed donors is {top_employers[0][0]}."
-            )
-
-        return (
-            f"{count} donors reached the $3,500 contribution limit, "
-            f"contributing ${total:,.2f}.{employer_text}"
+            narrative=narrative,
         )
 
 
