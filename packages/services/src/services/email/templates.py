@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fec_api_client import Filings, format_report_type
 
-from .analysis import FullAnalysisResult
+from ..analysis import FullAnalysisResult
 from .utils import format_date, format_period
 
 

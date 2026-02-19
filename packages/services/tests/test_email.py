@@ -6,13 +6,13 @@ from services import AzureEmailService, EmailMessage
 
 @pytest.fixture
 def mock_email_client():
-    with patch("services.email.EmailClient") as mock:
+    with patch("services.email.service.EmailClient") as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_default_credential():
-    with patch("services.email.DefaultAzureCredential") as mock:
+    with patch("services.email.service.DefaultAzureCredential") as mock:
         yield mock
 
 

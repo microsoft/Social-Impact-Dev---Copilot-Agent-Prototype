@@ -15,7 +15,7 @@ from .templates import (
 )
 
 if TYPE_CHECKING:
-    from .analysis import FullAnalysisResult
+    from ..analysis import FullAnalysisResult
 
 logger = logging.getLogger(__name__)
 
