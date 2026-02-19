@@ -36,7 +36,7 @@ from .extractors import (
 if TYPE_CHECKING:
     from fec_api_client import CommitteeDetail, Filings
 
-    from ..format import ParsedFECFile
+    from ..report.format import ParsedQuarterlyCSV
     from ..storage import BlobStorageService
 
 logger = logging.getLogger(__name__)
@@ -122,7 +122,7 @@ class AnalysisService(Protocol):
 
     def analyze_maxed_donors(
         self,
-        parsed: ParsedFECFile,
+        parsed: ParsedQuarterlyCSV,
         report: Filings,
         base_path: str | None = None,
     ) -> AnalysisResult:
@@ -131,7 +131,7 @@ class AnalysisService(Protocol):
 
     def run_full_analysis(
         self,
-        parsed: ParsedFECFile,
+        parsed: ParsedQuarterlyCSV,
         report: Filings,
         base_path: str | None = None,
     ) -> FullAnalysisResult:
@@ -280,7 +280,7 @@ class OpenAIAnalysisService:
 
     def analyze_maxed_donors(
         self,
-        parsed: ParsedFECFile,
+        parsed: ParsedQuarterlyCSV,
         report: Filings,
         base_path: str | None = None,
     ) -> AnalysisResult:
@@ -321,7 +321,7 @@ class OpenAIAnalysisService:
 
     def run_full_analysis(
         self,
-        parsed: ParsedFECFile,
+        parsed: ParsedQuarterlyCSV,
         report: Filings,
         base_path: str | None = None,
     ) -> FullAnalysisResult:
@@ -494,7 +494,7 @@ class OpenAIAnalysisService:
 
     def extract_only(
         self,
-        parsed: ParsedFECFile,
+        parsed: ParsedQuarterlyCSV,
         report: Filings,
     ) -> dict:
         """Extract data without AI analysis (useful for testing).

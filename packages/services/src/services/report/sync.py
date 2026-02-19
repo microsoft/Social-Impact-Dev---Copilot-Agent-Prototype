@@ -14,9 +14,9 @@ from fec_api_client import (
     Filings,
 )
 
+from ..storage import BlobStorageService
 from .constants import QUARTERLY_REPORT_TYPES
 from .format import add_headers_to_csv, create_xlsx
-from .storage import BlobStorageService
 
 logger = logging.getLogger(__name__)
 

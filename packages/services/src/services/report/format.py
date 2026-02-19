@@ -34,8 +34,18 @@ class Section:
 
 
 @dataclass
-class ParsedFECFile:
-    """Parsed FEC filing with records grouped by type."""
+class ParsedQuarterlyCSV:
+    """Parsed FEC quarterly report CSV with records grouped by type.
+
+    Attributes:
+        version: FEC e-filing format version (e.g., "8.5").
+        header: HDR record containing file metadata.
+        summary: F3 summary record with financial totals.
+        contributions: Schedule A records (itemized receipts).
+        disbursements: Schedule B records (itemized expenditures).
+        other: Any other record types not categorized above.
+        all_rows: All rows in original order for raw export.
+    """
 
     version: str
     header: list[str]
@@ -128,14 +138,14 @@ def _pad_row(row: list[str], headers: list[str]) -> list[str]:
     return row[: len(headers)]
 
 
-def parse_fec_csv(content: bytes | str) -> ParsedFECFile:
+def parse_fec_csv(content: bytes | str) -> ParsedQuarterlyCSV:
     """Parse an FEC CSV file and categorize records by type.
 
     Args:
         content: Raw CSV content as bytes or string.
 
     Returns:
-        ParsedFECFile with records grouped by type.
+        ParsedQuarterlyCSV with records grouped by type.
     """
     if isinstance(content, bytes):
         content = content.decode("utf-8", errors="replace")
@@ -143,7 +153,7 @@ def parse_fec_csv(content: bytes | str) -> ParsedFECFile:
     reader = csv.reader(io.StringIO(content))
     rows = list(reader)
 
-    result = ParsedFECFile(
+    result = ParsedQuarterlyCSV(
         version="",
         header=[],
         summary=[],

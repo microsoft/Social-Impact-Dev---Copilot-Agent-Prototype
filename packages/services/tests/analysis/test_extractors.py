@@ -1,4 +1,4 @@
-"""Tests for the analysis module."""
+"""Tests for the analysis extractors module."""
 
 from unittest.mock import MagicMock
 
@@ -9,7 +9,7 @@ from services.analysis.extractors import (
     _get_column,
     _parse_currency,
 )
-from services.format import ParsedFECFile
+from services.report.format import ParsedQuarterlyCSV
 
 
 class TestParsingHelpers:
@@ -53,7 +53,7 @@ class TestMaxedDonorsExtractor:
         return report
 
     def test_extract_empty_contributions(self, extractor, mock_report):
-        parsed = ParsedFECFile(
+        parsed = ParsedQuarterlyCSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -94,7 +94,7 @@ class TestMaxedDonorsExtractor:
             "Engineer",  # 24: Contributor Occupation
         ]
 
-        parsed = ParsedFECFile(
+        parsed = ParsedQuarterlyCSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -140,7 +140,7 @@ class TestMaxedDonorsExtractor:
             "Manager",
         ]
 
-        parsed = ParsedFECFile(
+        parsed = ParsedQuarterlyCSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -186,7 +186,7 @@ class TestMaxedDonorsExtractor:
         second_row = base_row.copy()
         second_row[2] = "TXN002"
 
-        parsed = ParsedFECFile(
+        parsed = ParsedQuarterlyCSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -255,7 +255,7 @@ class TestMaxedDonorsExtractor:
             "Manager",
         ]
 
-        parsed = ParsedFECFile(
+        parsed = ParsedQuarterlyCSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -300,7 +300,7 @@ class TestMaxedDonorsExtractor:
                 "Employee",
             ]
 
-        parsed = ParsedFECFile(
+        parsed = ParsedQuarterlyCSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],

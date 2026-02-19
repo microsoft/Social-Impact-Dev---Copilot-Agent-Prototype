@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from services.analysis.analyzers import AnalysisResult
 from services.analysis.service import FullAnalysisResult
-from services.templates import (
+from services.email.templates import (
     _build_analysis_section_html,
     _build_analysis_section_plain_text,
     _build_detailed_analysis_html,
