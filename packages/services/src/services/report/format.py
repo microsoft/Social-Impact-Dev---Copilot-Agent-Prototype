@@ -35,7 +35,17 @@ class Section:
 
 @dataclass
 class ParsedQuarterlyCSV:
-    """Parsed FEC filing with records grouped by type."""
+    """Parsed FEC quarterly report CSV with records grouped by type.
+
+    Attributes:
+        version: FEC e-filing format version (e.g., "8.5").
+        header: HDR record containing file metadata.
+        summary: F3 summary record with financial totals.
+        contributions: Schedule A records (itemized receipts).
+        disbursements: Schedule B records (itemized expenditures).
+        other: Any other record types not categorized above.
+        all_rows: All rows in original order for raw export.
+    """
 
     version: str
     header: list[str]
