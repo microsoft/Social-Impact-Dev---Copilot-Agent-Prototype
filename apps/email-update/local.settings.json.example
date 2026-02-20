@@ -6,7 +6,6 @@
     "BLOB_CONNECTION_STRING": "<your-blob-storage-connection-string>",
     "BLOB_ACCOUNT_URL": "https://<storage-account>.blob.core.windows.net",
     "BLOB_CONTAINER_NAME": "fec-filings",
-    "MANIFEST_CONTAINER_NAME": "manifests",
     "EMAIL_CONNECTION_STRING": "<your-azure-communication-services-connection-string>",
     "EMAIL_SENDER_ADDRESS": "DoNotReply@<your-domain>.azurecomm.net",
     "EMAIL_RECIPIENT_LIST": "recipient1@example.com,recipient2@example.com",

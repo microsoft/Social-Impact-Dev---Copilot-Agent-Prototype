@@ -71,7 +71,7 @@ azurite-start:
 	@uv run python -c "\
 from azure.storage.blob import BlobServiceClient; \
 client = BlobServiceClient.from_connection_string('$(AZURITE_CONN)'); \
-[client.create_container(c) for c in ['manifests', 'fec-filings'] if c not in [x.name for x in client.list_containers()]]" 2>/dev/null || true
+[client.create_container(c) for c in ['fec-filings'] if c not in [x.name for x in client.list_containers()]]" 2>/dev/null || true
 	@echo "Azurite ready at http://127.0.0.1:10000"
 
 azurite-stop:

@@ -80,7 +80,6 @@ var functionAppName = '${baseName}-${environment}-${shortSuffix}'
 var emailFunctionAppName = 'email-update-${environment}-${shortSuffix}'
 var emailFunctionStorageAccountName = toLower(replace('emailfunc${uniqueSuffix}', '-', ''))
 var containerName = 'fec-filings'
-var manifestContainerName = 'manifests'
 
 // Storage account for FEC filings data
 module storage 'storage.bicep' = {
@@ -145,21 +144,6 @@ module roleAssignment 'role-assignment.bicep' = if (enableRoleAssignments) {
   }
 }
 
-// Manifest storage container for email triggers
-module manifestStorage 'storage.bicep' = {
-  name: 'manifest-storage-deployment'
-  params: {
-    location: location
-    #disable-next-line BCP334
-    storageAccountName: take(storageAccountName, 24)
-    containerName: manifestContainerName
-    storageSku: 'Standard_LRS'
-    minimumTlsVersion: 'TLS1_2'
-    allowBlobPublicAccess: false
-  }
-  dependsOn: [storage]
-}
-
 // Reference deployed resources to get secrets
 resource storageAccountRef 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
   #disable-next-line BCP334
@@ -191,7 +175,6 @@ module emailFunctionApp 'email-update-app.bicep' = {
     blobConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountRef.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${storageAccountRef.listKeys().keys[0].value}'
     blobAccountUrl: storage.outputs.accountUrl
     blobContainerName: containerName
-    manifestContainerName: manifestContainerName
     emailConnectionString: !empty(emailConnectionString) ? emailConnectionString : acsRef.listKeys().primaryConnectionString
     emailSenderAddress: !empty(emailSenderAddress) ? emailSenderAddress : communicationServices.outputs.senderAddress
     emailRecipientList: emailRecipientList

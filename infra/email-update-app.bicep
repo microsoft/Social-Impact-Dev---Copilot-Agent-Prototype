@@ -37,9 +37,6 @@ param blobAccountUrl string
 @description('The blob container name for FEC filings data')
 param blobContainerName string = 'fec-filings'
 
-@description('The manifest container name for trigger')
-param manifestContainerName string = 'manifests'
-
 @description('Azure Communication Services connection string')
 @secure()
 param emailConnectionString string
@@ -206,10 +203,6 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'BLOB_CONTAINER_NAME'
           value: blobContainerName
-        }
-        {
-          name: 'MANIFEST_CONTAINER_NAME'
-          value: manifestContainerName
         }
         {
           name: 'EMAIL_CONNECTION_STRING'
