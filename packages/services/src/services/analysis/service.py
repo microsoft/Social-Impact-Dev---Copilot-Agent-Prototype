@@ -12,6 +12,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
+from ..instrumentation import Operation, track_operation
 from .analyzers import (
     AnalysisResult,
     DonorSizeAnalyzer,
@@ -368,66 +369,99 @@ class OpenAIAnalysisService:
         Returns:
             FullAnalysisResult with all analyses.
         """
-        # Load committee from cache if not provided
-        if committee is None and report.committee_id:
-            committee = self._get_committee(report.committee_id)
+        committee_id = report.committee_id
 
-        # Set state from committee if not on report
-        if not report.state and committee and committee.state:
-            report.state = committee.state
+        with track_operation(Operation.RUN_FULL_ANALYSIS, committee_id=committee_id) as metrics:
+            # Load committee from cache if not provided
+            if committee is None and committee_id:
+                committee = self._get_committee(committee_id)
 
-        # Phase 1: Extract all data (no AI)
-        logger.info("Phase 1: Extracting data...")
-        max_out_extraction = self._max_out_donors_extractor.extract(parsed_csv, report)
-        geography_extraction = self._geography_extractor.extract(parsed_csv, report)
-        donor_size_extraction = self._donor_size_extractor.extract(parsed_csv, report)
-        funding_extraction = self._funding_source_extractor.extract(parsed_csv, report)
-        expenditure_extraction = self._expenditure_extractor.extract(parsed_csv, report)
-        industry_extraction = self._industry_extractor.extract(parsed_csv, report)
-        grouped_extraction = self._grouped_donations_extractor.extract(parsed_csv, report)
+            # Set state from committee if not on report
+            if not report.state and committee and committee.state:
+                report.state = committee.state
 
-        # Phase 2a: Standard stat analyzers (minimal/no AI)
-        logger.info("Phase 2a: Running standard analyzers...")
-        max_out_result = self._get_max_out_donors_analyzer().analyze(max_out_extraction, report)
-        geography_result = self._get_geography_analyzer().analyze(geography_extraction, report)
-        donor_size_result = self._get_donor_size_analyzer().analyze(donor_size_extraction, report)
-        funding_result = self._get_funding_source_analyzer().analyze(funding_extraction, report)
+            # Phase 1: Extract all data (no AI)
+            with track_operation(Operation.ANALYSIS_EXTRACTION, committee_id=committee_id):
+                logger.info("Phase 1: Extracting data...")
+                max_out_extraction = self._max_out_donors_extractor.extract(parsed_csv, report)
+                geography_extraction = self._geography_extractor.extract(parsed_csv, report)
+                donor_size_extraction = self._donor_size_extractor.extract(parsed_csv, report)
+                funding_extraction = self._funding_source_extractor.extract(parsed_csv, report)
+                expenditure_extraction = self._expenditure_extractor.extract(parsed_csv, report)
+                industry_extraction = self._industry_extractor.extract(parsed_csv, report)
+                grouped_extraction = self._grouped_donations_extractor.extract(parsed_csv, report)
 
-        # Phase 2b: Detailed AI analyzers
-        logger.info("Phase 2b: Running AI analyzers...")
-        industry_result = self._get_industry_analyzer().analyze(industry_extraction, report)
-        unusual_expenditures_result = self._get_unusual_expenditures_analyzer().analyze(
-            expenditure_extraction, report
-        )
-        grouped_result = self._get_grouped_donations_analyzer().analyze(grouped_extraction, report)
+            # Phase 2a: Standard stat analyzers (minimal/no AI)
+            with track_operation(Operation.ANALYSIS_STANDARD, committee_id=committee_id):
+                logger.info("Phase 2a: Running standard analyzers...")
+                with track_operation(Operation.ANALYSIS_MAX_OUT_DONORS, committee_id=committee_id):
+                    max_out_result = self._get_max_out_donors_analyzer().analyze(
+                        max_out_extraction, report
+                    )
+                with track_operation(Operation.ANALYSIS_GEOGRAPHY, committee_id=committee_id):
+                    geography_result = self._get_geography_analyzer().analyze(
+                        geography_extraction, report
+                    )
+                with track_operation(Operation.ANALYSIS_DONOR_SIZE, committee_id=committee_id):
+                    donor_size_result = self._get_donor_size_analyzer().analyze(
+                        donor_size_extraction, report
+                    )
+                with track_operation(Operation.ANALYSIS_FUNDING_SOURCES, committee_id=committee_id):
+                    funding_result = self._get_funding_source_analyzer().analyze(
+                        funding_extraction, report
+                    )
 
-        # Phase 3: Compile summary last with all data
-        logger.info("Phase 3: Compiling summary...")
-        analysis_stats = self._format_analysis_stats(
-            max_out_result,
-            geography_result,
-            donor_size_result,
-            funding_result,
-        )
-        summary = self.generate_summary(
-            report,
-            base_path,
-            analysis_stats,
-            committee=committee,
-            candidates=candidates,
-        )
+            # Phase 2b: Detailed AI analyzers
+            with track_operation(Operation.ANALYSIS_AI, committee_id=committee_id):
+                logger.info("Phase 2b: Running AI analyzers...")
+                with track_operation(Operation.ANALYSIS_INDUSTRY, committee_id=committee_id):
+                    industry_result = self._get_industry_analyzer().analyze(
+                        industry_extraction, report
+                    )
+                with track_operation(
+                    Operation.ANALYSIS_UNUSUAL_EXPENDITURES, committee_id=committee_id
+                ):
+                    unusual_expenditures_result = self._get_unusual_expenditures_analyzer().analyze(
+                        expenditure_extraction, report
+                    )
+                with track_operation(
+                    Operation.ANALYSIS_GROUPED_DONATIONS, committee_id=committee_id
+                ):
+                    grouped_result = self._get_grouped_donations_analyzer().analyze(
+                        grouped_extraction, report
+                    )
 
-        # Cache individual analyses
-        if base_path and self.blob_service:
-            self._cache_analysis(f"{base_path}/analysis/max_out_donors.json", max_out_result)
-            self._cache_analysis(f"{base_path}/analysis/geography.json", geography_result)
-            self._cache_analysis(f"{base_path}/analysis/donor_size.json", donor_size_result)
-            self._cache_analysis(f"{base_path}/analysis/funding.json", funding_result)
-            self._cache_analysis(f"{base_path}/analysis/industry.json", industry_result)
-            self._cache_analysis(
-                f"{base_path}/analysis/unusual_expenditures.json", unusual_expenditures_result
+            # Phase 3: Compile summary last with all data
+            logger.info("Phase 3: Compiling summary...")
+            analysis_stats = self._format_analysis_stats(
+                max_out_result,
+                geography_result,
+                donor_size_result,
+                funding_result,
             )
-            self._cache_analysis(f"{base_path}/analysis/grouped_donations.json", grouped_result)
+            with track_operation(Operation.ANALYSIS_SUMMARY, committee_id=committee_id):
+                summary = self.generate_summary(
+                    report,
+                    base_path,
+                    analysis_stats,
+                    committee=committee,
+                    candidates=candidates,
+                )
+
+            # Cache individual analyses
+            if base_path and self.blob_service:
+                self._cache_analysis(f"{base_path}/analysis/max_out_donors.json", max_out_result)
+                self._cache_analysis(f"{base_path}/analysis/geography.json", geography_result)
+                self._cache_analysis(f"{base_path}/analysis/donor_size.json", donor_size_result)
+                self._cache_analysis(f"{base_path}/analysis/funding.json", funding_result)
+                self._cache_analysis(f"{base_path}/analysis/industry.json", industry_result)
+                self._cache_analysis(
+                    f"{base_path}/analysis/unusual_expenditures.json", unusual_expenditures_result
+                )
+                self._cache_analysis(f"{base_path}/analysis/grouped_donations.json", grouped_result)
+
+            metrics.extra["has_committee"] = committee is not None
+            metrics.extra["has_candidates"] = candidates is not None and len(candidates) > 0
 
         return FullAnalysisResult(
             summary=summary,

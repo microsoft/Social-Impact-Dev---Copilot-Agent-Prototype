@@ -26,9 +26,24 @@ class Operation(StrEnum):
     CREATE_AND_SAVE_XLSX = "create_and_save_xlsx"
     SAVE_REPORT = "save_report"
 
-    # Email operations (placeholder for future)
-    # SEND_EMAIL = "send_email"
-    # GENERATE_EMAIL = "generate_email"
+    # Email operations
+    SEND_REPORT_EMAIL = "send_report_email"
+    GENERATE_EMAIL_CONTENT = "generate_email_content"
+    SEND_EMAIL = "send_email"
+
+    # Analysis operations
+    RUN_FULL_ANALYSIS = "run_full_analysis"
+    ANALYSIS_EXTRACTION = "analysis_extraction"
+    ANALYSIS_STANDARD = "analysis_standard"
+    ANALYSIS_AI = "analysis_ai"
+    ANALYSIS_MAX_OUT_DONORS = "analysis_max_out_donors"
+    ANALYSIS_GEOGRAPHY = "analysis_geography"
+    ANALYSIS_DONOR_SIZE = "analysis_donor_size"
+    ANALYSIS_FUNDING_SOURCES = "analysis_funding_sources"
+    ANALYSIS_INDUSTRY = "analysis_industry"
+    ANALYSIS_UNUSUAL_EXPENDITURES = "analysis_unusual_expenditures"
+    ANALYSIS_GROUPED_DONATIONS = "analysis_grouped_donations"
+    ANALYSIS_SUMMARY = "analysis_summary"
 
 
 @dataclass
