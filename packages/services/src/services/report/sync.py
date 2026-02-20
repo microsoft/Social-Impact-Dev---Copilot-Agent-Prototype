@@ -14,6 +14,7 @@ from fec_api_client import (
     Filings,
 )
 
+from ..instrumentation import track_operation
 from ..storage import BlobStorageService
 from .constants import QUARTERLY_REPORT_TYPES
 from .format import add_headers_to_csv, create_xlsx
@@ -50,41 +51,52 @@ class SyncService:
             logger.warning("No committee IDs configured")
             return {}
 
-        self.blob_service.ensure_container_exists()
-        results: dict[str, Filings | None] = {}
+        with track_operation("sync_reports") as metrics:
+            self.blob_service.ensure_container_exists()
+            results: dict[str, Filings | None] = {}
+            records_synced = 0
 
-        for committee_id in self.committee_ids:
-            filing = self._fetch_latest_report(committee_id)
+            for committee_id in self.committee_ids:
+                filing = self._fetch_latest_report(committee_id)
 
-            if not filing:
-                results[committee_id] = None
-                continue
+                if not filing:
+                    results[committee_id] = None
+                    continue
 
-            base_path = self._get_report_path(committee_id, filing)
-            blob_path = f"{base_path}/report.json"
+                base_path = self._get_report_path(committee_id, filing)
+                blob_path = f"{base_path}/report.json"
 
-            if self.blob_service.exists(blob_path):
-                logger.info(f"Report already synced, skipping: {blob_path}")
-                results[committee_id] = None
-                continue
+                if self.blob_service.exists(blob_path):
+                    logger.info(f"Report already synced, skipping: {blob_path}")
+                    results[committee_id] = None
+                    continue
 
-            committee = self.get_committee(committee_id)
-            if committee and committee.state and not filing.state:
-                filing.state = committee.state
+                committee = self.get_committee(committee_id)
+                if committee and committee.state and not filing.state:
+                    filing.state = committee.state
 
-            self.get_candidates(committee_id)
+                self.get_candidates(committee_id)
 
-            self._process_filing(base_path, filing)
+                self._process_filing(base_path, filing)
 
+                self._save_report(blob_path, filing)
+                results[committee_id] = filing
+                records_synced += 1
+
+            metrics.record_count = records_synced
+            metrics.extra["committees_checked"] = len(self.committee_ids)
+
+        return results
+
+    def _save_report(self, blob_path: str, filing: Filings) -> None:
+        """Save report JSON to blob storage with instrumentation."""
+        with track_operation("save_report", committee_id=filing.committee_id):
             self.blob_service.upload_bytes(
                 blob_path,
                 filing.to_json().encode(),
                 content_type="application/json",
             )
-            logger.info(f"Stored report for {committee_id}: {blob_path}")
-            results[committee_id] = filing
-
-        return results
+            logger.info(f"Stored report: {blob_path}")
 
     def get_committee(self, committee_id: str) -> CommitteeDetail | None:
         """Get committee details, using cached data if available."""
@@ -212,20 +224,35 @@ class SyncService:
     def _process_filing(self, base_path: str, filing: Filings) -> int:
         """Process a single filing, downloading CSV and creating processed versions."""
         files_uploaded = 0
+        committee_id = filing.committee_id
 
         if filing.csv_url:
-            csv_content = self._download_file(filing.csv_url)
+            # Download CSV with timing
+            with track_operation("download_csv", committee_id=committee_id) as dl_metrics:
+                csv_content = self._download_file(filing.csv_url)
+                dl_metrics.extra["csv_url"] = filing.csv_url
+                dl_metrics.extra["size_bytes"] = len(csv_content) if csv_content else 0
+                dl_metrics.success = csv_content is not None
+
             if csv_content:
                 filename = self._get_filename_from_url(filing.csv_url)
                 base_name = filename.rsplit(".", 1)[0]
 
-                # Process and upload formatted CSV and XLSX
+                # Format and save CSV
+                csv_blob_path = f"{base_path}/{base_name}.csv"
+                with track_operation("format_and_save_csv", committee_id=committee_id):
+                    if self._process_and_upload(
+                        csv_content, csv_blob_path, add_headers_to_csv, "text/csv"
+                    ):
+                        files_uploaded += 1
+
+                # Create and save XLSX
+                xlsx_blob_path = f"{base_path}/{base_name}.xlsx"
                 xlsx_mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                for blob_path, processor, content_type in [
-                    (f"{base_path}/{base_name}.csv", add_headers_to_csv, "text/csv"),
-                    (f"{base_path}/{base_name}.xlsx", create_xlsx, xlsx_mime),
-                ]:
-                    if self._process_and_upload(csv_content, blob_path, processor, content_type):
+                with track_operation("create_and_save_xlsx", committee_id=committee_id):
+                    if self._process_and_upload(
+                        csv_content, xlsx_blob_path, create_xlsx, xlsx_mime
+                    ):
                         files_uploaded += 1
 
         return files_uploaded
