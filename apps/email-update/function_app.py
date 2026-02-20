@@ -26,7 +26,7 @@ BLOB_ACCOUNT_URL = os.getenv("BLOB_ACCOUNT_URL", "")
 
 # Use EventGrid in Azure (Flex Consumption requires it), regular polling locally
 IS_AZURE = bool(os.getenv("WEBSITE_SITE_NAME"))
-BLOB_TRIGGER_SOURCE = func.BlobSource.EVENT_GRID if IS_AZURE else func.BlobSource.STORAGE_LOGS
+BLOB_TRIGGER_SOURCE = func.BlobSource.EVENT_GRID if IS_AZURE else func.BlobSource.LOGS_AND_CONTAINER_SCAN
 
 
 def _get_filename_from_url(url: str) -> str:
