@@ -12,15 +12,6 @@ param functionStorageAccountName string
 @description('The name of the App Service Plan')
 param appServicePlanName string = '${functionAppName}-plan'
 
-@description('The SKU for the App Service Plan')
-@allowed([
-  'Y1'       // Consumption plan
-  'EP1'      // Elastic Premium
-  'EP2'
-  'EP3'
-])
-param appServicePlanSku string = 'Y1'
-
 @description('The name of the Application Insights instance')
 param applicationInsightsName string = '${functionAppName}-insights'
 
@@ -67,6 +58,22 @@ param logAnalyticsWorkspaceName string = '${functionAppName}-logs'
 @minValue(30)
 @maxValue(730)
 param logRetentionDays int = 90
+
+@description('Maximum instance count for Flex Consumption')
+param maximumInstanceCount int = 100
+
+@description('Instance memory in MB (2048 or 4096)')
+@allowed([2048, 4096])
+param instanceMemoryMB int = 2048
+
+// Deployment container name for Flex Consumption
+var deploymentContainerName = 'deployments'
+
+// Azure built-in role definition IDs
+// See: https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
+var storageBlobDataOwnerRoleId = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
+var storageQueueDataContributorRoleId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
+var storageTableDataContributorRoleId = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
 
 // Log Analytics Workspace for Application Insights
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if (enableApplicationInsights) {
@@ -123,6 +130,21 @@ resource functionStorageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' =
   }
 }
 
+// Blob service for deployment container
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
+  parent: functionStorageAccount
+  name: 'default'
+}
+
+// Deployment container for Flex Consumption
+resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: deploymentContainerName
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 // Application Insights for monitoring (workspace-based)
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = if (enableApplicationInsights) {
   name: applicationInsightsName
@@ -137,21 +159,22 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = if (en
   }
 }
 
-// App Service Plan (Consumption or Premium)
-resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
+// App Service Plan (Flex Consumption)
+resource appServicePlan 'Microsoft.Web/serverfarms@2024-04-01' = {
   name: appServicePlanName
   location: location
+  kind: 'functionapp'
   sku: {
-    name: appServicePlanSku
-    tier: appServicePlanSku == 'Y1' ? 'Dynamic' : 'ElasticPremium'
+    name: 'FC1'
+    tier: 'FlexConsumption'
   }
   properties: {
     reserved: true // Required for Linux
   }
 }
 
-// Function App
-resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
+// Function App (Flex Consumption)
+resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   name: functionAppName
   location: location
   kind: 'functionapp,linux'
@@ -161,32 +184,33 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     httpsOnly: true
+    functionAppConfig: {
+      deployment: {
+        storage: {
+          type: 'blobContainer'
+          value: '${functionStorageAccount.properties.primaryEndpoints.blob}${deploymentContainerName}'
+          authentication: {
+            type: 'SystemAssignedIdentity'
+          }
+        }
+      }
+      scaleAndConcurrency: {
+        maximumInstanceCount: maximumInstanceCount
+        instanceMemoryMB: instanceMemoryMB
+      }
+      runtime: {
+        name: 'python'
+        version: '3.11'
+      }
+    }
     siteConfig: {
-      linuxFxVersion: 'Python|3.11'
-      pythonVersion: '3.11'
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       http20Enabled: true
       appSettings: [
         {
-          name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${functionStorageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${functionStorageAccount.listKeys().keys[0].value}'
-        }
-        {
-          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${functionStorageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${functionStorageAccount.listKeys().keys[0].value}'
-        }
-        {
-          name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(functionAppName)
-        }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'python'
+          name: 'AzureWebJobsStorage__accountName'
+          value: functionStorageAccount.name
         }
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -234,6 +258,42 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         }
       ]
     }
+  }
+  dependsOn: [
+    deploymentContainer
+  ]
+}
+
+// Role assignment: Storage Blob Data Owner for function app to access deployment container
+resource storageBlobDataOwnerRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(functionStorageAccount.id, functionApp.id, storageBlobDataOwnerRoleId)
+  scope: functionStorageAccount
+  properties: {
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataOwnerRoleId)
+  }
+}
+
+// Role assignment: Storage Queue Data Contributor for function app
+resource storageQueueDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(functionStorageAccount.id, functionApp.id, storageQueueDataContributorRoleId)
+  scope: functionStorageAccount
+  properties: {
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageQueueDataContributorRoleId)
+  }
+}
+
+// Role assignment: Storage Table Data Contributor for function app
+resource storageTableDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(functionStorageAccount.id, functionApp.id, storageTableDataContributorRoleId)
+  scope: functionStorageAccount
+  properties: {
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageTableDataContributorRoleId)
   }
 }
 

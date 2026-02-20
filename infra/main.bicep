@@ -16,15 +16,6 @@ param baseName string = 'data-sync'
 @secure()
 param fecApiKey string
 
-@description('The SKU for the App Service Plan')
-@allowed([
-  'Y1'       // Consumption plan
-  'EP1'      // Elastic Premium
-  'EP2'
-  'EP3'
-])
-param appServicePlanSku string = 'Y1'
-
 @description('Enable Application Insights')
 param enableApplicationInsights bool = true
 
@@ -115,7 +106,7 @@ module openAI 'openai.bicep' = {
   }
 }
 
-// Function app with Application Insights
+// Function app with Application Insights (Flex Consumption)
 module functionApp 'data-sync-app.bicep' = {
   name: 'function-app-deployment'
   params: {
@@ -123,7 +114,6 @@ module functionApp 'data-sync-app.bicep' = {
     functionAppName: functionAppName
     #disable-next-line BCP334
     functionStorageAccountName: take(functionStorageAccountName, 24)
-    appServicePlanSku: appServicePlanSku
     enableApplicationInsights: enableApplicationInsights
     logRetentionDays: logRetentionDays
     fecApiKey: fecApiKey
@@ -161,7 +151,7 @@ resource openAIRef 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = 
   dependsOn: [openAI]
 }
 
-// Email update function app
+// Email update function app (Flex Consumption)
 module emailFunctionApp 'email-update-app.bicep' = {
   name: 'email-function-app-deployment'
   params: {
@@ -169,7 +159,6 @@ module emailFunctionApp 'email-update-app.bicep' = {
     functionAppName: emailFunctionAppName
     #disable-next-line BCP334
     functionStorageAccountName: take(emailFunctionStorageAccountName, 24)
-    appServicePlanSku: appServicePlanSku
     enableApplicationInsights: enableApplicationInsights
     logRetentionDays: logRetentionDays
     blobConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountRef.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${storageAccountRef.listKeys().keys[0].value}'

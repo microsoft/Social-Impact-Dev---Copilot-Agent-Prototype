@@ -1,3 +1,4 @@
+import gc
 import logging
 import os
 
@@ -87,7 +88,14 @@ def _run_analysis(
         parsed = parse_fec_csv(csv_content)
 
         # Run full analysis with caching
-        return analysis_service.run_full_analysis(parsed, report, base_path)
+        result = analysis_service.run_full_analysis(parsed, report, base_path)
+
+        # Release CSV content from memory
+        del csv_content
+        del parsed
+        gc.collect()
+
+        return result
 
     except Exception as e:
         logger.warning(f"Failed to run analysis: {e}")
