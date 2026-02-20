@@ -173,6 +173,7 @@ az-register-providers:
 	az provider register --namespace Microsoft.CognitiveServices --wait
 	az provider register --namespace Microsoft.Authorization --wait
 	az provider register --namespace Microsoft.AlertsManagement --wait
+	az provider register --namespace Microsoft.EventGrid --wait
 	@echo "All providers registered successfully"
 
 clean:
