@@ -106,6 +106,7 @@ def _run_analysis(
     arg_name="report_blob",
     path="fec-filings/{committee_id}/{year_quarter}/report.json",
     connection="BLOB_CONNECTION_STRING",
+    source=func.BlobSource.EVENT_GRID,
 )
 def process_new_report(report_blob: func.InputStream) -> None:
     """Blob trigger that sends email when a new report is synced."""
