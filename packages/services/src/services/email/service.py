@@ -9,6 +9,7 @@ from azure.communication.email import EmailClient
 from azure.identity import DefaultAzureCredential
 from fec_api_client import format_report_type
 
+from ..instrumentation import Operation, track_operation
 from .templates import (
     build_report_html,
     build_report_plain_text,
@@ -100,30 +101,34 @@ class AzureEmailService:
         if not recipients:
             return EmailResult(success=False, error="No recipients provided")
 
-        content: dict[str, str] = {
-            "subject": message.subject,
-            "html": message.html_content,
-        }
-        if message.plain_text_content:
-            content["plainText"] = message.plain_text_content
+        with track_operation(Operation.SEND_EMAIL, recipient_count=len(recipients)) as metrics:
+            content: dict[str, str] = {
+                "subject": message.subject,
+                "html": message.html_content,
+            }
+            if message.plain_text_content:
+                content["plainText"] = message.plain_text_content
 
-        email_message: dict[str, Any] = {
-            "senderAddress": self.sender_address,
-            "recipients": {
-                "to": [{"address": addr} for addr in recipients],
-            },
-            "content": content,
-        }
+            email_message: dict[str, Any] = {
+                "senderAddress": self.sender_address,
+                "recipients": {
+                    "to": [{"address": addr} for addr in recipients],
+                },
+                "content": content,
+            }
 
-        try:
-            poller = self._client.begin_send(email_message)
-            result = poller.result()
-            message_id = result.get("id") if isinstance(result, dict) else str(result)
-            logger.info(f"Email sent successfully: {message_id}")
-            return EmailResult(success=True, message_id=message_id)
-        except Exception as e:
-            logger.error(f"Failed to send email: {e}")
-            return EmailResult(success=False, error=str(e))
+            try:
+                poller = self._client.begin_send(email_message)
+                result = poller.result()
+                message_id = result.get("id") if isinstance(result, dict) else str(result)
+                logger.info(f"Email sent successfully: {message_id}")
+                metrics.extra["message_id"] = message_id
+                return EmailResult(success=True, message_id=message_id)
+            except Exception as e:
+                logger.error(f"Failed to send email: {e}")
+                metrics.success = False
+                metrics.extra["error"] = str(e)
+                return EmailResult(success=False, error=str(e))
 
     def send_report_email(
         self,
@@ -152,27 +157,43 @@ class AzureEmailService:
             logger.warning("No recipients provided, skipping email")
             return EmailResult(success=False, error="No recipients provided")
 
-        html_content = build_report_html(
-            report,
-            summary,
-            formatted_csv_url=formatted_csv_url,
-            xlsx_url=xlsx_url,
-            analysis=analysis,
-        )
-        plain_text_content = build_report_plain_text(
-            report,
-            summary,
-            formatted_csv_url=formatted_csv_url,
-            xlsx_url=xlsx_url,
-            analysis=analysis,
-        )
+        committee_id = getattr(report, "committee_id", None)
 
-        display_name = report.committee_name
-        report_type_display = format_report_type(report.report_type)
-        message = EmailMessage(
-            subject=f"FEC Report: {display_name} ({report_type_display})",
-            html_content=html_content,
-            plain_text_content=plain_text_content,
-        )
+        with track_operation(
+            Operation.SEND_REPORT_EMAIL,
+            committee_id=committee_id,
+            recipient_count=len(recipients),
+        ) as metrics:
+            # Generate email content
+            with track_operation(Operation.GENERATE_EMAIL_CONTENT, committee_id=committee_id):
+                html_content = build_report_html(
+                    report,
+                    summary,
+                    formatted_csv_url=formatted_csv_url,
+                    xlsx_url=xlsx_url,
+                    analysis=analysis,
+                )
+                plain_text_content = build_report_plain_text(
+                    report,
+                    summary,
+                    formatted_csv_url=formatted_csv_url,
+                    xlsx_url=xlsx_url,
+                    analysis=analysis,
+                )
 
-        return self.send_email(recipients, message)
+            display_name = report.committee_name
+            report_type_display = format_report_type(report.report_type)
+            message = EmailMessage(
+                subject=f"FEC Report: {display_name} ({report_type_display})",
+                html_content=html_content,
+                plain_text_content=plain_text_content,
+            )
+
+            result = self.send_email(recipients, message)
+            metrics.success = result.success
+            if result.message_id:
+                metrics.extra["message_id"] = result.message_id
+            if result.error:
+                metrics.extra["error"] = result.error
+
+            return result
