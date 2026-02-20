@@ -556,6 +556,7 @@ class FundingSourceExtractor:
                 "loans_total": sources["loans"]["total"],
                 "loans_pct": sources["loans"]["pct"],
                 "other_total": sources["other"]["total"],
+                "other_pct": sources["other"]["pct"],
                 "total": total,
             },
             raw_items=[],

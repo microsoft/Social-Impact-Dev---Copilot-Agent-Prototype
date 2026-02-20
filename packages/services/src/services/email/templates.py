@@ -71,6 +71,8 @@ def _build_analysis_section_html(analysis: FullAnalysisResult | None) -> str:
             parts.append(f"{fs['transfers_pct']:.1f}% transfers")
         if fs.get("loans_pct", 0) > 0:
             parts.append(f"{fs['loans_pct']:.1f}% loans")
+        if fs.get("other_pct", 0) > 0:
+            parts.append(f"{fs['other_pct']:.1f}% other")
         if parts:
             sections.append(f"<li><strong>Funding Sources:</strong> {', '.join(parts)}</li>")
 
@@ -266,6 +268,12 @@ def _build_analysis_section_plain_text(analysis: FullAnalysisResult | None) -> l
             parts.append(f"{fs['pacs_pct']:.1f}% PACs")
         if fs.get("parties_pct", 0) > 0:
             parts.append(f"{fs['parties_pct']:.1f}% parties")
+        if fs.get("transfers_pct", 0) > 0:
+            parts.append(f"{fs['transfers_pct']:.1f}% transfers")
+        if fs.get("loans_pct", 0) > 0:
+            parts.append(f"{fs['loans_pct']:.1f}% loans")
+        if fs.get("other_pct", 0) > 0:
+            parts.append(f"{fs['other_pct']:.1f}% other")
         if parts:
             lines.append(f"  Funding Sources: {', '.join(parts)}")
 
