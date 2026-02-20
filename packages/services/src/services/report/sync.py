@@ -241,11 +241,20 @@ class SyncService:
             if csv_content:
                 filename = self._get_filename_from_url(filing.csv_url)
                 base_name = filename.rsplit(".", 1)[0]
+                raw_size_mb = len(csv_content) / (1024 * 1024)
 
                 # Parse CSV once and release raw content immediately
                 parsed = parse_fec_csv(csv_content)
                 del csv_content
                 gc.collect()
+
+                # Log parsed data stats
+                logger.info(
+                    f"[MEMORY] Raw CSV: {raw_size_mb:.1f}MB, "
+                    f"rows: {len(parsed.all_rows)}, "
+                    f"contributions: {len(parsed.contributions)}, "
+                    f"disbursements: {len(parsed.disbursements)}"
+                )
 
                 # Format and save CSV (reuse parsed data)
                 csv_blob_path = f"{base_path}/{base_name}.csv"
@@ -281,8 +290,9 @@ class SyncService:
         try:
             processed = processor(content)
             data = processed.encode("utf-8") if isinstance(processed, str) else processed
+            size_mb = len(data) / (1024 * 1024)
             self.blob_service.upload_bytes(blob_path, data, content_type=content_type)
-            logger.info(f"Uploaded: {blob_path}")
+            logger.info(f"Uploaded: {blob_path} ({size_mb:.1f}MB)")
             return True
         except Exception as e:
             logger.warning(f"Failed to process {blob_path}: {e}")
