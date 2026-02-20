@@ -229,7 +229,6 @@ def create_xlsx(content: bytes | str | ParsedQuarterlyCSV) -> bytes:
     - "Summary" sheet: Filing summary (F3 record)
     - "Contributions" sheet: All Schedule A records with headers
     - "Disbursements" sheet: All Schedule B records with headers
-    - "Raw" sheet: Exact copy of original CSV data (last)
 
     Args:
         content: Raw FEC CSV content or pre-parsed ParsedQuarterlyCSV.
@@ -258,11 +257,6 @@ def create_xlsx(content: bytes | str | ParsedQuarterlyCSV) -> bytes:
         for row in section.rows:
             ws.append(row)
         formatter.format_sheet(ws, section.columns)
-
-    # Raw sheet (last) - exact copy of CSV
-    ws_raw = wb.create_sheet("Raw")
-    for row in parsed.all_rows:
-        ws_raw.append(row)
 
     # Save to bytes
     output = io.BytesIO()
