@@ -54,6 +54,8 @@ class OperationMetrics:
     duration_ms: float
     success: bool = True
     record_count: int | None = None
+    input_size_bytes: int | None = None
+    output_size_bytes: int | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -65,8 +67,20 @@ class OperationMetrics:
         }
         if self.record_count is not None:
             result["record_count"] = self.record_count
+        if self.input_size_bytes is not None:
+            result["input_size_bytes"] = self.input_size_bytes
+        if self.output_size_bytes is not None:
+            result["output_size_bytes"] = self.output_size_bytes
         result.update(self.extra)
         return result
+
+    def _format_size(self, size_bytes: int) -> str:
+        """Format bytes as human-readable string."""
+        if size_bytes >= 1024 * 1024:
+            return f"{size_bytes / (1024 * 1024):.1f}MB"
+        elif size_bytes >= 1024:
+            return f"{size_bytes / 1024:.1f}KB"
+        return f"{size_bytes}B"
 
 
 @contextmanager
@@ -101,10 +115,19 @@ def track_operation(operation: str, **extra: Any):
 
         log_level = logging.INFO if metrics.success else logging.WARNING
         metrics_dict = metrics.to_dict()
+
+        # Build log message with optional size info
+        msg_parts = [f"[METRICS] {operation}: {metrics.duration_ms:.1f}ms"]
+        if metrics.record_count:
+            msg_parts.append(f"({metrics.record_count} records)")
+        if metrics.input_size_bytes is not None:
+            msg_parts.append(f"in={metrics._format_size(metrics.input_size_bytes)}")
+        if metrics.output_size_bytes is not None:
+            msg_parts.append(f"out={metrics._format_size(metrics.output_size_bytes)}")
+
         logger.log(
             log_level,
-            f"[METRICS] {operation}: {metrics.duration_ms:.1f}ms"
-            + (f" ({metrics.record_count} records)" if metrics.record_count else ""),
+            " ".join(msg_parts),
             extra={"custom_dimensions": metrics_dict},
         )
 
