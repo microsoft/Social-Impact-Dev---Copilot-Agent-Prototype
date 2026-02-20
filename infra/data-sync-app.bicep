@@ -50,7 +50,7 @@ param maximumInstanceCount int = 100
 
 @description('Instance memory in MB (2048 or 4096)')
 @allowed([2048, 4096])
-param instanceMemoryMB int = 2048
+param instanceMemoryMB int = 4096
 
 // Deployment container name for Flex Consumption
 var deploymentContainerName = 'deployments'
