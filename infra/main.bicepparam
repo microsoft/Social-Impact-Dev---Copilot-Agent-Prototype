@@ -3,7 +3,6 @@ using './main.bicep'
 // Environment configuration
 param environment = readEnvironmentVariable('ENVIRONMENT', 'dev')
 param baseName = readEnvironmentVariable('BASE_NAME', 'data-sync')
-param appServicePlanSku = 'Y1'
 param enableApplicationInsights = true
 param logRetentionDays = 90
 
