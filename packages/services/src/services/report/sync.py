@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import json
 import logging
 from collections.abc import Callable
@@ -82,6 +83,9 @@ class SyncService:
                 self._save_report(blob_path, filing)
                 results[committee_id] = filing
                 records_synced += 1
+
+                # Free memory before processing next committee (helps on constrained environments)
+                gc.collect()
 
             metrics.record_count = records_synced
             metrics.extra["committees_checked"] = len(self.committee_ids)
@@ -254,6 +258,10 @@ class SyncService:
                         csv_content, xlsx_blob_path, create_xlsx, xlsx_mime
                     ):
                         files_uploaded += 1
+
+                # Release CSV content from memory
+                del csv_content
+                gc.collect()
 
         return files_uploaded
 
