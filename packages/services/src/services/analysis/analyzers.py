@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from fec_api_client import Filings
 
     from .extractors import ExtractionResult
+    from .types import CandidateDetail, CommitteeDetail
 
 logger = logging.getLogger(__name__)
 
@@ -638,12 +639,17 @@ class SummaryAnalyzer:
         self,
         report: Filings,
         analysis_stats: str = "",
+        *,
+        committee: CommitteeDetail | None = None,
+        candidates: list[CandidateDetail] | None = None,
     ) -> SummaryResult:
         """Generate a summary for a report, optionally including analysis stats.
 
         Args:
             report: Report (Filings) object with filing details.
             analysis_stats: Pre-formatted string of analysis statistics.
+            committee: Optional committee details for richer context.
+            candidates: Optional list of associated candidates.
 
         Returns:
             SummaryResult with the generated summary.
@@ -659,6 +665,8 @@ class SummaryAnalyzer:
             receipt_date=report.receipt_date,
             financials=self._format_financials(report),
             analysis_stats=analysis_stats or "No additional analysis available.",
+            committee_context=self._format_committee_context(committee),
+            candidate_context=self._format_candidate_context(candidates),
         )
 
         try:
@@ -696,3 +704,47 @@ class SummaryAnalyzer:
         if report.cash_on_hand_end_period is not None:
             lines.append(f"Cash on Hand: ${report.cash_on_hand_end_period:,.2f}")
         return "\n".join(lines) if lines else "Financial data not available."
+
+    def _format_committee_context(self, committee: CommitteeDetail | None) -> str:
+        """Format committee details for the summary prompt."""
+        if not committee:
+            return "Committee details not available."
+
+        lines = []
+        if committee.committee_type_full:
+            lines.append(f"Committee Type: {committee.committee_type_full}")
+        if committee.designation_full:
+            lines.append(f"Designation: {committee.designation_full}")
+        if committee.party_full:
+            lines.append(f"Party: {committee.party_full}")
+        if committee.state_full:
+            lines.append(f"State: {committee.state_full}")
+        if committee.treasurer_name:
+            lines.append(f"Treasurer: {committee.treasurer_name}")
+        if committee.filing_frequency:
+            lines.append(f"Filing Frequency: {committee.filing_frequency}")
+
+        return "\n".join(lines) if lines else "Committee details not available."
+
+    def _format_candidate_context(self, candidates: list[CandidateDetail] | None) -> str:
+        """Format candidate details for the summary prompt."""
+        if not candidates:
+            return "No associated candidates."
+
+        lines = []
+        for candidate in candidates[:3]:  # Limit to first 3 candidates
+            parts = []
+            if candidate.name:
+                parts.append(candidate.name)
+            if candidate.party_full:
+                parts.append(f"({candidate.party_full})")
+            if candidate.office_full:
+                parts.append(f"- {candidate.office_full}")
+            if candidate.state:
+                parts.append(f"[{candidate.state}]")
+            if candidate.incumbent_challenge_full:
+                parts.append(f"({candidate.incumbent_challenge_full})")
+            if parts:
+                lines.append(" ".join(parts))
+
+        return "\n".join(lines) if lines else "No associated candidates."

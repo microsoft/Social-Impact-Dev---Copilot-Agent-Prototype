@@ -41,8 +41,13 @@ from .extractors import (
     MaxOutDonorsExtractor,
 )
 from .service import AnalysisService, FullAnalysisResult, OpenAIAnalysisService
+from .types import CandidateDetail, CommitteeDetail, QuarterlyReport
 
 __all__ = [
+    # Type aliases
+    "QuarterlyReport",
+    "CandidateDetail",
+    "CommitteeDetail",
     # Analysis results
     "AnalysisResult",
     "ExtractionResult",
