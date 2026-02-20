@@ -18,7 +18,7 @@ from fec_api_client import (
 from ..instrumentation import Operation, track_operation
 from ..storage import BlobStorageService
 from .constants import QUARTERLY_REPORT_TYPES
-from .format import add_headers_to_csv, create_xlsx
+from .format import ParsedQuarterlyCSV, add_headers_to_csv, create_xlsx, parse_fec_csv
 
 logger = logging.getLogger(__name__)
 
@@ -242,34 +242,39 @@ class SyncService:
                 filename = self._get_filename_from_url(filing.csv_url)
                 base_name = filename.rsplit(".", 1)[0]
 
-                # Format and save CSV
+                # Parse CSV once and release raw content immediately
+                parsed = parse_fec_csv(csv_content)
+                del csv_content
+                gc.collect()
+
+                # Format and save CSV (reuse parsed data)
                 csv_blob_path = f"{base_path}/{base_name}.csv"
                 with track_operation(Operation.FORMAT_AND_SAVE_CSV, committee_id=committee_id):
                     if self._process_and_upload(
-                        csv_content, csv_blob_path, add_headers_to_csv, "text/csv"
+                        parsed, csv_blob_path, add_headers_to_csv, "text/csv"
                     ):
                         files_uploaded += 1
 
-                # Create and save XLSX
+                # Create and save XLSX (reuse parsed data)
                 xlsx_blob_path = f"{base_path}/{base_name}.xlsx"
                 xlsx_mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 with track_operation(Operation.CREATE_AND_SAVE_XLSX, committee_id=committee_id):
                     if self._process_and_upload(
-                        csv_content, xlsx_blob_path, create_xlsx, xlsx_mime
+                        parsed, xlsx_blob_path, create_xlsx, xlsx_mime
                     ):
                         files_uploaded += 1
 
-                # Release CSV content from memory
-                del csv_content
+                # Release parsed data from memory
+                del parsed
                 gc.collect()
 
         return files_uploaded
 
     def _process_and_upload(
         self,
-        content: bytes,
+        content: bytes | ParsedQuarterlyCSV,
         blob_path: str,
-        processor: Callable[[bytes], str | bytes],
+        processor: Callable[[bytes | ParsedQuarterlyCSV], str | bytes],
         content_type: str,
     ) -> bool:
         """Process content and upload to blob storage."""

@@ -183,18 +183,18 @@ def parse_fec_csv(content: bytes | str) -> ParsedQuarterlyCSV:
     return result
 
 
-def add_headers_to_csv(content: bytes | str) -> str:
+def add_headers_to_csv(content: bytes | str | ParsedQuarterlyCSV) -> str:
     """Add headers to an FEC CSV file.
 
     Creates a CSV where each record type section has its appropriate headers.
 
     Args:
-        content: Raw FEC CSV content.
+        content: Raw FEC CSV content or pre-parsed ParsedQuarterlyCSV.
 
     Returns:
         CSV string with headers added for each section.
     """
-    parsed = parse_fec_csv(content)
+    parsed = content if isinstance(content, ParsedQuarterlyCSV) else parse_fec_csv(content)
     output = io.StringIO()
     writer = csv.writer(output)
 
@@ -222,7 +222,7 @@ def add_headers_to_csv(content: bytes | str) -> str:
     return output.getvalue()
 
 
-def create_xlsx(content: bytes | str) -> bytes:
+def create_xlsx(content: bytes | str | ParsedQuarterlyCSV) -> bytes:
     """Convert FEC CSV to XLSX with multiple sheets.
 
     Creates an Excel workbook with:
@@ -232,7 +232,7 @@ def create_xlsx(content: bytes | str) -> bytes:
     - "Raw" sheet: Exact copy of original CSV data (last)
 
     Args:
-        content: Raw FEC CSV content.
+        content: Raw FEC CSV content or pre-parsed ParsedQuarterlyCSV.
 
     Returns:
         XLSX file as bytes.
@@ -244,7 +244,7 @@ def create_xlsx(content: bytes | str) -> bytes:
             "openpyxl is required for XLSX export. Install with: pip install openpyxl"
         ) from e
 
-    parsed = parse_fec_csv(content)
+    parsed = content if isinstance(content, ParsedQuarterlyCSV) else parse_fec_csv(content)
     wb = openpyxl.Workbook()
     formatter = FormatService()
 
