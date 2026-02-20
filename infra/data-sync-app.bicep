@@ -55,6 +55,12 @@ param instanceMemoryMB int = 2048
 // Deployment container name for Flex Consumption
 var deploymentContainerName = 'deployments'
 
+// Azure built-in role definition IDs
+// See: https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
+var storageBlobDataOwnerRoleId = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
+var storageQueueDataContributorRoleId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
+var storageTableDataContributorRoleId = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
+
 // Log Analytics Workspace for Application Insights
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if (enableApplicationInsights) {
   name: logAnalyticsWorkspaceName
@@ -230,34 +236,34 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
 
 // Role assignment: Storage Blob Data Owner for function app to access deployment container
 resource storageBlobDataOwnerRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(functionStorageAccount.id, functionApp.id, 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')
+  name: guid(functionStorageAccount.id, functionApp.id, storageBlobDataOwnerRoleId)
   scope: functionStorageAccount
   properties: {
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b') // Storage Blob Data Owner
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataOwnerRoleId)
   }
 }
 
 // Role assignment: Storage Queue Data Contributor for function app
 resource storageQueueDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(functionStorageAccount.id, functionApp.id, '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
+  name: guid(functionStorageAccount.id, functionApp.id, storageQueueDataContributorRoleId)
   scope: functionStorageAccount
   properties: {
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88') // Storage Queue Data Contributor
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageQueueDataContributorRoleId)
   }
 }
 
 // Role assignment: Storage Table Data Contributor for function app
 resource storageTableDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(functionStorageAccount.id, functionApp.id, '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
+  name: guid(functionStorageAccount.id, functionApp.id, storageTableDataContributorRoleId)
   scope: functionStorageAccount
   properties: {
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3') // Storage Table Data Contributor
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageTableDataContributorRoleId)
   }
 }
 
