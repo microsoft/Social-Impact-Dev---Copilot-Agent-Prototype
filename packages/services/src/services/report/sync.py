@@ -306,6 +306,12 @@ class SyncService:
             output_size = len(data)
             self.blob_service.upload_bytes(blob_path, data, content_type=content_type)
             logger.info(f"Uploaded: {blob_path}")
+
+            # Release output data from memory immediately
+            del data
+            del processed
+            gc.collect()
+
             return True, output_size
         except Exception as e:
             logger.warning(f"Failed to process {blob_path}: {e}")
