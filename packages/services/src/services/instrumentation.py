@@ -69,10 +69,12 @@ def track_operation(operation: str, **extra: Any):
         metrics.duration_ms = elapsed * 1000
 
         log_level = logging.INFO if metrics.success else logging.WARNING
+        metrics_dict = metrics.to_dict()
         logger.log(
             log_level,
-            f"Operation completed: {operation}",
-            extra={"custom_dimensions": metrics.to_dict()},
+            f"[METRICS] {operation}: {metrics.duration_ms:.1f}ms"
+            + (f" ({metrics.record_count} records)" if metrics.record_count else ""),
+            extra={"custom_dimensions": metrics_dict},
         )
 
 
