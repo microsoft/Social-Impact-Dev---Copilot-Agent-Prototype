@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from services.analysis.extractors import (
+    DonorSizeExtractor,
     FundingSourceExtractor,
     GeographyExtractor,
     MaxOutDonorsExtractor,
@@ -587,6 +588,35 @@ class TestGeographyExtractor:
         assert result.stats["in_state_pct"] == 50.0  # $2000 of $4000
         assert result.stats["out_state_pct"] == 50.0
 
+    def test_negative_amounts_included_but_percentages_clamped(self, mock_report):
+        """Test that refunds are included but percentages are clamped to 0."""
+        extractor = GeographyExtractor()
+
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("WA", "100.00"),  # In-state, positive
+                self._make_contribution_row(
+                    "CA", "-150.00"
+                ),  # Out-of-state refund (makes out-state negative)
+                self._make_contribution_row("OR", "100.00"),  # Out-of-state, positive
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        # Refunds are included in totals
+        assert result.stats["in_state_total"] == 100.0
+        assert result.stats["out_state_total"] == -50.0  # 100 + (-150)
+        assert result.stats["total"] == 50.0  # 100 + (-50)
+
+        # Percentages should be clamped to valid range (0-100%)
+        assert result.stats["in_state_pct"] == 100  # Clamped from >100%
+        assert result.stats["out_state_pct"] == 0  # Clamped from negative
+
 
 class TestFundingSourceExtractor:
     """Tests for FundingSourceExtractor to verify funding source categorization."""
@@ -846,3 +876,185 @@ class TestFundingSourceExtractor:
         assert result.stats["other_total"] == 1500.0
         # Other is tracked in data but not in stats percentage
         assert result.stats["total"] == 1500.0
+
+    def test_negative_amounts_included_but_percentages_clamped(self, extractor, mock_report):
+        """Test that refunds are included but percentages are clamped to 0."""
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("SA11AI", "1000.00"),  # Individual, positive
+                self._make_contribution_row(
+                    "SA11AI", "-1500.00"
+                ),  # Individual refund (makes negative)
+                self._make_contribution_row("SA11C", "1000.00"),  # PAC, positive
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        # Refunds are included in totals
+        assert result.stats["individuals_total"] == -500.0  # 1000 + (-1500)
+        assert result.stats["pacs_total"] == 1000.0
+        assert result.stats["total"] == 500.0  # -500 + 1000
+
+        # Percentages should be clamped to valid range (0-100%)
+        assert result.stats["individuals_pct"] == 0  # Clamped from negative
+        assert result.stats["pacs_pct"] == 100  # Clamped from >100%
+
+
+class TestDonorSizeExtractor:
+    """Tests for DonorSizeExtractor to verify small vs large donor categorization."""
+
+    @pytest.fixture
+    def extractor(self):
+        return DonorSizeExtractor(threshold=25.0)
+
+    @pytest.fixture
+    def mock_report(self):
+        """Create a mock report."""
+        return SimpleNamespace(committee_name="Test Committee")
+
+    def _make_contribution_row(self, amount: str, name: str = "Donor") -> list[str]:
+        """Create an individual contribution row with the given amount."""
+        return [
+            "SA11AI",  # 0: Form Type (individual contribution)
+            "C00123456",  # 1: Committee ID
+            "TXN001",  # 2: Transaction ID
+            "",  # 3
+            "",  # 4
+            "IND",  # 5: Entity Type
+            "",  # 6: Organization Name
+            name,  # 7: Last Name
+            "John",  # 8: First Name
+            "",  # 9: Middle Name
+            "",  # 10
+            "",  # 11
+            "",  # 12
+            "",  # 13
+            "Seattle",  # 14: City
+            "WA",  # 15: State
+            "98101",  # 16: ZIP
+            "",  # 17
+            "",  # 18
+            "20240101",  # 19: Date
+            amount,  # 20: Contribution Amount
+            amount,  # 21: Aggregate
+            "",  # 22
+            "Employer",  # 23
+            "Occupation",  # 24
+        ]
+
+    def test_small_and_big_donors_categorized_correctly(self, extractor, mock_report):
+        """Test that donations are categorized by the $25 threshold."""
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("10.00", "Small1"),  # Small
+                self._make_contribution_row("25.00", "Small2"),  # Small (at threshold)
+                self._make_contribution_row("50.00", "Big1"),  # Big
+                self._make_contribution_row("100.00", "Big2"),  # Big
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert result.stats["small_count"] == 2
+        assert result.stats["small_total"] == 35.0  # 10 + 25
+        assert result.stats["big_count"] == 2
+        assert result.stats["big_total"] == 150.0  # 50 + 100
+
+    def test_percentages_add_up_to_100(self, extractor, mock_report):
+        """Test that small_pct + big_pct = 100%."""
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("20.00"),  # Small
+                self._make_contribution_row("80.00"),  # Big
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert result.stats["small_pct"] + result.stats["big_pct"] == 100.0
+        assert result.stats["small_pct"] == 20.0  # $20 of $100
+        assert result.stats["big_pct"] == 80.0  # $80 of $100
+
+    def test_negative_amounts_included_but_percentages_clamped(self, extractor, mock_report):
+        """Test that refunds are included in totals but percentages are clamped to 0.
+
+        This prevents impossible percentages like -3.3% or 103.3%.
+        """
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("100.00", "Donor1"),  # Big, positive
+                self._make_contribution_row("-50.00", "Refund1"),  # Refund (negative, <= $25)
+                self._make_contribution_row("20.00", "Small1"),  # Small, positive
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        # Refunds are included in totals
+        assert result.stats["small_count"] == 2  # $20 and $-50 both <= $25
+        assert result.stats["small_total"] == -30.0  # 20 + (-50)
+        assert result.stats["big_count"] == 1
+        assert result.stats["big_total"] == 100.0
+        assert result.stats["total"] == 70.0  # -30 + 100
+
+        # Percentages should be clamped to valid range (0-100%)
+        assert result.stats["small_pct"] == 0  # Clamped from negative
+        assert result.stats["big_pct"] == 100  # Clamped from >100%
+
+    def test_zero_amounts_included(self, extractor, mock_report):
+        """Test that zero-dollar contributions are included in counts."""
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("100.00"),
+                self._make_contribution_row("0.00"),  # Zero contribution
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        # Zero amounts are included (could be placeholder records)
+        assert result.stats["total_count"] == 2
+        assert result.stats["total"] == 100.0
+
+    def test_only_individual_contributions_included(self, extractor, mock_report):
+        """Test that only SA11AI form types are included (individual contributions)."""
+        pac_row = self._make_contribution_row("1000.00")
+        pac_row[0] = "SA11C"  # PAC contribution, not individual
+
+        parsed = ParsedQuarterlyCSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[
+                self._make_contribution_row("50.00"),  # Individual
+                pac_row,  # PAC - should be excluded
+            ],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        # Only the individual contribution should be counted
+        assert result.stats["total_count"] == 1
+        assert result.stats["total"] == 50.0

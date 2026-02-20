@@ -369,8 +369,9 @@ class GeographyExtractor:
                 out_state_count += 1
 
         total = in_state_total + out_state_total
-        in_state_pct = (in_state_total / total * 100) if total > 0 else 0
-        out_state_pct = (out_state_total / total * 100) if total > 0 else 0
+        # Clamp percentages to [0, 100] range (refunds can cause negative or >100%)
+        in_state_pct = min(100, max(0, in_state_total / total * 100)) if total > 0 else 0
+        out_state_pct = min(100, max(0, out_state_total / total * 100)) if total > 0 else 0
 
         # Sort states by total amount
         top_states = sorted(state_totals.items(), key=lambda x: x[1], reverse=True)[:15]
@@ -435,8 +436,9 @@ class DonorSizeExtractor:
                 big_donors.append({"name": name, "amount": amount})
 
         total = small_total + big_total
-        small_pct = (small_total / total * 100) if total > 0 else 0
-        big_pct = (big_total / total * 100) if total > 0 else 0
+        # Clamp percentages to [0, 100] range (refunds can cause negative or >100%)
+        small_pct = min(100, max(0, small_total / total * 100)) if total > 0 else 0
+        big_pct = min(100, max(0, big_total / total * 100)) if total > 0 else 0
 
         return ExtractionResult(
             data={
@@ -505,9 +507,10 @@ class FundingSourceExtractor:
 
         total = sum(s["total"] for s in sources.values())
 
-        # Calculate percentages
+        # Calculate percentages, clamping to [0, 100] range (refunds can cause negative or >100%)
         for source in sources.values():
-            source["pct"] = (source["total"] / total * 100) if total > 0 else 0
+            pct = source["total"] / total * 100 if total > 0 else 0
+            source["pct"] = min(100, max(0, pct))
 
         return ExtractionResult(
             data={
