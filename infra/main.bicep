@@ -183,6 +183,18 @@ module emailRoleAssignment 'role-assignment.bicep' = if (enableRoleAssignments) 
   }
 }
 
+// Event Grid system topic for blob events
+// Required for Flex Consumption blob triggers with EVENT_GRID source
+// Azure Functions automatically creates the subscription when deployed
+resource eventGridSystemTopic 'Microsoft.EventGrid/systemTopics@2024-06-01-preview' = {
+  name: '${baseName}-${environment}-blob-events'
+  location: location
+  properties: {
+    source: storage.outputs.storageAccountId
+    topicType: 'Microsoft.Storage.StorageAccounts'
+  }
+}
+
 // Outputs
 @description('The name of the data storage account')
 output storageAccountName string = storage.outputs.storageAccountName
