@@ -10,9 +10,25 @@ import logging
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+class Operation(StrEnum):
+    """Operation names for instrumentation metrics."""
+
+    # Sync operations
+    SYNC_REPORTS = "sync_reports"
+    DOWNLOAD_CSV = "download_csv"
+    FORMAT_AND_SAVE_CSV = "format_and_save_csv"
+    CREATE_AND_SAVE_XLSX = "create_and_save_xlsx"
+    SAVE_REPORT = "save_report"
+
+    # Email operations (placeholder for future)
+    # SEND_EMAIL = "send_email"
+    # GENERATE_EMAIL = "generate_email"
 
 
 @dataclass

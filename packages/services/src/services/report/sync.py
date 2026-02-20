@@ -14,7 +14,7 @@ from fec_api_client import (
     Filings,
 )
 
-from ..instrumentation import track_operation
+from ..instrumentation import Operation, track_operation
 from ..storage import BlobStorageService
 from .constants import QUARTERLY_REPORT_TYPES
 from .format import add_headers_to_csv, create_xlsx
@@ -51,7 +51,7 @@ class SyncService:
             logger.warning("No committee IDs configured")
             return {}
 
-        with track_operation("sync_reports") as metrics:
+        with track_operation(Operation.SYNC_REPORTS) as metrics:
             self.blob_service.ensure_container_exists()
             results: dict[str, Filings | None] = {}
             records_synced = 0
@@ -90,7 +90,7 @@ class SyncService:
 
     def _save_report(self, blob_path: str, filing: Filings) -> None:
         """Save report JSON to blob storage with instrumentation."""
-        with track_operation("save_report", committee_id=filing.committee_id):
+        with track_operation(Operation.SAVE_REPORT, committee_id=filing.committee_id):
             self.blob_service.upload_bytes(
                 blob_path,
                 filing.to_json().encode(),
@@ -228,7 +228,7 @@ class SyncService:
 
         if filing.csv_url:
             # Download CSV with timing
-            with track_operation("download_csv", committee_id=committee_id) as dl_metrics:
+            with track_operation(Operation.DOWNLOAD_CSV, committee_id=committee_id) as dl_metrics:
                 csv_content = self._download_file(filing.csv_url)
                 dl_metrics.extra["csv_url"] = filing.csv_url
                 dl_metrics.extra["size_bytes"] = len(csv_content) if csv_content else 0
@@ -240,7 +240,7 @@ class SyncService:
 
                 # Format and save CSV
                 csv_blob_path = f"{base_path}/{base_name}.csv"
-                with track_operation("format_and_save_csv", committee_id=committee_id):
+                with track_operation(Operation.FORMAT_AND_SAVE_CSV, committee_id=committee_id):
                     if self._process_and_upload(
                         csv_content, csv_blob_path, add_headers_to_csv, "text/csv"
                     ):
@@ -249,7 +249,7 @@ class SyncService:
                 # Create and save XLSX
                 xlsx_blob_path = f"{base_path}/{base_name}.xlsx"
                 xlsx_mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                with track_operation("create_and_save_xlsx", committee_id=committee_id):
+                with track_operation(Operation.CREATE_AND_SAVE_XLSX, committee_id=committee_id):
                     if self._process_and_upload(
                         csv_content, xlsx_blob_path, create_xlsx, xlsx_mime
                     ):
