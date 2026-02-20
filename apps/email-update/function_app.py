@@ -24,6 +24,12 @@ EMAIL_RECIPIENT_LIST = os.getenv("EMAIL_RECIPIENT_LIST", "")
 BLOB_CONTAINER_NAME = os.getenv("BLOB_CONTAINER_NAME", "fec-filings")
 BLOB_ACCOUNT_URL = os.getenv("BLOB_ACCOUNT_URL", "")
 
+# Use EventGrid in Azure (Flex Consumption requires it), regular polling locally
+IS_AZURE = bool(os.getenv("WEBSITE_SITE_NAME"))
+BLOB_TRIGGER_SOURCE = (
+    func.BlobSource.EVENT_GRID if IS_AZURE else func.BlobSource.LOGS_AND_CONTAINER_SCAN
+)
+
 
 def _get_filename_from_url(url: str) -> str:
     """Extract the filename from a URL."""
@@ -106,6 +112,7 @@ def _run_analysis(
     arg_name="report_blob",
     path="fec-filings/{committee_id}/{year_quarter}/report.json",
     connection="BLOB_CONNECTION_STRING",
+    source=BLOB_TRIGGER_SOURCE,
 )
 def process_new_report(report_blob: func.InputStream) -> None:
     """Blob trigger that sends email when a new report is synced."""

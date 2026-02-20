@@ -183,6 +183,40 @@ module emailRoleAssignment 'role-assignment.bicep' = if (enableRoleAssignments) 
   }
 }
 
+// Event Grid system topic for blob events (required for Flex Consumption blob triggers)
+resource eventGridSystemTopic 'Microsoft.EventGrid/systemTopics@2024-06-01-preview' = {
+  name: '${baseName}-${environment}-blob-events'
+  location: location
+  properties: {
+    source: storage.outputs.storageAccountId
+    topicType: 'Microsoft.Storage.StorageAccounts'
+  }
+}
+
+// Event Grid subscription to trigger email function on report.json creation
+resource eventGridSubscription 'Microsoft.EventGrid/systemTopics/eventSubscriptions@2024-06-01-preview' = {
+  parent: eventGridSystemTopic
+  name: 'report-created'
+  properties: {
+    destination: {
+      endpointType: 'AzureFunction'
+      properties: {
+        resourceId: '${emailFunctionApp.outputs.functionAppId}/functions/process_new_report'
+        maxEventsPerBatch: 1
+        preferredBatchSizeInKilobytes: 64
+      }
+    }
+    filter: {
+      includedEventTypes: [
+        'Microsoft.Storage.BlobCreated'
+      ]
+      subjectBeginsWith: '/blobServices/default/containers/${containerName}/blobs/'
+      subjectEndsWith: '/report.json'
+    }
+    eventDeliverySchema: 'EventGridSchema'
+  }
+}
+
 // Outputs
 @description('The name of the data storage account')
 output storageAccountName string = storage.outputs.storageAccountName
