@@ -235,13 +235,13 @@ class SyncService:
             with track_operation(Operation.DOWNLOAD_CSV, committee_id=committee_id) as dl_metrics:
                 csv_content = self._download_file(filing.csv_url)
                 dl_metrics.extra["csv_url"] = filing.csv_url
-                dl_metrics.extra["size_bytes"] = len(csv_content) if csv_content else 0
+                dl_metrics.output_size_bytes = len(csv_content) if csv_content else 0
                 dl_metrics.success = csv_content is not None
 
             if csv_content:
                 filename = self._get_filename_from_url(filing.csv_url)
                 base_name = filename.rsplit(".", 1)[0]
-                raw_size_mb = len(csv_content) / (1024 * 1024)
+                input_size = len(csv_content)
 
                 # Parse CSV once and release raw content immediately
                 parsed = parse_fec_csv(csv_content)
@@ -250,27 +250,36 @@ class SyncService:
 
                 # Log parsed data stats
                 logger.info(
-                    f"[MEMORY] Raw CSV: {raw_size_mb:.1f}MB, "
-                    f"rows: {len(parsed.all_rows)}, "
-                    f"contributions: {len(parsed.contributions)}, "
-                    f"disbursements: {len(parsed.disbursements)}"
+                    f"[MEMORY] Parsed {len(parsed.all_rows)} rows: "
+                    f"{len(parsed.contributions)} contributions, "
+                    f"{len(parsed.disbursements)} disbursements"
                 )
 
                 # Format and save CSV (reuse parsed data)
                 csv_blob_path = f"{base_path}/{base_name}.csv"
-                with track_operation(Operation.FORMAT_AND_SAVE_CSV, committee_id=committee_id):
-                    if self._process_and_upload(
+                with track_operation(Operation.FORMAT_AND_SAVE_CSV, committee_id=committee_id) as m:
+                    m.input_size_bytes = input_size
+                    m.record_count = len(parsed.all_rows)
+                    success, output_size = self._process_and_upload(
                         parsed, csv_blob_path, add_headers_to_csv, "text/csv"
-                    ):
+                    )
+                    m.output_size_bytes = output_size
+                    if success:
                         files_uploaded += 1
 
                 # Create and save XLSX (reuse parsed data)
                 xlsx_blob_path = f"{base_path}/{base_name}.xlsx"
                 xlsx_mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                with track_operation(Operation.CREATE_AND_SAVE_XLSX, committee_id=committee_id):
-                    if self._process_and_upload(
+                with track_operation(
+                    Operation.CREATE_AND_SAVE_XLSX, committee_id=committee_id
+                ) as m:
+                    m.input_size_bytes = input_size
+                    m.record_count = len(parsed.all_rows)
+                    success, output_size = self._process_and_upload(
                         parsed, xlsx_blob_path, create_xlsx, xlsx_mime
-                    ):
+                    )
+                    m.output_size_bytes = output_size
+                    if success:
                         files_uploaded += 1
 
                 # Release parsed data from memory
@@ -285,18 +294,22 @@ class SyncService:
         blob_path: str,
         processor: Callable[[bytes | ParsedQuarterlyCSV], str | bytes],
         content_type: str,
-    ) -> bool:
-        """Process content and upload to blob storage."""
+    ) -> tuple[bool, int]:
+        """Process content and upload to blob storage.
+
+        Returns:
+            Tuple of (success, output_size_bytes).
+        """
         try:
             processed = processor(content)
             data = processed.encode("utf-8") if isinstance(processed, str) else processed
-            size_mb = len(data) / (1024 * 1024)
+            output_size = len(data)
             self.blob_service.upload_bytes(blob_path, data, content_type=content_type)
-            logger.info(f"Uploaded: {blob_path} ({size_mb:.1f}MB)")
-            return True
+            logger.info(f"Uploaded: {blob_path}")
+            return True, output_size
         except Exception as e:
             logger.warning(f"Failed to process {blob_path}: {e}")
-            return False
+            return False, 0
 
     def _download_file(self, url: str) -> bytes | None:
         """Download a file from URL and return its content.
