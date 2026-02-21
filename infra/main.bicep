@@ -226,9 +226,6 @@ output emailFunctionAppName string = emailFunctionApp.outputs.functionAppName
 @description('The email function app hostname')
 output emailFunctionAppHostname string = emailFunctionApp.outputs.functionAppHostname
 
-@description('The email function app resource ID')
-output emailFunctionAppId string = emailFunctionApp.outputs.functionAppId
-
 @description('The Event Grid system topic name')
 output eventGridSystemTopicName string = eventGridSystemTopic.name
 
