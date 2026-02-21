@@ -184,36 +184,14 @@ module emailRoleAssignment 'role-assignment.bicep' = if (enableRoleAssignments) 
 }
 
 // Event Grid system topic for blob events
+// Note: The event subscription is created separately via eventgrid-subscription.bicep
+// after function code deployment, because AzureFunction endpoint requires the function to exist
 resource eventGridSystemTopic 'Microsoft.EventGrid/systemTopics@2024-06-01-preview' = {
   name: '${baseName}-${environment}-blob-events'
   location: location
   properties: {
     source: storage.outputs.storageAccountId
     topicType: 'Microsoft.Storage.StorageAccounts'
-  }
-}
-
-// Event Grid subscription to trigger email function on report.json creation
-resource eventGridSubscription 'Microsoft.EventGrid/systemTopics/eventSubscriptions@2024-06-01-preview' = {
-  parent: eventGridSystemTopic
-  name: 'email-report-created'
-  properties: {
-    destination: {
-      endpointType: 'AzureFunction'
-      properties: {
-        resourceId: '${emailFunctionApp.outputs.functionAppId}/functions/process_new_report'
-        maxEventsPerBatch: 1
-        preferredBatchSizeInKilobytes: 64
-      }
-    }
-    filter: {
-      includedEventTypes: [
-        'Microsoft.Storage.BlobCreated'
-      ]
-      subjectBeginsWith: '/blobServices/default/containers/${containerName}/blobs/'
-      subjectEndsWith: '/report.json'
-    }
-    eventDeliverySchema: 'EventGridSchema'
   }
 }
 
@@ -247,6 +225,12 @@ output emailFunctionAppName string = emailFunctionApp.outputs.functionAppName
 
 @description('The email function app hostname')
 output emailFunctionAppHostname string = emailFunctionApp.outputs.functionAppHostname
+
+@description('The email function app resource ID')
+output emailFunctionAppId string = emailFunctionApp.outputs.functionAppId
+
+@description('The Event Grid system topic name')
+output eventGridSystemTopicName string = eventGridSystemTopic.name
 
 @description('The auto-generated email sender address')
 output emailSenderAddress string = communicationServices.outputs.senderAddress
