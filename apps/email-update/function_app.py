@@ -12,6 +12,7 @@ from services import (
     FullAnalysisResult,
     OpenAIAnalysisService,
     build_report_preview_html,
+    parse_blob_path,
     parse_comma_list,
     parse_fec_csv,
 )
@@ -23,12 +24,6 @@ logger = logging.getLogger(__name__)
 EMAIL_RECIPIENT_LIST = os.getenv("EMAIL_RECIPIENT_LIST", "")
 BLOB_CONTAINER_NAME = os.getenv("BLOB_CONTAINER_NAME", "fec-filings")
 BLOB_ACCOUNT_URL = os.getenv("BLOB_ACCOUNT_URL", "")
-
-# Use EventGrid in Azure (Flex Consumption requires it), regular polling locally
-IS_AZURE = bool(os.getenv("WEBSITE_SITE_NAME"))
-BLOB_TRIGGER_SOURCE = (
-    func.BlobSource.EVENT_GRID if IS_AZURE else func.BlobSource.LOGS_AND_CONTAINER_SCAN
-)
 
 
 def _get_filename_from_url(url: str) -> str:
@@ -108,35 +103,54 @@ def _run_analysis(
         return None
 
 
-@app.blob_trigger(
-    arg_name="report_blob",
-    path="fec-filings/{committee_id}/{year_quarter}/report.json",
-    connection="BLOB_CONNECTION_STRING",
-    source=BLOB_TRIGGER_SOURCE,
-)
-def process_new_report(report_blob: func.InputStream) -> None:
-    """Blob trigger that sends email when a new report is synced."""
-    blob_name = report_blob.name
-    if not blob_name:
-        logger.error("Report blob name is empty")
+@app.event_grid_trigger(arg_name="event")
+def process_new_report(event: func.EventGridEvent) -> None:
+    """EventGrid trigger that sends email when a new report.json blob is created."""
+    # Parse the event
+    event_type = event.event_type
+    if event_type != "Microsoft.Storage.BlobCreated":
+        logger.info(f"Ignoring event type: {event_type}")
         return
 
-    # Extract base path (e.g., "C00718866/2024-Q1")
-    parts = blob_name.split("/")
-    committee_id = parts[1] if len(parts) > 1 else "unknown"
-    base_path = "/".join(parts[1:3]) if len(parts) > 2 else ""
+    # Extract blob URL from event data
+    event_data = event.get_json()
+    blob_url = event_data.get("url", "")
+    if not blob_url:
+        logger.error("No blob URL in event data")
+        return
+
+    # Initialize blob service and parse blob path from URL
+    blob_service = AzureBlobStorageService(container_name=BLOB_CONTAINER_NAME)
+    blob_path = blob_service.parse_blob_path_from_url(blob_url)
+    if not blob_path:
+        logger.error(f"Could not parse blob path from URL: {blob_url}")
+        return
+
+    # Only process report.json files
+    if not blob_path.endswith("/report.json"):
+        logger.info(f"Ignoring non-report blob: {blob_path}")
+        return
+
+    # Parse blob path components
+    path_components = parse_blob_path(blob_path)
+    if not path_components:
+        logger.error(f"Could not parse blob path components: {blob_path}")
+        return
+
+    committee_id = path_components.committee_id
+    base_path = path_components.base_path
     logger.info(f"Processing new report for committee: {committee_id}")
 
-    # Read report content
-    report_content = report_blob.read()
+    # Download report
+    report_content = blob_service.download_bytes(blob_path)
     if not report_content:
-        logger.error(f"Empty report file: {blob_name}")
+        logger.error(f"Empty or missing report file: {blob_path}")
         return
 
     try:
         report = Filings.from_json(report_content.decode("utf-8"))
     except Exception as e:
-        logger.error(f"Invalid JSON in report {blob_name}: {e}")
+        logger.error(f"Invalid JSON in report {blob_path}: {e}")
         return
 
     # Parse recipients
@@ -154,8 +168,7 @@ def process_new_report(report_blob: func.InputStream) -> None:
         formatted_csv_url = _build_blob_url(base_path, f"{base_name}.csv")
         xlsx_url = _build_blob_url(base_path, f"{base_name}.xlsx")
 
-    # Initialize services
-    blob_service = AzureBlobStorageService(container_name=BLOB_CONTAINER_NAME)
+    # Initialize email service (blob_service already initialized above)
     email_service: EmailService = AzureEmailService()
 
     # Run full analysis
@@ -203,7 +216,8 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
 
         # Get the most recent (last alphabetically = most recent year-quarter)
         latest_blob = sorted(report_blobs)[-1]
-        base_path = "/".join(latest_blob.split("/")[:-1])
+        path_components = parse_blob_path(latest_blob)
+        base_path = path_components.base_path if path_components else ""
 
         report_content = blob_service.download_bytes(latest_blob)
         if not report_content:
@@ -288,7 +302,8 @@ def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         latest_blob = sorted(report_blobs)[-1]
-        base_path = "/".join(latest_blob.split("/")[:-1])
+        path_components = parse_blob_path(latest_blob)
+        base_path = path_components.base_path if path_components else ""
 
         report_content = blob_service.download_bytes(latest_blob)
         if not report_content:

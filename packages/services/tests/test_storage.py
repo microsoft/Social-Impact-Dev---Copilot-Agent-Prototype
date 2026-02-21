@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from services import AzureBlobStorageService
+from services import AzureBlobStorageService, BlobPathComponents, parse_blob_path
 
 
 @pytest.fixture
@@ -187,3 +187,103 @@ def test_exists_returns_false():
     service._client = mock_client
 
     assert service.exists("test.txt") is False
+
+
+# Tests for parse_blob_path and BlobPathComponents
+
+
+def test_parse_blob_path_standard_path():
+    result = parse_blob_path("C00718866/2024-Q1/report.json")
+
+    assert result is not None
+    assert result.committee_id == "C00718866"
+    assert result.year_quarter == "2024-Q1"
+    assert result.filename == "report.json"
+    assert result.base_path == "C00718866/2024-Q1"
+
+
+def test_parse_blob_path_with_nested_filename():
+    result = parse_blob_path("C00718866/2024-Q1/subdir/data.csv")
+
+    assert result is not None
+    assert result.committee_id == "C00718866"
+    assert result.year_quarter == "2024-Q1"
+    assert result.filename == "subdir/data.csv"
+    assert result.base_path == "C00718866/2024-Q1"
+
+
+def test_parse_blob_path_returns_none_for_short_path():
+    assert parse_blob_path("C00718866/2024-Q1") is None
+    assert parse_blob_path("C00718866") is None
+    assert parse_blob_path("") is None
+
+
+def test_parse_blob_path_with_different_committee_ids():
+    result = parse_blob_path("C00000001/2023-Q4/summary.xlsx")
+
+    assert result is not None
+    assert result.committee_id == "C00000001"
+    assert result.year_quarter == "2023-Q4"
+    assert result.filename == "summary.xlsx"
+
+
+def test_blob_path_components_base_path_property():
+    components = BlobPathComponents(
+        committee_id="C00718866",
+        year_quarter="2024-Q1",
+        filename="report.json",
+    )
+
+    assert components.base_path == "C00718866/2024-Q1"
+
+
+# Tests for parse_blob_path_from_url
+
+
+def test_parse_blob_path_from_url_standard():
+    service = AzureBlobStorageService(
+        connection_string="DefaultEndpointsProtocol=https;AccountName=test",
+        container_name="fec-filings",
+    )
+
+    url = "https://account.blob.core.windows.net/fec-filings/C00718866/2024-Q1/report.json"
+    result = service.parse_blob_path_from_url(url)
+
+    assert result == "C00718866/2024-Q1/report.json"
+
+
+def test_parse_blob_path_from_url_with_encoded_characters():
+    service = AzureBlobStorageService(
+        connection_string="DefaultEndpointsProtocol=https;AccountName=test",
+        container_name="fec-filings",
+    )
+
+    url = "https://account.blob.core.windows.net/fec-filings/C00718866/2024-Q1/file%20name.csv"
+    result = service.parse_blob_path_from_url(url)
+
+    assert result == "C00718866/2024-Q1/file name.csv"
+
+
+def test_parse_blob_path_from_url_wrong_container():
+    service = AzureBlobStorageService(
+        connection_string="DefaultEndpointsProtocol=https;AccountName=test",
+        container_name="fec-filings",
+    )
+
+    url = "https://account.blob.core.windows.net/other-container/C00718866/2024-Q1/report.json"
+    result = service.parse_blob_path_from_url(url)
+
+    assert result is None
+
+
+def test_parse_blob_path_from_url_no_container_name():
+    service = AzureBlobStorageService(
+        connection_string="DefaultEndpointsProtocol=https;AccountName=test",
+        container_name=None,
+    )
+    service.container_name = None  # Override after init
+
+    url = "https://account.blob.core.windows.net/fec-filings/C00718866/2024-Q1/report.json"
+    result = service.parse_blob_path_from_url(url)
+
+    assert result is None
