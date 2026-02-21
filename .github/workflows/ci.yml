@@ -43,6 +43,7 @@ jobs:
           resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
           deploymentMode: Validate
+          deploymentName: ci-validate-${{ github.run_id }}
           parameters: ./infra/main.bicepparam
           failOnStdErr: false
 
