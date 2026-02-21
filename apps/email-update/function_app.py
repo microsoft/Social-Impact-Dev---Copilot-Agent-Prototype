@@ -12,6 +12,7 @@ from services import (
     FullAnalysisResult,
     OpenAIAnalysisService,
     build_report_preview_html,
+    parse_blob_path,
     parse_comma_list,
     parse_fec_csv,
 )
@@ -130,10 +131,14 @@ def process_new_report(event: func.EventGridEvent) -> None:
         logger.info(f"Ignoring non-report blob: {blob_path}")
         return
 
-    # Extract base path (e.g., "C00718866/2024-Q1")
-    parts = blob_path.split("/")
-    committee_id = parts[0] if len(parts) > 0 else "unknown"
-    base_path = "/".join(parts[:2]) if len(parts) > 1 else ""
+    # Parse blob path components
+    path_components = parse_blob_path(blob_path)
+    if not path_components:
+        logger.error(f"Could not parse blob path components: {blob_path}")
+        return
+
+    committee_id = path_components.committee_id
+    base_path = path_components.base_path
     logger.info(f"Processing new report for committee: {committee_id}")
 
     # Download report
@@ -211,7 +216,8 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
 
         # Get the most recent (last alphabetically = most recent year-quarter)
         latest_blob = sorted(report_blobs)[-1]
-        base_path = "/".join(latest_blob.split("/")[:-1])
+        path_components = parse_blob_path(latest_blob)
+        base_path = path_components.base_path if path_components else ""
 
         report_content = blob_service.download_bytes(latest_blob)
         if not report_content:
@@ -296,7 +302,8 @@ def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         latest_blob = sorted(report_blobs)[-1]
-        base_path = "/".join(latest_blob.split("/")[:-1])
+        path_components = parse_blob_path(latest_blob)
+        base_path = path_components.base_path if path_components else ""
 
         report_content = blob_service.download_bytes(latest_blob)
         if not report_content:

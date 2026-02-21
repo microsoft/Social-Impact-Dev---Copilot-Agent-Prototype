@@ -1,11 +1,52 @@
 from __future__ import annotations
 
 import os
-from urllib.parse import unquote
+from dataclasses import dataclass
 from typing import Protocol
+from urllib.parse import unquote
 
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient, ContentSettings
+
+
+@dataclass
+class BlobPathComponents:
+    """Parsed components from a blob path like 'C00718866/2024-Q1/report.json'."""
+
+    committee_id: str
+    """The FEC committee ID (e.g., 'C00718866')."""
+
+    year_quarter: str
+    """The year and quarter (e.g., '2024-Q1')."""
+
+    filename: str
+    """The filename (e.g., 'report.json')."""
+
+    @property
+    def base_path(self) -> str:
+        """The base path without filename (e.g., 'C00718866/2024-Q1')."""
+        return f"{self.committee_id}/{self.year_quarter}"
+
+
+def parse_blob_path(blob_path: str) -> BlobPathComponents | None:
+    """Parse a blob path into its components.
+
+    Args:
+        blob_path: A blob path like 'C00718866/2024-Q1/report.json'
+
+    Returns:
+        BlobPathComponents with committee_id, year_quarter, and filename,
+        or None if the path doesn't have enough parts.
+    """
+    parts = blob_path.split("/")
+    if len(parts) < 3:
+        return None
+
+    return BlobPathComponents(
+        committee_id=parts[0],
+        year_quarter=parts[1],
+        filename="/".join(parts[2:]),  # Handle nested paths like 'subdir/file.csv'
+    )
 
 
 class BlobStorageService(Protocol):
