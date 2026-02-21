@@ -36,6 +36,9 @@ jobs:
     outputs:
       functionAppName: ${{ steps.deploy.outputs.functionAppName }}
       emailFunctionAppName: ${{ steps.deploy.outputs.emailFunctionAppName }}
+      emailFunctionAppId: ${{ steps.deploy.outputs.emailFunctionAppId }}
+      eventGridSystemTopicName: ${{ steps.deploy.outputs.eventGridSystemTopicName }}
+      containerName: ${{ steps.deploy.outputs.containerName }}
 
     steps:
       - name: Checkout
@@ -181,3 +184,16 @@ jobs:
           package: ${{ env.EMAIL_UPDATE_PATH }}
           scm-do-build-during-deployment: false
           enable-oryx-build: false
+
+      - name: Deploy Event Grid Subscription
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
+          template: ./infra/eventgrid-subscription.bicep
+          parameters: >-
+            eventGridTopicName=${{ needs.deploy-infrastructure.outputs.eventGridSystemTopicName }}
+            emailFunctionAppId=${{ needs.deploy-infrastructure.outputs.emailFunctionAppId }}
+            containerName=${{ needs.deploy-infrastructure.outputs.containerName }}
+          failOnStdErr: false
