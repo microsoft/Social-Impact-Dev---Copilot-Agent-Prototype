@@ -1,14 +1,18 @@
 @description('The Event Grid system topic name')
 param eventGridTopicName string
 
-@description('The email function app resource ID')
-param emailFunctionAppId string
+@description('The email function app name')
+param emailFunctionAppName string
 
 @description('The blob container name')
 param containerName string = 'fec-filings'
 
 resource eventGridSystemTopic 'Microsoft.EventGrid/systemTopics@2024-06-01-preview' existing = {
   name: eventGridTopicName
+}
+
+resource emailFunctionApp 'Microsoft.Web/sites@2023-12-01' existing = {
+  name: emailFunctionAppName
 }
 
 // Event Grid subscription to trigger email function on report.json creation
@@ -19,7 +23,7 @@ resource eventGridSubscription 'Microsoft.EventGrid/systemTopics/eventSubscripti
     destination: {
       endpointType: 'AzureFunction'
       properties: {
-        resourceId: '${emailFunctionAppId}/functions/process_new_report'
+        resourceId: '${emailFunctionApp.id}/functions/process_new_report'
         maxEventsPerBatch: 1
         preferredBatchSizeInKilobytes: 64
       }

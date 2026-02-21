@@ -36,7 +36,6 @@ jobs:
     outputs:
       functionAppName: ${{ steps.deploy.outputs.functionAppName }}
       emailFunctionAppName: ${{ steps.deploy.outputs.emailFunctionAppName }}
-      emailFunctionAppId: ${{ steps.deploy.outputs.emailFunctionAppId }}
       eventGridSystemTopicName: ${{ steps.deploy.outputs.eventGridSystemTopicName }}
       containerName: ${{ steps.deploy.outputs.containerName }}
 
@@ -70,6 +69,7 @@ jobs:
           subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
+          deploymentName: main
           parameters: ./infra/main.bicepparam
           failOnStdErr: false
 
@@ -194,6 +194,6 @@ jobs:
           template: ./infra/eventgrid-subscription.bicep
           parameters: >-
             eventGridTopicName=${{ needs.deploy-infrastructure.outputs.eventGridSystemTopicName }}
-            emailFunctionAppId=${{ needs.deploy-infrastructure.outputs.emailFunctionAppId }}
+            emailFunctionAppName=${{ needs.deploy-infrastructure.outputs.emailFunctionAppName }}
             containerName=${{ needs.deploy-infrastructure.outputs.containerName }}
           failOnStdErr: false
