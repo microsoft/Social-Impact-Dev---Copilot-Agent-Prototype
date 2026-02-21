@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from urllib.parse import unquote
 from typing import Protocol
 
 from azure.identity import DefaultAzureCredential
@@ -24,6 +25,8 @@ class BlobStorageService(Protocol):
     def list_blobs(self, prefix: str | None = None) -> list[str]: ...
 
     def exists(self, blob_name: str) -> bool: ...
+
+    def parse_blob_path_from_url(self, blob_url: str) -> str | None: ...
 
 
 class AzureBlobStorageService:
@@ -97,3 +100,26 @@ class AzureBlobStorageService:
             raise ValueError("container_name must be set")
         blob_client = self._client.get_blob_client(container=self.container_name, blob=blob_name)
         return blob_client.exists()
+
+    def parse_blob_path_from_url(self, blob_url: str) -> str | None:
+        """Extract the blob path from an Event Grid blob URL.
+
+        Args:
+            blob_url: Full blob URL from Event Grid event data
+                (e.g., "https://account.blob.core.windows.net/container/path/to/blob")
+
+        Returns:
+            The blob path within the container (e.g., "path/to/blob"), or None if invalid.
+        """
+        if not self.container_name:
+            return None
+
+        # URL decode to handle any encoded characters
+        blob_url = unquote(blob_url)
+
+        # Extract the path after the container name
+        container_marker = f"/{self.container_name}/"
+        if container_marker not in blob_url:
+            return None
+
+        return blob_url.split(container_marker, 1)[1]

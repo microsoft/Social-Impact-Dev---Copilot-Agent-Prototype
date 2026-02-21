@@ -184,7 +184,6 @@ module emailRoleAssignment 'role-assignment.bicep' = if (enableRoleAssignments) 
 }
 
 // Event Grid system topic for blob events
-// Required for Flex Consumption blob triggers with EVENT_GRID source
 resource eventGridSystemTopic 'Microsoft.EventGrid/systemTopics@2024-06-01-preview' = {
   name: '${baseName}-${environment}-blob-events'
   location: location
@@ -194,22 +193,17 @@ resource eventGridSystemTopic 'Microsoft.EventGrid/systemTopics@2024-06-01-previ
   }
 }
 
-// Reference the deployed email function app to get its keys
-resource emailFunctionAppRef 'Microsoft.Web/sites@2023-12-01' existing = {
-  name: emailFunctionAppName
-  dependsOn: [emailFunctionApp]
-}
-
 // Event Grid subscription to trigger email function on report.json creation
-// Uses webhook endpoint with the blob extension key
 resource eventGridSubscription 'Microsoft.EventGrid/systemTopics/eventSubscriptions@2024-06-01-preview' = {
   parent: eventGridSystemTopic
-  name: 'email-blob-trigger'
+  name: 'email-report-created'
   properties: {
     destination: {
-      endpointType: 'WebHook'
+      endpointType: 'AzureFunction'
       properties: {
-        endpointUrl: 'https://${emailFunctionAppRef.properties.defaultHostName}/runtime/webhooks/blobs?functionName=process_new_report&code=${emailFunctionAppRef.listKeys().systemKeys.blobs_extension}'
+        resourceId: '${emailFunctionApp.outputs.functionAppId}/functions/process_new_report'
+        maxEventsPerBatch: 1
+        preferredBatchSizeInKilobytes: 64
       }
     }
     filter: {
