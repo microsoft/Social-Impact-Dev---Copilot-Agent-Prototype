@@ -13,7 +13,7 @@ from services.analysis.extractors import (
     _get_column,
     _parse_currency,
 )
-from services.report.format import ParsedQuarterlyCSV
+from services.report import F3CSV
 
 
 class TestParsingHelpers:
@@ -57,7 +57,7 @@ class TestMaxOutDonorsExtractor:
         return report
 
     def test_extract_empty_contributions(self, extractor, mock_report):
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -98,7 +98,7 @@ class TestMaxOutDonorsExtractor:
             "Engineer",  # 24: Contributor Occupation
         ]
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -144,7 +144,7 @@ class TestMaxOutDonorsExtractor:
             "Manager",
         ]
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -190,7 +190,7 @@ class TestMaxOutDonorsExtractor:
         second_row = base_row.copy()
         second_row[2] = "TXN002"
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -259,7 +259,7 @@ class TestMaxOutDonorsExtractor:
             "Manager",
         ]
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -302,7 +302,7 @@ class TestMaxOutDonorsExtractor:
                 "Employee",
             ]
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -381,7 +381,7 @@ class TestMaxOutDonorsExtractor:
             "Job",
         ]
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -440,7 +440,7 @@ class TestGeographyExtractor:
         """Test that in-state + out-of-state percentages equal 100% with mixed contributions."""
         extractor = GeographyExtractor()
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -466,7 +466,7 @@ class TestGeographyExtractor:
         """Test percentages when all contributions are in-state."""
         extractor = GeographyExtractor()
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -487,7 +487,7 @@ class TestGeographyExtractor:
         """Test percentages when all contributions are out-of-state."""
         extractor = GeographyExtractor()
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -508,7 +508,7 @@ class TestGeographyExtractor:
         """Test that percentages are 0 when there are no contributions."""
         extractor = GeographyExtractor()
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -526,7 +526,7 @@ class TestGeographyExtractor:
         """Test that percentages add up to 100% with decimal amounts."""
         extractor = GeographyExtractor()
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -546,7 +546,7 @@ class TestGeographyExtractor:
         """Test that contributions with empty state are tracked separately."""
         extractor = GeographyExtractor()
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -570,7 +570,7 @@ class TestGeographyExtractor:
         """Test that state matching is case-insensitive."""
         extractor = GeographyExtractor()
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -592,7 +592,7 @@ class TestGeographyExtractor:
         """Test that refunds are included but percentages are clamped to 0."""
         extractor = GeographyExtractor()
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -671,7 +671,7 @@ class TestFundingSourceExtractor:
 
     def test_all_percentages_add_up_to_100(self, extractor, mock_report):
         """Test that all funding source percentages add up to 100%."""
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -698,7 +698,7 @@ class TestFundingSourceExtractor:
 
     def test_individual_contributions_correctly_identified(self, extractor, mock_report):
         """Test that SA11AI form types are categorized as individual contributions."""
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -719,7 +719,7 @@ class TestFundingSourceExtractor:
 
     def test_pac_contributions_correctly_identified(self, extractor, mock_report):
         """Test that SA11C form types are categorized as PAC contributions."""
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -738,7 +738,7 @@ class TestFundingSourceExtractor:
 
     def test_party_contributions_correctly_identified(self, extractor, mock_report):
         """Test that SA11B form types are categorized as party contributions."""
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -755,7 +755,7 @@ class TestFundingSourceExtractor:
 
     def test_transfers_correctly_identified(self, extractor, mock_report):
         """Test that SA12 form types are categorized as transfers."""
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -772,7 +772,7 @@ class TestFundingSourceExtractor:
 
     def test_loans_correctly_identified(self, extractor, mock_report):
         """Test that SA13 form types are categorized as loans."""
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -789,7 +789,7 @@ class TestFundingSourceExtractor:
 
     def test_empty_contributions(self, extractor, mock_report):
         """Test that empty contributions result in zero percentages."""
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -812,7 +812,7 @@ class TestFundingSourceExtractor:
         This is the key metric: what percentage of funding comes from individual
         contributors vs organized groups (PACs, parties, transfers).
         """
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -860,7 +860,7 @@ class TestFundingSourceExtractor:
 
     def test_other_sa_forms_categorized_as_other(self, extractor, mock_report):
         """Test that other SA form types (SA14, SA15, etc.) are categorized as other."""
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -879,7 +879,7 @@ class TestFundingSourceExtractor:
 
     def test_negative_amounts_included_but_percentages_clamped(self, extractor, mock_report):
         """Test that refunds are included but percentages are clamped to 0."""
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -949,7 +949,7 @@ class TestDonorSizeExtractor:
 
     def test_small_and_big_donors_categorized_correctly(self, extractor, mock_report):
         """Test that donations are categorized by the $25 threshold."""
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -971,7 +971,7 @@ class TestDonorSizeExtractor:
 
     def test_percentages_add_up_to_100(self, extractor, mock_report):
         """Test that small_pct + big_pct = 100%."""
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -993,7 +993,7 @@ class TestDonorSizeExtractor:
 
         This prevents impossible percentages like -3.3% or 103.3%.
         """
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -1020,7 +1020,7 @@ class TestDonorSizeExtractor:
 
     def test_zero_amounts_included(self, extractor, mock_report):
         """Test that zero-dollar contributions are included in counts."""
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -1042,7 +1042,7 @@ class TestDonorSizeExtractor:
         pac_row = self._make_contribution_row("1000.00")
         pac_row[0] = "SA11C"  # PAC contribution, not individual
 
-        parsed = ParsedQuarterlyCSV(
+        parsed = F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
