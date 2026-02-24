@@ -68,8 +68,6 @@ export FEC_COMMITTEE_IDS="C00703975,C00618371,C00401224"
 
 You can find committee IDs on the [FEC website][fec-committees] by searching for a committee name.
 
-> **Note:** Large committees with many transactions may produce reports that exceed email size limits or AI processing capacity. If you experience issues, try reducing the number of committees or focusing on smaller campaigns.
-
 #### Setting Committee IDs in Azure
 
 After deploying to Azure, you can update the committee IDs directly in the Azure Portal:
