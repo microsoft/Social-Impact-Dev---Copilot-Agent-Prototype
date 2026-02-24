@@ -246,7 +246,7 @@ class TestBuildDetailedAnalysisHtml:
         )
         result = _build_detailed_analysis_html(analysis)
         assert "Detailed Analysis" in result
-        assert "Unusual Expenditures" in result
+        assert "Expenditure Analysis" in result
         assert "Travel and resort expenditures detected" in result
 
     def test_all_narratives(self):
@@ -259,7 +259,7 @@ class TestBuildDetailedAnalysisHtml:
         result = _build_detailed_analysis_html(analysis)
         assert "Industry/Employer Analysis" in result
         assert "Industry analysis text" in result
-        assert "Unusual Expenditures" in result
+        assert "Expenditure Analysis" in result
         assert "Unusual spending detected" in result
         assert "Donation Patterns" in result
         assert "Donation patterns text" in result
@@ -403,7 +403,7 @@ class TestBuildAnalysisSectionPlainText:
         assert "Donor Composition" in text
         assert "Funding Sources" in text
         assert "Industry Analysis" in text
-        assert "Unusual Expenditures" in text
+        assert "Expenditure Analysis" in text
         assert "Donation Patterns" in text
 
 
