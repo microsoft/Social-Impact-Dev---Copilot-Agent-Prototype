@@ -28,6 +28,9 @@ param deploymentName string = 'gpt-4o-mini'
 @description('Tokens per minute capacity (in thousands)')
 param capacityK int = 10
 
+@description('Whether to deploy the model (set to false if deployment already exists)')
+param deployModel bool = true
+
 // Azure OpenAI resource
 resource openAI 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
   name: openAIName
@@ -42,8 +45,8 @@ resource openAI 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
   }
 }
 
-// Model deployment
-resource deployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+// Model deployment (conditional to avoid redeployment errors)
+resource deployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployModel) {
   parent: openAI
   name: deploymentName
   sku: {
@@ -69,4 +72,4 @@ output openAIName string = openAI.name
 output endpoint string = openAI.properties.endpoint
 
 @description('The deployment name')
-output deploymentName string = deployment.name
+output deploymentName string = deployModel ? deployment.name : deploymentName
