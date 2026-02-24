@@ -104,6 +104,7 @@ module openAI 'openai.bicep' = {
     openAIName: 'email-update-${environment}-openai'
     modelName: openAIModel
     deploymentName: openAIModel
+    deployModel: false // Model already deployed, skip to avoid redeployment errors
   }
 }
 
