@@ -68,6 +68,24 @@ export FEC_COMMITTEE_IDS="C00703975,C00618371,C00401224"
 
 You can find committee IDs on the [FEC website][fec-committees] by searching for a committee name.
 
+> **Note:** Large committees with many transactions may produce reports that exceed email size limits or AI processing capacity. If you experience issues, try reducing the number of committees or focusing on smaller campaigns.
+
+#### Setting Committee IDs in Azure
+
+After deploying to Azure, you can update the committee IDs directly in the Azure Portal:
+
+1. Navigate to the [Azure Portal](https://portal.azure.com)
+2. Go to your **Resource Group** (e.g., `rg-fec-data-sync-dev`)
+3. Select the **data-sync** Function App (e.g., `data-sync-dev-xxxxxx`)
+4. In the left menu, go to **Settings** → **Environment variables**
+5. Find `FEC_COMMITTEE_IDS` and click to edit, or click **+ Add** if it doesn't exist
+6. Enter your comma-separated committee IDs (e.g., `C00703975,C00618371`)
+7. Click **Apply** and then **Confirm** to save changes
+
+The function app will automatically restart with the new configuration.
+
+For more details on managing Azure Functions environment variables, see [Configure app settings][az-func-app-settings].
+
 ### Report Types
 
 The `FEC_REPORT_TYPES` environment variable filters which types of filings to sync. Currently, only quarterly reports are supported:
@@ -143,3 +161,4 @@ See [LICENSE][license] for details.
 [docs-infra]: ./docs/infrastructure.md
 [license]: ./LICENSE
 [fec-committees]: https://www.fec.gov/data/committees/
+[az-func-app-settings]: https://learn.microsoft.com/azure/azure-functions/functions-how-to-use-azure-function-app-settings
