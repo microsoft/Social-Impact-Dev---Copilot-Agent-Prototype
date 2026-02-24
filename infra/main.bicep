@@ -82,7 +82,8 @@ module storage 'storage.bicep' = {
     containerName: containerName
     storageSku: 'Standard_LRS'
     minimumTlsVersion: 'TLS1_2'
-    allowBlobPublicAccess: false
+    allowBlobPublicAccess: true
+    containerPublicAccess: 'Blob'
   }
 }
 
