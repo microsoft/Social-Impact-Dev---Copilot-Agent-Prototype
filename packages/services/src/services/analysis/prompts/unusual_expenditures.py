@@ -42,8 +42,8 @@ any flagged items - they may be legitimate campaign expenses, but they warrant t
 
 Keep your analysis to 3-4 sentences."""
 
-UNUSUAL_EXPENDITURES_USER_TEMPLATE = """Analyze and classify these expenditures for {committee_name} \
-({report_period}).
+UNUSUAL_EXPENDITURES_USER_TEMPLATE = """Analyze and classify these expenditures for \
+{committee_name} ({report_period}).
 
 Classify the expenditures into standard campaign categories (Paid Communications, Voter Contact, \
 Staff, Fundraising, Dual Purpose) and flag any unusual spending patterns.
