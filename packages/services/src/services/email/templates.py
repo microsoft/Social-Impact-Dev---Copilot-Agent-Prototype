@@ -102,6 +102,9 @@ def _build_detailed_analysis_html(analysis: FullAnalysisResult | None) -> str:
                         margin-bottom: 10px;">
                 <strong>Industry/Employer Analysis:</strong>
                 <p style="margin: 5px 0 0 0;">{analysis.industry.narrative}</p>
+                <p style="font-size: 11px; color: #666; margin: 10px 0 0 0; text-align: right;">
+                    <em>Analysis by AI</em>
+                </p>
             </div>
             """
         )
@@ -114,6 +117,9 @@ def _build_detailed_analysis_html(analysis: FullAnalysisResult | None) -> str:
                         margin-bottom: 10px;">
                 <strong>Unusual Expenditures:</strong>
                 <p style="margin: 5px 0 0 0;">{analysis.unusual_expenditures.narrative}</p>
+                <p style="font-size: 11px; color: #666; margin: 10px 0 0 0; text-align: right;">
+                    <em>Analysis by AI</em>
+                </p>
             </div>
             """
         )
@@ -126,6 +132,9 @@ def _build_detailed_analysis_html(analysis: FullAnalysisResult | None) -> str:
                         margin-bottom: 10px;">
                 <strong>Donation Patterns:</strong>
                 <p style="margin: 5px 0 0 0;">{analysis.grouped_donations.narrative}</p>
+                <p style="font-size: 11px; color: #666; margin: 10px 0 0 0; text-align: right;">
+                    <em>Analysis by AI</em>
+                </p>
             </div>
             """
         )
@@ -210,9 +219,12 @@ def build_report_html(
 
     {"<h3>Financial Summary</h3><ul>" + financials + "</ul>" if financials else ""}
 
-    <h3>AI Summary</h3>
+    <h3>Summary</h3>
     <div style="background: #e8f4f8; padding: 15px; border-radius: 5px;">
         <p>{summary}</p>
+        <p style="font-size: 11px; color: #666; margin: 10px 0 0 0; text-align: right;">
+            <em>Analysis by AI</em>
+        </p>
     </div>
 
     {analysis_section}
@@ -279,13 +291,29 @@ def _build_analysis_section_plain_text(analysis: FullAnalysisResult | None) -> l
 
     # Detailed analysis narratives
     if analysis.industry and analysis.industry.narrative:
-        lines.extend(["", "Industry Analysis:", f"  {analysis.industry.narrative}"])
+        lines.extend(
+            ["", "Industry Analysis:", f"  {analysis.industry.narrative}", "  [Analysis by AI]"]
+        )
 
     if analysis.unusual_expenditures and analysis.unusual_expenditures.narrative:
-        lines.extend(["", "Unusual Expenditures:", f"  {analysis.unusual_expenditures.narrative}"])
+        lines.extend(
+            [
+                "",
+                "Unusual Expenditures:",
+                f"  {analysis.unusual_expenditures.narrative}",
+                "  [Analysis by AI]",
+            ]
+        )
 
     if analysis.grouped_donations and analysis.grouped_donations.narrative:
-        lines.extend(["", "Donation Patterns:", f"  {analysis.grouped_donations.narrative}"])
+        lines.extend(
+            [
+                "",
+                "Donation Patterns:",
+                f"  {analysis.grouped_donations.narrative}",
+                "  [Analysis by AI]",
+            ]
+        )
 
     return lines
 
@@ -335,9 +363,10 @@ def build_report_plain_text(
     lines.extend(
         [
             "",
-            "AI Summary",
+            "Summary",
             "-" * 30,
             summary,
+            "[Analysis by AI]",
             "",
         ]
     )

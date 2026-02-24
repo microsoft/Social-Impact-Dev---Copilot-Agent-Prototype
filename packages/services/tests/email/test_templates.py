@@ -418,7 +418,8 @@ class TestBuildReportPlainText:
         assert "Test Committee" in result
         assert "Test summary text" in result
         assert "Quarterly" in result  # Report type is formatted
-        assert "AI Summary" in result
+        assert "Summary" in result
+        assert "Analysis by AI" in result
 
     def test_with_financials(self):
         """Test with financial data."""
