@@ -15,7 +15,7 @@ from fec_api_client import (
     Filings,
 )
 
-from ..instrumentation import Operation, track_operation
+from ..instrumentation import Operation, OperationMetrics, track_operation
 from ..storage import BlobStorageService
 from .base import FormCSV
 from .constants import QUARTERLY_REPORT_TYPES, is_supported_form_type
@@ -233,8 +233,23 @@ class SyncService:
         committee_id = filing.committee_id
 
         if not is_supported_form_type(filing.form_type):
+            # Log with structured data for Application Insights visibility
+            metrics = OperationMetrics(
+                operation=Operation.SKIP_UNSUPPORTED_FORM,
+                duration_ms=0,
+                success=True,
+                extra={
+                    "committee_id": committee_id,
+                    "form_type": filing.form_type,
+                    "report_type": filing.report_type,
+                    "report_year": filing.report_year,
+                    "reason": "unsupported_form_type",
+                },
+            )
             logger.warning(
-                f"Skipping unsupported form type '{filing.form_type}' for {committee_id}"
+                f"[SKIP] Unsupported form type '{filing.form_type}' for {committee_id} "
+                f"({filing.report_type} {filing.report_year})",
+                extra={"custom_dimensions": metrics.to_dict()},
             )
             return files_uploaded
 

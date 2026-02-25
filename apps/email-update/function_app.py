@@ -12,6 +12,7 @@ from services import (
     FullAnalysisResult,
     OpenAIAnalysisService,
     build_report_preview_html,
+    is_supported_form_type,
     parse_blob_path,
     parse_comma_list,
     parse_fec_csv,
@@ -59,6 +60,14 @@ def _run_analysis(
     Returns:
         FullAnalysisResult with all analysis features, or None if failed.
     """
+    # Check for supported form type before attempting analysis
+    if not is_supported_form_type(report.form_type):
+        logger.info(
+            f"[SKIP] Analysis skipped for unsupported form type '{report.form_type}' "
+            f"(committee: {report.committee_id})"
+        )
+        return None
+
     analysis_service: AnalysisService = OpenAIAnalysisService(blob_service=blob_service)
 
     # Download the CSV to parse for analysis
@@ -98,6 +107,10 @@ def _run_analysis(
 
         return result
 
+    except ValueError as e:
+        # Handle unsupported form type errors from parse_fec_csv
+        logger.warning(f"[SKIP] CSV parsing failed (unsupported form): {e}")
+        return None
     except Exception as e:
         logger.warning(f"Failed to run analysis: {e}")
         return None
