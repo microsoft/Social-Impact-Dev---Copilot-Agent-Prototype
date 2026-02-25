@@ -262,3 +262,171 @@ def test_download_file_blocks_invalid_schemes(mock_fec_client, mock_blob_service
     result = service._download_file("file:///etc/passwd")
     assert result is None
     mock_http_client.get.assert_not_called()
+
+
+# Unsupported form type tests
+
+
+def test_process_filing_skips_unsupported_form_type(
+    mock_fec_client, mock_blob_service, mock_http_client
+):
+    """Test that _process_filing skips unsupported form types (e.g., F3X)."""
+    service = SyncService(
+        fec_client=mock_fec_client,
+        blob_service=mock_blob_service,
+        http_client=mock_http_client,
+    )
+
+    # F3X is not currently supported
+    filing = Filings.from_dict(
+        {
+            "file_number": 12345,
+            "committee_id": "C00123456",
+            "form_type": "F3X",
+            "report_type": "Q1",
+            "report_year": 2024,
+            "csv_url": "https://docquery.fec.gov/csv/12345.csv",
+        }
+    )
+
+    result = service._process_filing("C00123456/2024-Q1", filing)
+
+    # Should return 0 files uploaded (skipped)
+    assert result == 0
+    # Should not attempt to download CSV
+    mock_http_client.get.assert_not_called()
+
+
+def test_process_filing_skips_f3p_form_type(mock_fec_client, mock_blob_service, mock_http_client):
+    """Test that _process_filing skips F3P (Presidential) form types."""
+    service = SyncService(
+        fec_client=mock_fec_client,
+        blob_service=mock_blob_service,
+        http_client=mock_http_client,
+    )
+
+    filing = Filings.from_dict(
+        {
+            "file_number": 12345,
+            "committee_id": "C00123456",
+            "form_type": "F3P",
+            "report_type": "Q1",
+            "report_year": 2024,
+            "csv_url": "https://docquery.fec.gov/csv/12345.csv",
+        }
+    )
+
+    result = service._process_filing("C00123456/2024-Q1", filing)
+
+    assert result == 0
+    mock_http_client.get.assert_not_called()
+
+
+def test_process_filing_handles_amended_unsupported_form(
+    mock_fec_client, mock_blob_service, mock_http_client
+):
+    """Test that amended unsupported forms (F3XA, F3XN) are also skipped."""
+    service = SyncService(
+        fec_client=mock_fec_client,
+        blob_service=mock_blob_service,
+        http_client=mock_http_client,
+    )
+
+    # F3XA is an amended F3X - still unsupported
+    filing = Filings.from_dict(
+        {
+            "file_number": 12345,
+            "committee_id": "C00123456",
+            "form_type": "F3XA",
+            "report_type": "Q1",
+            "report_year": 2024,
+            "csv_url": "https://docquery.fec.gov/csv/12345.csv",
+        }
+    )
+
+    result = service._process_filing("C00123456/2024-Q1", filing)
+
+    assert result == 0
+    mock_http_client.get.assert_not_called()
+
+
+def test_process_filing_processes_supported_f3_form(
+    mock_fec_client, mock_blob_service, mock_http_client
+):
+    """Test that F3 forms (supported) are processed normally."""
+    service = SyncService(
+        fec_client=mock_fec_client,
+        blob_service=mock_blob_service,
+        http_client=mock_http_client,
+    )
+
+    # Mock CSV response with valid FEC CSV content
+    csv_content = (
+        b'"HDR","FEC","8.0","Test","1.0","",""\n'
+        b'"SA11AI","C00123456","TX001","","","IND","","DOE","JOHN","","","","123 MAIN ST",'
+        b'"","CITY","TX","12345","P2024","","20240101","100.00","100.00","","CONTRIBUTION",'
+        b'"ACME","ENGINEER","","","","","","","","","","","","","","","","",""'
+    )
+
+    mock_response = Mock()
+    mock_response.content = csv_content
+    mock_response.raise_for_status = Mock()
+    mock_http_client.get.return_value = mock_response
+
+    filing = Filings.from_dict(
+        {
+            "file_number": 12345,
+            "committee_id": "C00123456",
+            "form_type": "F3",
+            "report_type": "Q1",
+            "report_year": 2024,
+            "csv_url": "https://docquery.fec.gov/csv/12345.csv",
+        }
+    )
+
+    result = service._process_filing("C00123456/2024-Q1", filing)
+
+    # Should process and upload 2 files (CSV and XLSX)
+    assert result == 2
+    # Should download CSV
+    mock_http_client.get.assert_called_once()
+
+
+def test_process_filing_processes_amended_f3_form(
+    mock_fec_client, mock_blob_service, mock_http_client
+):
+    """Test that amended F3 forms (F3A, F3N) are processed as they derive from F3."""
+    service = SyncService(
+        fec_client=mock_fec_client,
+        blob_service=mock_blob_service,
+        http_client=mock_http_client,
+    )
+
+    csv_content = (
+        b'"HDR","FEC","8.0","Test","1.0","",""\n'
+        b'"SA11AI","C00123456","TX001","","","IND","","DOE","JOHN","","","","123 MAIN ST",'
+        b'"","CITY","TX","12345","P2024","","20240101","100.00","100.00","","CONTRIBUTION",'
+        b'"ACME","ENGINEER","","","","","","","","","","","","","","","","",""'
+    )
+
+    mock_response = Mock()
+    mock_response.content = csv_content
+    mock_response.raise_for_status = Mock()
+    mock_http_client.get.return_value = mock_response
+
+    # F3A is an amended F3 - should be supported
+    filing = Filings.from_dict(
+        {
+            "file_number": 12345,
+            "committee_id": "C00123456",
+            "form_type": "F3A",
+            "report_type": "Q1",
+            "report_year": 2024,
+            "csv_url": "https://docquery.fec.gov/csv/12345.csv",
+        }
+    )
+
+    result = service._process_filing("C00123456/2024-Q1", filing)
+
+    # Should process and upload 2 files
+    assert result == 2
