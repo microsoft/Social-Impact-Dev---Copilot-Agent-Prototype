@@ -38,7 +38,7 @@ from .types import CandidateDetail, CommitteeDetail, QuarterlyReport
 if TYPE_CHECKING:
     from fec_api_client import CommitteeDetail
 
-    from ..report.format import ParsedQuarterlyCSV
+    from ..report import FormCSV
     from ..storage import BlobStorageService
 
 logger = logging.getLogger(__name__)
@@ -130,7 +130,7 @@ class AnalysisService(Protocol):
 
     def analyze_max_out_donors(
         self,
-        parsed_csv: ParsedQuarterlyCSV,
+        parsed_csv: FormCSV,
         report: QuarterlyReport,
         base_path: str | None = None,
     ) -> AnalysisResult:
@@ -139,7 +139,7 @@ class AnalysisService(Protocol):
 
     def run_full_analysis(
         self,
-        parsed_csv: ParsedQuarterlyCSV,
+        parsed_csv: FormCSV,
         report: QuarterlyReport,
         base_path: str | None = None,
         *,
@@ -303,7 +303,7 @@ class OpenAIAnalysisService:
 
     def analyze_max_out_donors(
         self,
-        parsed_csv: ParsedQuarterlyCSV,
+        parsed_csv: FormCSV,
         report: QuarterlyReport,
         base_path: str | None = None,
     ) -> AnalysisResult:
@@ -344,7 +344,7 @@ class OpenAIAnalysisService:
 
     def run_full_analysis(
         self,
-        parsed_csv: ParsedQuarterlyCSV,
+        parsed_csv: FormCSV,
         report: QuarterlyReport,
         base_path: str | None = None,
         *,
@@ -563,7 +563,7 @@ class OpenAIAnalysisService:
 
     def extract_only(
         self,
-        parsed_csv: ParsedQuarterlyCSV,
+        parsed_csv: FormCSV,
         report: QuarterlyReport,
     ) -> dict:
         """Extract data without AI analysis (useful for testing).

@@ -86,7 +86,7 @@ def _run_analysis(
             return None
 
         # Parse CSV
-        parsed = parse_fec_csv(csv_content)
+        parsed = parse_fec_csv(csv_content, form_type=report.form_type)
 
         # Run full analysis with caching
         result = analysis_service.run_full_analysis(parsed, report, base_path)

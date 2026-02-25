@@ -155,6 +155,7 @@ def test_sync_reports_downloads_files(mock_fec_client, mock_blob_service, mock_h
         "results": [
             {
                 "file_number": 12345,
+                "form_type": "F3",
                 "csv_url": "https://docquery.fec.gov/csv/12345.csv",
                 "pdf_url": "https://docquery.fec.gov/pdf/12345.pdf",
             }
@@ -211,6 +212,7 @@ def test_process_filing_with_csv_and_pdf(mock_fec_client, mock_blob_service, moc
     filing = Filings.from_dict(
         {
             "file_number": 12345,
+            "form_type": "F3",
             "csv_url": "https://docquery.fec.gov/csv/12345.csv",
             "pdf_url": "https://docquery.fec.gov/pdf/12345.pdf",
         }

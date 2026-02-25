@@ -17,8 +17,10 @@ from fec_api_client import (
 
 from ..instrumentation import Operation, track_operation
 from ..storage import BlobStorageService
-from .constants import QUARTERLY_REPORT_TYPES
-from .format import ParsedQuarterlyCSV, add_headers_to_csv, create_xlsx, parse_fec_csv
+from .base import FormCSV
+from .constants import QUARTERLY_REPORT_TYPES, is_supported_form_type
+from .format import add_headers_to_csv, create_xlsx
+from .parse import parse_fec_csv
 
 logger = logging.getLogger(__name__)
 
@@ -230,6 +232,12 @@ class SyncService:
         files_uploaded = 0
         committee_id = filing.committee_id
 
+        if not is_supported_form_type(filing.form_type):
+            logger.warning(
+                f"Skipping unsupported form type '{filing.form_type}' for {committee_id}"
+            )
+            return files_uploaded
+
         if filing.csv_url:
             # Download CSV with timing
             with track_operation(Operation.DOWNLOAD_CSV, committee_id=committee_id) as dl_metrics:
@@ -244,16 +252,14 @@ class SyncService:
                 input_size = len(csv_content)
 
                 # Parse CSV once and release raw content immediately
-                parsed = parse_fec_csv(csv_content)
+                parsed = parse_fec_csv(csv_content, form_type=filing.form_type)
                 del csv_content
                 gc.collect()
 
                 # Log parsed data stats
-                logger.info(
-                    f"[MEMORY] Parsed {len(parsed.all_rows)} rows: "
-                    f"{len(parsed.contributions)} contributions, "
-                    f"{len(parsed.disbursements)} disbursements"
-                )
+                sections = parsed.get_sections()
+                section_summary = ", ".join(f"{len(s.rows)} {s.name.lower()}" for s in sections)
+                logger.info(f"[MEMORY] Parsed {len(parsed.all_rows)} rows: {section_summary}")
 
                 # Format and save CSV (reuse parsed data)
                 csv_blob_path = f"{base_path}/{base_name}.csv"
@@ -290,9 +296,9 @@ class SyncService:
 
     def _process_and_upload(
         self,
-        content: bytes | ParsedQuarterlyCSV,
+        content: FormCSV,
         blob_path: str,
-        processor: Callable[[bytes | ParsedQuarterlyCSV], str | bytes],
+        processor: Callable[[FormCSV], str | bytes],
         content_type: str,
     ) -> tuple[bool, int]:
         """Process content and upload to blob storage.

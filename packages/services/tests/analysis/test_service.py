@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from services.analysis.analyzers import AnalysisResult
 from services.analysis.service import FullAnalysisResult, OpenAIAnalysisService
-from services.report.format import ParsedQuarterlyCSV
+from services.report import F3CSV
 
 
 def make_mock_report(candidate_name=None, committee_name="Test Committee"):
@@ -216,7 +216,7 @@ class TestOpenAIAnalysisService:
     @pytest.fixture
     def sample_parsed_file(self):
         """Create a sample parsed FEC file."""
-        return ParsedQuarterlyCSV(
+        return F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
@@ -525,7 +525,7 @@ class TestExtractOnly:
             "Tech Company",
             "Engineer",
         ]
-        return ParsedQuarterlyCSV(
+        return F3CSV(
             version="8.5",
             header=["HDR"],
             summary=["F3"],
