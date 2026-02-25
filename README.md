@@ -109,6 +109,29 @@ Example: `http://localhost:7071/api/preview/C00703975`
 | `/api/send-test-email/{committee_id}` | POST | Send test email to configured recipients |
 | `/api/download/{committee_id}/{period}/{filename}` | GET | Download processed CSV/XLSX files |
 
+## ✅ Currently Supported
+
+### Form Types
+
+| Form | Description | Status |
+|------|-------------|--------|
+| **F3** | House & Senate Candidate Committees | ✅ Supported |
+| F3P | Presidential Committees | 🔜 Planned |
+| F3X | PACs and Party Committees | 🔜 Planned |
+
+### Report Types
+
+| Code | Description | Status |
+|------|-------------|--------|
+| **Q1** | April Quarterly (Jan 1 - Mar 31) | ✅ Supported |
+| **Q2** | July Quarterly (Apr 1 - Jun 30) | ✅ Supported |
+| **Q3** | October Quarterly (Jul 1 - Sep 30) | ✅ Supported |
+| **YE** | Year-End (Oct 1 - Dec 31) | ✅ Supported |
+| Monthly | M2-M12 reports | 🔜 Planned |
+| Election | Pre/Post Primary, General, etc. | 🔜 Planned |
+
+> 📌 **Note:** Only F3 forms (House/Senate candidates) with quarterly reports are currently parsed. Other form types will sync but won't generate formatted CSV/XLSX or AI analysis.
+
 ## ⚙️ Configuration
 
 ### Committee IDs
@@ -129,20 +152,13 @@ FEC_COMMITTEE_IDS="C00703975,C00618371,C00401224"
 
 ### Report Types
 
-The `FEC_REPORT_TYPES` environment variable filters which filings to sync.
-
-| Code | Description |
-|------|-------------|
-| `Q1` | April Quarterly (Jan 1 - Mar 31) |
-| `Q2` | July Quarterly (Apr 1 - Jun 30) |
-| `Q3` | October Quarterly (Jul 1 - Sep 30) |
-| `YE` | Year-End (Oct 1 - Dec 31) |
+The `FEC_REPORT_TYPES` environment variable filters which filings to sync (defaults to quarterly reports).
 
 ```bash
 FEC_REPORT_TYPES="Q1,Q2,Q3,YE"
 ```
 
-See [Deployment Guide][docs-deploy] for the full list of supported report types.
+See the [Currently Supported](#-currently-supported) section above for supported types.
 
 ## 📁 Project Structure
 
