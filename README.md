@@ -109,16 +109,24 @@ Example: `http://localhost:7071/api/preview/C00703975`
 | `/api/send-test-email/{committee_id}` | POST | Send test email to configured recipients |
 | `/api/download/{committee_id}/{period}/{filename}` | GET | Download processed CSV/XLSX files |
 
-## ✅ Currently Supported
+## ✅ Supported Forms & Reports
 
-| Type | Supported | Planned |
-|------|-----------|---------|
-| **Forms** | F3 (House & Senate) | F3P (Presidential), F3X (PACs) |
-| **Reports** | Q1, Q2, Q3, YE (Quarterly) | Monthly, Election reports |
+**Supported Form Types:**
+| Form | Committee Type |
+|------|----------------|
+| F3 | House & Senate Candidate Committees |
 
-> 📌 **Note:** Only F3 forms with quarterly reports currently generate formatted CSV/XLSX files and AI analysis. Other filings will sync but won't be fully processed.
+**Supported Report Types:**
+| Code | Description |
+|------|-------------|
+| Q1 | April Quarterly (Jan 1 - Mar 31) |
+| Q2 | July Quarterly (Apr 1 - Jun 30) |
+| Q3 | October Quarterly (Jul 1 - Sep 30) |
+| YE | Year-End (Oct 1 - Dec 31) |
 
-See [FEC Form Types and Report Types Reference][docs-fec-types] for the complete list of all FEC form types and report codes.
+> 📌 **Note:** Only the above combinations generate formatted CSV/XLSX files and AI analysis. Other filings will sync but won't be fully processed.
+
+See [FEC Form Types and Report Types Reference][docs-fec-types] for the complete list of all FEC codes.
 
 ## ⚙️ Configuration
 

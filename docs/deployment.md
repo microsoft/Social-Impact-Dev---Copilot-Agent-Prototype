@@ -369,73 +369,83 @@ az deployment group show \
 
 FEC forms determine the structure of financial reports. Each form type has different data fields and is used by different types of committees.
 
-| Form | Committee Type | Status |
-|------|----------------|--------|
-| **F3** | House & Senate Candidate Committees | ✅ Supported |
-| **F3P** | Presidential Candidate Committees | 🔜 Planned |
-| **F3X** | PACs, Super PACs, and Party Committees | 🔜 Planned |
-| F3L | Bundled Contributions | Not planned |
-| F4 | Convention Committees | Not planned |
-| F5 | Independent Expenditures | Not planned |
-| F6 | 48-Hour Notice of Contributions | Not planned |
-| F7 | Communication Costs | Not planned |
-| F9 | Electioneering Communications | Not planned |
-| F13 | Inaugural Committee Donations | Not planned |
+#### ✅ Supported Forms
+
+| Form | Committee Type |
+|------|----------------|
+| **F3** | House & Senate Candidate Committees |
+
+#### All Form Types
+
+| Form | Committee Type |
+|------|----------------|
+| F3 | House & Senate Candidate Committees |
+| F3P | Presidential Candidate Committees |
+| F3X | PACs, Super PACs, and Party Committees |
+| F3L | Bundled Contributions |
+| F4 | Convention Committees |
+| F5 | Independent Expenditures |
+| F6 | 48-Hour Notice of Contributions |
+| F7 | Communication Costs |
+| F9 | Electioneering Communications |
+| F13 | Inaugural Committee Donations |
 
 ### Report Types
 
-Report types indicate the filing period. Currently, only quarterly reports are supported.
+Report types indicate the filing period.
 
-#### Quarterly Reports ✅ Supported
+#### ✅ Supported Report Types
 
 | Code | Description | Coverage Period |
 |------|-------------|-----------------|
-| `Q1` | April Quarterly | January 1 - March 31 |
-| `Q2` | July Quarterly | April 1 - June 30 |
-| `Q3` | October Quarterly | July 1 - September 30 |
-| `YE` | Year-End | October 1 - December 31 |
+| **Q1** | April Quarterly | January 1 - March 31 |
+| **Q2** | July Quarterly | April 1 - June 30 |
+| **Q3** | October Quarterly | July 1 - September 30 |
+| **YE** | Year-End | October 1 - December 31 |
 
-#### Semi-Annual Reports
+#### All Report Types
 
+**Quarterly**
 | Code | Description |
 |------|-------------|
-| `Q2S` | July Quarterly / Semi-Annual |
-| `QYE` | Quarterly Semi-Annual (Year-End) |
+| Q1 | April Quarterly |
+| Q2 | July Quarterly |
+| Q3 | October Quarterly |
+| YE | Year-End |
+| Q2S | July Quarterly / Semi-Annual |
+| QYE | Quarterly Semi-Annual (Year-End) |
 
-#### Monthly Reports
-
+**Monthly**
 | Code | Description |
 |------|-------------|
-| `M2` | February Monthly |
-| `M3` | March Monthly |
-| `M4` | April Monthly |
-| `M5` | May Monthly |
-| `M6` | June Monthly |
-| `M7` | July Monthly |
-| `M8` | August Monthly |
-| `M9` | September Monthly |
-| `M10` | October Monthly |
-| `M11` | November Monthly |
-| `M12` | December Monthly |
-| `MSA` | Monthly Semi-Annual (Mid-Year) |
+| M2 | February Monthly |
+| M3 | March Monthly |
+| M4 | April Monthly |
+| M5 | May Monthly |
+| M6 | June Monthly |
+| M7 | July Monthly |
+| M8 | August Monthly |
+| M9 | September Monthly |
+| M10 | October Monthly |
+| M11 | November Monthly |
+| M12 | December Monthly |
+| MSA | Monthly Semi-Annual (Mid-Year) |
 
-#### Election Reports
-
+**Election**
 | Code | Description |
 |------|-------------|
-| `12P` | Pre-Primary (12 days before) |
-| `12G` | Pre-General (12 days before) |
-| `30P` | Post-Primary (30 days after) |
-| `30G` | Post-General (30 days after) |
-| `30R` | Post-Runoff (30 days after) |
-| `30S` | Post-Special (30 days after) |
+| 12P | Pre-Primary (12 days before) |
+| 12G | Pre-General (12 days before) |
+| 30P | Post-Primary (30 days after) |
+| 30G | Post-General (30 days after) |
+| 30R | Post-Runoff (30 days after) |
+| 30S | Post-Special (30 days after) |
 
-#### Other Reports
-
+**Other**
 | Code | Description |
 |------|-------------|
-| `48` | 48-Hour Report of Independent Expenditures |
-| `TER` | Termination Report |
+| 48 | 48-Hour Report of Independent Expenditures |
+| TER | Termination Report |
 
 ---
 
