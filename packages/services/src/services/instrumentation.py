@@ -25,6 +25,8 @@ class Operation(StrEnum):
     FORMAT_AND_SAVE_CSV = "format_and_save_csv"
     CREATE_AND_SAVE_XLSX = "create_and_save_xlsx"
     SAVE_REPORT = "save_report"
+    SKIP_UNSUPPORTED_FORM = "skip_unsupported_form"
+    SKIP_UNSUPPORTED_REPORT = "skip_unsupported_report"
 
     # Email operations
     SEND_REPORT_EMAIL = "send_report_email"
