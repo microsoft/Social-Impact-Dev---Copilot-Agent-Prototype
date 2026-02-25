@@ -55,7 +55,7 @@ flowchart TB
     DSFunc -.->|"Logs"| DSInsights
     DSInsights --> DSLogs
 
-    DataStore -->|"Blob trigger"| EUFunc
+    DataStore -->|"Event Grid trigger"| EUFunc
     EUFunc --> EUPlan
     EUFunc -->|"Generate summary"| OpenAI
     EUFunc -->|"Send email"| ACS
@@ -97,6 +97,7 @@ flowchart TB
 | `data-sync-dev-acs`         | [Communication Services][az-acs]         | Email sending capability                      |
 | `data-sync-dev-acs-email`   | [Email Service][az-acs-email]            | Email service configuration                   |
 | `AzureManagedDomain`        | [Email Domain][az-acs-email]             | Azure-managed sender domain                   |
+| `data-sync-dev-blob-events` | [Event Grid System Topic][az-eventgrid]  | Triggers email-update on new blob uploads     |
 | `data-sync-dev-insights`    | [Application Insights][az-app-insights]  | Monitoring for data-sync                      |
 | `email-update-dev-insights` | [Application Insights][az-app-insights]  | Monitoring for email-update                   |
 | `data-sync-dev-logs`        | [Log Analytics][az-log-analytics]        | Centralized logging for data-sync             |
@@ -110,6 +111,7 @@ flowchart TB
 | [`storage.bicep`][bicep-storage]                | Storage Account and Blob Containers       |
 | [`data-sync-app.bicep`][bicep-data-sync]        | Data sync Function App with monitoring    |
 | [`email-update-app.bicep`][bicep-email-update]  | Email update Function App with monitoring |
+| [`eventgrid-subscription.bicep`][bicep-eventgrid] | Event Grid subscription for blob triggers |
 | [`communication-services.bicep`][bicep-acs]     | Azure Communication Services for email    |
 | [`openai.bicep`][bicep-openai]                  | Azure OpenAI for AI summaries             |
 | [`role-assignment.bicep`][bicep-role]           | RBAC role assignments                     |
@@ -184,8 +186,8 @@ make deploy-all
 
 | Parameter         | Type   | Description                                       |
 | ----------------- | ------ | ------------------------------------------------- |
-| `fecCandidateIds` | string | Comma-separated FEC candidate IDs                 |
-| `fecReportTypes`  | string | Comma-separated report types (e.g., `F3,F3P,F3X`) |
+| `fecCommitteeIds` | string | Comma-separated FEC committee IDs (e.g., `C00718866`) |
+| `fecReportTypes`  | string | Comma-separated report types (e.g., `Q1,Q2,Q3,YE`) |
 
 ## Outputs
 
@@ -204,7 +206,7 @@ make deploy-all
 
 - All storage accounts enforce [TLS 1.2+][az-tls]
 - HTTPS-only traffic
-- Blob public access disabled
+- Blob public access enabled for processed filings (CSV/XLSX downloads)
 - [Managed identity][az-managed-identity] for service-to-service authentication
 - Sensitive values stored as app settings (consider [Key Vault][az-keyvault] for production)
 - FTPS disabled on Function Apps
@@ -226,6 +228,7 @@ make deploy-all
 [az-acs-email]: https://learn.microsoft.com/azure/communication-services/concepts/email/email-overview
 [az-app-insights]: https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview
 [az-log-analytics]: https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-overview
+[az-eventgrid]: https://learn.microsoft.com/azure/event-grid/overview
 [az-regions]: https://azure.microsoft.com/explore/global-infrastructure/geographies
 [az-tls]: https://learn.microsoft.com/azure/storage/common/transport-layer-security-configure-minimum-version
 [az-managed-identity]: https://learn.microsoft.com/azure/active-directory/managed-identities-azure-resources/overview
@@ -239,6 +242,7 @@ make deploy-all
 [bicep-storage]: ../infra/storage.bicep
 [bicep-data-sync]: ../infra/data-sync-app.bicep
 [bicep-email-update]: ../infra/email-update-app.bicep
+[bicep-eventgrid]: ../infra/eventgrid-subscription.bicep
 [bicep-acs]: ../infra/communication-services.bicep
 [bicep-openai]: ../infra/openai.bicep
 [bicep-role]: ../infra/role-assignment.bicep

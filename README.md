@@ -1,174 +1,219 @@
-# FEC Data Sync & Email Update
+# 📊 FEC Data Sync & Email Update
 
 A prototype application that syncs Federal Election Commission (FEC) filings data to Azure and sends email notifications with AI-generated summaries when new filings are detected.
 
-## Architecture
+## 🏗️ Architecture
 
 ```mermaid
 flowchart LR
-    FEC["FEC API"] --> DS["data-sync<br/>Function App"]
-    DS --> Blob["Azure Blob<br/>Storage"]
-    Blob --> EU["email-update<br/>Function App"]
-    EU --> OpenAI["Azure OpenAI"]
-    EU --> ACS["Azure Communication<br/>Services"]
-    ACS --> Email["Email Recipients"]
+    FEC["🏛️ FEC API"] --> DS["⚡ data-sync<br/>Function App"]
+    DS --> Blob["💾 Azure Blob<br/>Storage"]
+    Blob --> EU["📧 email-update<br/>Function App"]
+    EU --> OpenAI["🤖 Azure OpenAI"]
+    EU --> ACS["✉️ Azure Communication<br/>Services"]
+    ACS --> Email["👥 Email Recipients"]
 ```
 
 See [Infrastructure Documentation][docs-infra] for the complete architecture diagram and resource details.
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3.11+ ([python.org][python])
-- [uv][uv] package manager
-- [Azure Functions Core Tools][az-func-tools]
-- [Azurite][azurite] (local storage emulator)
-- [FEC API key][fec-api]
+| Tool | Purpose | Installation |
+|------|---------|--------------|
+| Python 3.11+ | Runtime | [python.org][python] |
+| uv | Package manager | [docs.astral.sh/uv][uv] |
+| Azure Functions Core Tools | Local functions | [Install Guide][az-func-tools] |
+| Azurite | Local storage emulator | `npm install -g azurite` |
+| FEC API Key | Data access | [api.open.fec.gov][fec-api] |
 
-### Local Development
+### 1️⃣ Install Dependencies
 
 ```bash
-# Install dependencies
 make install
+```
 
-# Start local storage emulator
+### 2️⃣ Configure Local Settings
+
+```bash
+# Copy example settings
+cp apps/data-sync/local.settings.json.example apps/data-sync/local.settings.json
+cp apps/email-update/local.settings.json.example apps/email-update/local.settings.json
+```
+
+Edit `apps/data-sync/local.settings.json` and add your FEC API key:
+
+```json
+{
+  "Values": {
+    "FEC_API_KEY": "your-fec-api-key-here",
+    "FEC_COMMITTEE_IDS": "C00703975"
+  }
+}
+```
+
+### 3️⃣ Start Local Storage
+
+```bash
 make azurite-start
+```
 
-# Run a function app
+This starts [Azurite][azurite] on `http://127.0.0.1:10000` and creates the `fec-filings` container.
+
+### 4️⃣ Run the Data Sync Function
+
+```bash
 make run-data-sync
 ```
 
-### Deploy to Azure
+Once running, trigger a sync:
 
 ```bash
-# Login and setup
+curl -X POST http://localhost:7071/api/sync
+```
+
+This fetches FEC filings for your configured committees and stores them in local blob storage.
+
+### 5️⃣ Preview & Test Emails
+
+Stop data-sync (`Ctrl+C`) and start the email function:
+
+```bash
+make run-email-update
+```
+
+**Preview an email in your browser:**
+
+```
+http://localhost:7071/api/preview/{committee_id}
+```
+
+Example: `http://localhost:7071/api/preview/C00703975`
+
+> 💡 **Tip:** The preview endpoint generates the full email HTML with AI summaries, analysis, and download links - perfect for testing without sending actual emails.
+
+## 📡 API Endpoints
+
+### Data Sync Function (port 7071)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/sync` | POST | Manually trigger FEC data sync |
+
+### Email Update Function (port 7071)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/preview/{committee_id}` | GET | Preview email HTML in browser |
+| `/api/send-test-email/{committee_id}` | POST | Send test email to configured recipients |
+| `/api/download/{committee_id}/{period}/{filename}` | GET | Download processed CSV/XLSX files |
+
+## ✅ Supported Forms & Reports
+
+**Supported Form Types:**
+| Form | Committee Type |
+|------|----------------|
+| F3 | House & Senate Candidate Committees |
+
+**Supported Report Types:**
+| Code | Description |
+|------|-------------|
+| Q1 | April Quarterly (Jan 1 - Mar 31) |
+| Q2 | July Quarterly (Apr 1 - Jun 30) |
+| Q3 | October Quarterly (Jul 1 - Sep 30) |
+| YE | Year-End (Oct 1 - Dec 31) |
+
+> 📌 **Note:** Only the above combinations generate formatted CSV/XLSX files and AI analysis. Other filings will sync but won't be fully processed.
+
+See [FEC Form Types and Report Types Reference][docs-fec-types] for the complete list of all FEC codes.
+
+## ⚙️ Configuration
+
+See the [Configuration Guide][docs-config] for detailed instructions on:
+
+- **Committee IDs** - How to configure which committees to monitor (locally and in Azure)
+- **Report Type Filtering** - How to filter which filings to sync
+- **FEC Form & Report Types** - Complete reference of all FEC codes with support status
+
+### Quick Reference
+
+```bash
+# Single committee
+FEC_COMMITTEE_IDS="C00703975"
+
+# Multiple committees (comma-separated)
+FEC_COMMITTEE_IDS="C00703975,C00618371,C00401224"
+```
+
+🔍 Find committee IDs on the [FEC website][fec-committees] by searching for a committee name.
+
+> ⚠️ **Note:** Large committees with many transactions may produce reports that exceed email size limits or AI processing capacity. If you experience issues, try reducing the number of committees.
+
+## 📁 Project Structure
+
+```
+├── apps/
+│   ├── data-sync/           # ⚡ Syncs FEC data on a schedule
+│   └── email-update/        # 📧 Sends email notifications on new filings
+├── packages/
+│   ├── fec-api-client/      # 🔌 Generated FEC API client
+│   └── services/            # 🛠️ Shared services (email, storage, AI)
+├── infra/                   # ☁️ Bicep templates for Azure
+└── docs/                    # 📚 Documentation
+```
+
+## 🛠️ Make Commands
+
+| Command | Description |
+|---------|-------------|
+| `make install` | 📦 Install dependencies |
+| `make test` | 🧪 Run tests |
+| `make lint` | 🔍 Run linting |
+| `make azurite-start` | 💾 Start local storage |
+| `make azurite-stop` | 🛑 Stop local storage |
+| `make run-data-sync` | ⚡ Run data-sync locally |
+| `make run-email-update` | 📧 Run email-update locally |
+| `make deploy-all` | 🚀 Deploy to Azure |
+| `make help` | ❓ Show all commands |
+
+## ☁️ Deploy to Azure
+
+See the [Deployment Guide][docs-deploy] for complete instructions on deploying to Azure, including:
+
+- GitHub Actions CI/CD setup
+- Manual deployment options
+- Environment configuration
+- Monitoring and troubleshooting
+
+**Quick deploy:**
+
+```bash
 make az-login
 make az-create-rg
-make az-register-providers
-
-# Deploy everything
 export FEC_API_KEY=your-key
 make deploy-all
 ```
 
-## Configuration
+## 📚 Documentation
 
-### Committee IDs
+| Document | Description |
+|----------|-------------|
+| [Configuration Guide][docs-config] | Committee IDs, report filtering, FEC form/report types |
+| [Deployment Guide][docs-deploy] | Local dev setup, Azure deployment, CI/CD |
+| [Infrastructure][docs-infra] | Azure resources and Bicep templates |
 
-The `FEC_COMMITTEE_IDS` environment variable specifies which FEC committees to monitor. Committee IDs are unique identifiers assigned by the FEC, starting with "C" followed by 8 digits.
+## 🔧 Azure Services Used
 
-```bash
-# Single committee
-export FEC_COMMITTEE_IDS="C00703975"
+| Service | Purpose |
+|---------|---------|
+| [Azure Functions][az-functions] | ⚡ Serverless compute |
+| [Azure Blob Storage][az-storage] | 💾 FEC filings storage |
+| [Azure Communication Services][az-acs] | ✉️ Email delivery |
+| [Azure OpenAI][az-openai] | 🤖 AI-generated summaries |
+| [Application Insights][az-app-insights] | 📊 Monitoring |
 
-# Multiple committees (comma-separated)
-export FEC_COMMITTEE_IDS="C00703975,C00618371,C00401224"
-```
-
-You can find committee IDs on the [FEC website][fec-committees] by searching for a committee name.
-
-> **Note:** Large committees with many transactions may produce reports that exceed email size limits or AI processing capacity. If you experience issues, try reducing the number of committees or focusing on smaller campaigns.
-
-#### Setting Committee IDs in Azure
-
-After deploying to Azure, you can update the committee IDs directly in the Azure Portal:
-
-1. Navigate to the [Azure Portal](https://portal.azure.com)
-2. Go to your **Resource Group** (e.g., `rg-fec-data-sync-dev`)
-3. Select the **data-sync** Function App (e.g., `data-sync-dev-xxxxxx`)
-4. In the left menu, go to **Settings** → **Environment variables**
-5. Find `FEC_COMMITTEE_IDS` and click to edit, or click **+ Add** if it doesn't exist
-6. Enter your comma-separated committee IDs (e.g., `C00703975,C00618371`)
-7. Click **Apply** and then **Confirm** to save changes
-
-The function app will automatically restart with the new configuration.
-
-For more details on managing Azure Functions environment variables, see [Configure app settings][az-func-app-settings].
-
-### Report Types
-
-The `FEC_REPORT_TYPES` environment variable filters which types of filings to sync.
-
-| Code | Description | Supported |
-|------|-------------|:---------:|
-| **Quarterly** | | |
-| `Q1` | April Quarterly (Jan 1 - Mar 31) | ✓ |
-| `Q2` | July Quarterly (Apr 1 - Jun 30) | ✓ |
-| `Q3` | October Quarterly (Jul 1 - Sep 30) | ✓ |
-| `YE` | Year-End (Oct 1 - Dec 31) | ✓ |
-| `Q2S` | July Quarterly / Semi-Annual | |
-| `QYE` | Quarterly Semi-Annual (YE) | |
-| **Monthly** | | |
-| `M2` | February Monthly | |
-| `M3` | March Monthly | |
-| `M4` | April Monthly | |
-| `M5` | May Monthly | |
-| `M6` | June Monthly | |
-| `M7` | July Monthly | |
-| `M8` | August Monthly | |
-| `M9` | September Monthly | |
-| `M10` | October Monthly | |
-| `M11` | November Monthly | |
-| `M12` | December Monthly | |
-| `MSA` | Monthly Semi-Annual (MY) | |
-| **Election** | | |
-| `12P` | Pre-Primary | |
-| `12G` | Pre-General | |
-| `30P` | Post-Primary | |
-| `30G` | Post-General | |
-| `30R` | Post-Runoff | |
-| `30S` | Post-Special | |
-| **Other** | | |
-| `48` | 48-Hour Report of Independent Expenditures | |
-| `TER` | Termination Report | |
-
-```bash
-export FEC_REPORT_TYPES="Q1,Q2,Q3,YE"
-```
-
-## Project Structure
-
-```
-├── apps/
-│   ├── data-sync/           # Syncs FEC data on a schedule
-│   └── email-update/        # Sends email notifications on new filings
-├── packages/
-│   ├── fec-api-client/      # Generated FEC API client
-│   └── services/            # Shared services (email, storage, AI)
-├── infra/                   # Bicep templates for Azure
-└── docs/                    # Documentation
-```
-
-## Make Commands
-
-| Command                | Description                |
-| ---------------------- | -------------------------- |
-| `make install`         | Install dependencies       |
-| `make test`            | Run tests                  |
-| `make lint`            | Run linting                |
-| `make azurite-start`   | Start local storage        |
-| `make run-data-sync`   | Run data-sync locally      |
-| `make run-email-update`| Run email-update locally   |
-| `make deploy-all`      | Deploy to Azure            |
-| `make help`            | Show all commands          |
-
-## Documentation
-
-- [Deployment Guide][docs-deploy] - Local development and Azure deployment
-- [Infrastructure][docs-infra] - Azure resources and Bicep templates
-
-## Azure Services Used
-
-| Service                                  | Purpose                |
-| ---------------------------------------- | ---------------------- |
-| [Azure Functions][az-functions]          | Serverless compute     |
-| [Azure Blob Storage][az-storage]         | FEC filings storage    |
-| [Azure Communication Services][az-acs]   | Email delivery         |
-| [Azure OpenAI][az-openai]                | AI-generated summaries |
-| [Application Insights][az-app-insights]  | Monitoring             |
-
-## License
+## 📄 License
 
 See [LICENSE][license] for details.
 
@@ -183,8 +228,9 @@ See [LICENSE][license] for details.
 [az-acs]: https://learn.microsoft.com/azure/communication-services/overview
 [az-openai]: https://learn.microsoft.com/azure/ai-services/openai/overview
 [az-app-insights]: https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview
+[docs-config]: ./docs/configuration.md
 [docs-deploy]: ./docs/deployment.md
 [docs-infra]: ./docs/infrastructure.md
+[docs-fec-types]: ./docs/configuration.md#fec-form-types-reference
 [license]: ./LICENSE
 [fec-committees]: https://www.fec.gov/data/committees/
-[az-func-app-settings]: https://learn.microsoft.com/azure/azure-functions/functions-how-to-use-azure-function-app-settings
