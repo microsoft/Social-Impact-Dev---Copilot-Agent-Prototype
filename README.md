@@ -130,9 +130,13 @@ See [FEC Form Types and Report Types Reference][docs-fec-types] for the complete
 
 ## ⚙️ Configuration
 
-### Committee IDs
+See the [Configuration Guide][docs-config] for detailed instructions on:
 
-The `FEC_COMMITTEE_IDS` environment variable specifies which FEC committees to monitor.
+- **Committee IDs** - How to configure which committees to monitor (locally and in Azure)
+- **Report Type Filtering** - How to filter which filings to sync
+- **FEC Form & Report Types** - Complete reference of all FEC codes with support status
+
+### Quick Reference
 
 ```bash
 # Single committee
@@ -145,16 +149,6 @@ FEC_COMMITTEE_IDS="C00703975,C00618371,C00401224"
 🔍 Find committee IDs on the [FEC website][fec-committees] by searching for a committee name.
 
 > ⚠️ **Note:** Large committees with many transactions may produce reports that exceed email size limits or AI processing capacity. If you experience issues, try reducing the number of committees.
-
-### Report Types
-
-The `FEC_REPORT_TYPES` environment variable filters which filings to sync (defaults to quarterly reports).
-
-```bash
-FEC_REPORT_TYPES="Q1,Q2,Q3,YE"
-```
-
-See the [Currently Supported](#-currently-supported) section above for supported types.
 
 ## 📁 Project Structure
 
@@ -205,6 +199,7 @@ make deploy-all
 
 | Document | Description |
 |----------|-------------|
+| [Configuration Guide][docs-config] | Committee IDs, report filtering, FEC form/report types |
 | [Deployment Guide][docs-deploy] | Local dev setup, Azure deployment, CI/CD |
 | [Infrastructure][docs-infra] | Azure resources and Bicep templates |
 
@@ -233,8 +228,9 @@ See [LICENSE][license] for details.
 [az-acs]: https://learn.microsoft.com/azure/communication-services/overview
 [az-openai]: https://learn.microsoft.com/azure/ai-services/openai/overview
 [az-app-insights]: https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview
+[docs-config]: ./docs/configuration.md
 [docs-deploy]: ./docs/deployment.md
 [docs-infra]: ./docs/infrastructure.md
-[docs-fec-types]: ./docs/deployment.md#fec-form-types-and-report-types-reference
+[docs-fec-types]: ./docs/configuration.md#fec-form-types-reference
 [license]: ./LICENSE
 [fec-committees]: https://www.fec.gov/data/committees/
