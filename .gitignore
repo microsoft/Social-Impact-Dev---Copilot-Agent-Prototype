@@ -26,3 +26,6 @@ dist/
 infra/*.json
 !infra/*.parameters.json
 .coverage
+
+# Azurite local storage
+.azurite/
