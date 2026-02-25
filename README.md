@@ -111,26 +111,14 @@ Example: `http://localhost:7071/api/preview/C00703975`
 
 ## ✅ Currently Supported
 
-### Form Types
+| Type | Supported | Planned |
+|------|-----------|---------|
+| **Forms** | F3 (House & Senate) | F3P (Presidential), F3X (PACs) |
+| **Reports** | Q1, Q2, Q3, YE (Quarterly) | Monthly, Election reports |
 
-| Form | Description | Status |
-|------|-------------|--------|
-| **F3** | House & Senate Candidate Committees | ✅ Supported |
-| F3P | Presidential Committees | 🔜 Planned |
-| F3X | PACs and Party Committees | 🔜 Planned |
+> 📌 **Note:** Only F3 forms with quarterly reports currently generate formatted CSV/XLSX files and AI analysis. Other filings will sync but won't be fully processed.
 
-### Report Types
-
-| Code | Description | Status |
-|------|-------------|--------|
-| **Q1** | April Quarterly (Jan 1 - Mar 31) | ✅ Supported |
-| **Q2** | July Quarterly (Apr 1 - Jun 30) | ✅ Supported |
-| **Q3** | October Quarterly (Jul 1 - Sep 30) | ✅ Supported |
-| **YE** | Year-End (Oct 1 - Dec 31) | ✅ Supported |
-| Monthly | M2-M12 reports | 🔜 Planned |
-| Election | Pre/Post Primary, General, etc. | 🔜 Planned |
-
-> 📌 **Note:** Only F3 forms (House/Senate candidates) with quarterly reports are currently parsed. Other form types will sync but won't generate formatted CSV/XLSX or AI analysis.
+See [FEC Form Types and Report Types Reference][docs-fec-types] for the complete list of all FEC form types and report codes.
 
 ## ⚙️ Configuration
 
@@ -239,5 +227,6 @@ See [LICENSE][license] for details.
 [az-app-insights]: https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview
 [docs-deploy]: ./docs/deployment.md
 [docs-infra]: ./docs/infrastructure.md
+[docs-fec-types]: ./docs/deployment.md#fec-form-types-and-report-types-reference
 [license]: ./LICENSE
 [fec-committees]: https://www.fec.gov/data/committees/
