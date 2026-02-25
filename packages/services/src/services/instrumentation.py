@@ -132,25 +132,3 @@ def track_operation(operation: str, **extra: Any):
         )
 
 
-def log_metrics(operation: str, duration_ms: float, **kwargs: Any) -> None:
-    """Log operation metrics directly without context manager.
-
-    Args:
-        operation: Name of the operation.
-        duration_ms: Duration in milliseconds.
-        **kwargs: Additional metrics (record_count, success, etc.)
-    """
-    metrics = OperationMetrics(
-        operation=operation,
-        duration_ms=duration_ms,
-        success=kwargs.pop("success", True),
-        record_count=kwargs.pop("record_count", None),
-        extra=kwargs,
-    )
-
-    log_level = logging.INFO if metrics.success else logging.WARNING
-    logger.log(
-        log_level,
-        f"Operation completed: {operation}",
-        extra={"custom_dimensions": metrics.to_dict()},
-    )
