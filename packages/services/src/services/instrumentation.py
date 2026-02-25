@@ -130,5 +130,3 @@ def track_operation(operation: str, **extra: Any):
             " ".join(msg_parts),
             extra={"custom_dimensions": metrics_dict},
         )
-
-

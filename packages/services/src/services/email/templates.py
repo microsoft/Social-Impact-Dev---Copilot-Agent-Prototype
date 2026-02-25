@@ -185,8 +185,6 @@ def build_report_html(
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
-    # Deprecated: use analysis instead
-    max_out_donors_analysis=None,
 ) -> str:
     """Build HTML content for report email.
 
@@ -196,7 +194,6 @@ def build_report_html(
         formatted_csv_url: Optional URL to formatted CSV.
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
-        max_out_donors_analysis: Deprecated, use analysis instead.
     """
     financials = _build_financials_html(report)
     links = _build_links_html(report, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url)
@@ -325,8 +322,6 @@ def build_report_plain_text(
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
-    # Deprecated: use analysis instead
-    max_out_donors_analysis=None,
 ) -> str:
     """Build plain text content for report email.
 
@@ -336,7 +331,6 @@ def build_report_plain_text(
         formatted_csv_url: Optional URL to formatted CSV.
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
-        max_out_donors_analysis: Deprecated, use analysis instead.
     """
     display_name = report.committee_name
     report_type_display = format_report_type(report.report_type)
@@ -398,8 +392,6 @@ def build_report_preview_html(
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
-    # Deprecated: use analysis instead
-    max_out_donors_analysis=None,
 ) -> str:
     """Build HTML preview page for report (for browser viewing).
 
@@ -411,7 +403,6 @@ def build_report_preview_html(
         formatted_csv_url: Optional URL to formatted CSV.
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
-        max_out_donors_analysis: Deprecated, use analysis instead.
     """
     email_html = build_report_html(
         report,
