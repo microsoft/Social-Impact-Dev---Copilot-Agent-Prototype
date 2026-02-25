@@ -27,7 +27,7 @@ make install
 make azurite-start
 ```
 
-This starts [Azurite][azurite] and creates the required blob containers (`fec-filings`, `manifests`).
+This starts [Azurite][azurite] and creates the required blob container (`fec-filings`).
 
 ### 3. Configure Local Settings
 
@@ -64,12 +64,21 @@ make run-email-update
 
 ### 5. Trigger Functions Manually
 
-Timer functions can be triggered manually for testing:
+**Data-sync function:**
 
 ```bash
-curl -X POST http://localhost:7071/admin/functions/check_for_updates \
-  -H "Content-Type: application/json" \
-  -d '{}'
+# Trigger manual sync
+curl -X POST http://localhost:7071/api/sync
+```
+
+**Email-update function** (run on port 7072 or stop data-sync first):
+
+```bash
+# Preview email for a committee
+curl http://localhost:7071/api/preview/{committee_id}
+
+# Send test email
+curl -X POST http://localhost:7071/api/send-test-email/{committee_id}
 ```
 
 ### 6. Run Tests
