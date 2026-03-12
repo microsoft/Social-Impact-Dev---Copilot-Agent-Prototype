@@ -55,6 +55,7 @@ class ScheduleAColumns:
     CONTRIBUTION_AGGREGATE = 21
     EMPLOYER = 23
     OCCUPATION = 24
+    CONDUIT_NAME = 36
 
 
 class ScheduleBColumns:
@@ -482,7 +483,7 @@ class FundingSourceExtractor:
     """D. Extract funding source statistics (individuals, PACs, parties, etc.)."""
 
     def extract(self, parsed: FormCSV, report: Filings) -> ExtractionResult:
-        """Extract breakdown by funding source type."""
+        """Extract breakdown by funding source type and payment conduits."""
         sources: dict[str, dict] = {
             "individuals": {"total": 0.0, "count": 0, "items": []},
             "parties": {"total": 0.0, "count": 0, "items": []},
@@ -492,6 +493,12 @@ class FundingSourceExtractor:
             "other": {"total": 0.0, "count": 0, "items": []},
         }
 
+        # Track payment conduits (ActBlue, WinRed)
+        conduits: dict[str, dict] = {
+            "actblue": {"total": 0.0, "count": 0},
+            "winred": {"total": 0.0, "count": 0},
+        }
+
         for row in parsed.get_section_rows("Contributions"):
             form_type = _get_column(row, ScheduleAColumns.FORM_TYPE).upper()
             amount = _parse_currency(_get_column(row, ScheduleAColumns.CONTRIBUTION_AMOUNT))
@@ -499,8 +506,17 @@ class FundingSourceExtractor:
             first = _get_column(row, ScheduleAColumns.FIRST_NAME)
             last = _get_column(row, ScheduleAColumns.LAST_NAME)
             name = org_name or _format_name(first, last)
+            conduit_name = _get_column(row, ScheduleAColumns.CONDUIT_NAME).upper()
 
             item = {"name": name, "amount": amount, "form_type": form_type}
+
+            # Track conduit contributions
+            if "ACTBLUE" in conduit_name:
+                conduits["actblue"]["total"] += amount
+                conduits["actblue"]["count"] += 1
+            elif "WINRED" in conduit_name:
+                conduits["winred"]["total"] += amount
+                conduits["winred"]["count"] += 1
 
             if form_type.startswith(INDIVIDUAL_CONTRIBUTION_TYPES):
                 sources["individuals"]["total"] += amount
@@ -533,13 +549,19 @@ class FundingSourceExtractor:
             rounded = round_percentages(raw_pcts)
             for name, src in sources.items():
                 src["pct"] = rounded[name]
+            # Calculate conduit percentages
+            for conduit in conduits.values():
+                conduit["pct"] = round(conduit["total"] / total * 100, 1)
         else:
             for src in sources.values():
                 src["pct"] = 0.0
+            for conduit in conduits.values():
+                conduit["pct"] = 0.0
 
         return ExtractionResult(
             data={
                 "sources": sources,
+                "conduits": conduits,
                 "total": total,
             },
             stats={
@@ -558,6 +580,13 @@ class FundingSourceExtractor:
                 "other_total": sources["other"]["total"],
                 "other_pct": sources["other"]["pct"],
                 "total": total,
+                # Conduit stats
+                "actblue_total": conduits["actblue"]["total"],
+                "actblue_count": conduits["actblue"]["count"],
+                "actblue_pct": conduits["actblue"]["pct"],
+                "winred_total": conduits["winred"]["total"],
+                "winred_count": conduits["winred"]["count"],
+                "winred_pct": conduits["winred"]["pct"],
             },
             raw_items=[],
         )
