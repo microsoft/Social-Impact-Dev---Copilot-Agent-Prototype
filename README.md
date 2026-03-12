@@ -199,6 +199,7 @@ make deploy-all
 
 | Document | Description |
 |----------|-------------|
+| [Prerequisites][docs-prereqs] | Azure subscription, services, and permissions required |
 | [Configuration Guide][docs-config] | Committee IDs, report filtering, FEC form/report types |
 | [Deployment Guide][docs-deploy] | Local dev setup, Azure deployment, CI/CD |
 | [Infrastructure][docs-infra] | Azure resources and Bicep templates |
@@ -228,6 +229,7 @@ See [LICENSE][license] for details.
 [az-acs]: https://learn.microsoft.com/azure/communication-services/overview
 [az-openai]: https://learn.microsoft.com/azure/ai-services/openai/overview
 [az-app-insights]: https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview
+[docs-prereqs]: ./docs/prerequisites.md
 [docs-config]: ./docs/configuration.md
 [docs-deploy]: ./docs/deployment.md
 [docs-infra]: ./docs/infrastructure.md
