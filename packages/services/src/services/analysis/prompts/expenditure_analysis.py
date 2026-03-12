@@ -11,9 +11,8 @@ Digital Television, OTT, CTV
 
 **Fundraising:** Catering, Fundraising Consultant, Venue Rental
 
-**Operations:** Office Rent, Utilities, Software, Equipment
-
-**Other:** Any expenses not fitting the above categories
+**Dual Purpose (requires further research):** Digital Ads, Direct Mail, \
+Postage (over $200 single payment), Printing (over $1000 single payment)
 """
 
 EXPENDITURE_ANALYSIS_SYSTEM_PROMPT = """You are a campaign finance analyst summarizing FEC filing \
@@ -26,12 +25,13 @@ Your role is to provide a clear, factual summary of where campaign money was spe
 4. Most frequent expense - recurring or repeated payments
 
 **Standard Expenditure Categories:**
-- Paid Communications: Media Buy, Advertisement, Production, Radio/TV Ads, Digital Video
+- Paid Communications: Media Buy, Advertisement, Production, Radio Buy, Radio Ads, Youtube, \
+Digital Television, OTT, CTV
 - Voter Contact: Canvassing, Text Messages, Paid Phones, Phone Calls, Auto Dialer
 - Staff: Salary, Healthcare, Insurance, Mileage
 - Fundraising: Catering, Fundraising Consultant, Venue Rental
-- Operations: Office Rent, Utilities, Software, Equipment
-- Other: Expenses not fitting the above categories
+- Dual Purpose (requires further research): Digital Ads, Direct Mail, \
+Postage (over $200 single payment), Printing (over $1000 single payment)
 
 Be factual and descriptive. Focus on amounts and where money went, not on whether expenses \
 are normal or unusual. Keep your analysis to 3-4 sentences."""
