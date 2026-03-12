@@ -5,6 +5,7 @@ from typing import cast, get_args
 
 import azure.functions as func
 from fec_api_client import FecApiClient, ReportTypeCode
+from models import SyncRequest
 from services import AzureBlobStorageService, BlobStorageService, SyncService, parse_comma_list
 
 app = func.FunctionApp()
@@ -25,13 +26,10 @@ BLOB_ACCOUNT_URL = os.getenv("BLOB_ACCOUNT_URL")
 BLOB_CONTAINER_NAME = os.getenv("BLOB_CONTAINER_NAME", "fec-filings")
 
 
-def create_sync_service() -> SyncService:
+def create_sync_service(committee_ids: list[str]) -> SyncService:
     """Create and configure the SyncService."""
     if not FEC_API_KEY:
         raise ValueError("FEC_API_KEY is required")
-
-    if not FEC_COMMITTEE_IDS:
-        raise ValueError("FEC_COMMITTEE_IDS is required")
 
     fec_client = FecApiClient(base_url=FEC_API_BASE_URL, auth_token=FEC_API_KEY)
     blob_service: BlobStorageService = AzureBlobStorageService(
@@ -42,7 +40,7 @@ def create_sync_service() -> SyncService:
     return SyncService(
         fec_client=fec_client,
         blob_service=blob_service,
-        committee_ids=FEC_COMMITTEE_IDS,
+        committee_ids=committee_ids,
         report_types=cast(list[str], FEC_REPORT_TYPES),
         api_key=FEC_API_KEY,
     )
@@ -54,8 +52,12 @@ def scheduled_sync(timer: func.TimerRequest) -> None:
     if timer.past_due:
         logger.warning("Timer is running late")
 
+    if not FEC_COMMITTEE_IDS:
+        logger.warning("Sync skipped: FEC_COMMITTEE_IDS is required")
+        return
+
     try:
-        sync_service = create_sync_service()
+        sync_service = create_sync_service(FEC_COMMITTEE_IDS)
         reports = sync_service.sync_reports()
         synced_count = len([r for r in reports.values() if r])
         logger.info(f"Scheduled sync complete: {synced_count} committees synced")
@@ -65,9 +67,20 @@ def scheduled_sync(timer: func.TimerRequest) -> None:
 
 @app.route(route="sync", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
 def manual_sync(req: func.HttpRequest) -> func.HttpResponse:
-    """POST /api/sync - Manual trigger for testing."""
+    """POST /api/sync - Manual trigger for testing.
+
+    Accepts optional committee_ids parameter via:
+    - Query string: ?committee_ids=C00703975,C00618371
+    - JSON body: {"committee_ids": ["C00703975", "C00618371"]}
+
+    If not provided, uses the FEC_COMMITTEE_IDS environment variable.
+    """
     try:
-        sync_service = create_sync_service()
+        sync_request = SyncRequest.from_http_request(req)
+        committee_ids = sync_request.committee_ids or FEC_COMMITTEE_IDS
+        if not committee_ids:
+            raise ValueError("committee_ids required via request or FEC_COMMITTEE_IDS env var")
+        sync_service = create_sync_service(committee_ids)
         reports = sync_service.sync_reports()
 
         return func.HttpResponse(

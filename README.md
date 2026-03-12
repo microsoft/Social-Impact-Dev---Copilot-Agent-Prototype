@@ -203,6 +203,7 @@ make deploy-all
 | [Configuration Guide][docs-config] | Committee IDs, report filtering, FEC form/report types |
 | [Deployment Guide][docs-deploy] | Local dev setup, Azure deployment, CI/CD |
 | [Infrastructure][docs-infra] | Azure resources and Bicep templates |
+| [Demo Guide][docs-demo] | Step-by-step demo walkthrough for Azure and local |
 
 ## 🔧 Azure Services Used
 
@@ -233,6 +234,7 @@ See [LICENSE][license] for details.
 [docs-config]: ./docs/configuration.md
 [docs-deploy]: ./docs/deployment.md
 [docs-infra]: ./docs/infrastructure.md
+[docs-demo]: ./docs/demo.md
 [docs-fec-types]: ./docs/configuration.md#fec-form-types-reference
 [license]: ./LICENSE
 [fec-committees]: https://www.fec.gov/data/committees/
