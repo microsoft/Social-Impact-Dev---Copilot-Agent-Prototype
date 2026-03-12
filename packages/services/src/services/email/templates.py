@@ -110,13 +110,13 @@ def _build_detailed_analysis_html(analysis: FullAnalysisResult | None) -> str:
         )
 
     # Expenditure analysis
-    if analysis.unusual_expenditures and analysis.unusual_expenditures.narrative:
+    if analysis.expenditure_analysis and analysis.expenditure_analysis.narrative:
         sections.append(
             f"""
             <div style="background: #f0f7e6; padding: 15px; border-radius: 5px;
                         margin-bottom: 10px;">
                 <strong>Expenditure Analysis:</strong>
-                <p style="margin: 5px 0 0 0;">{analysis.unusual_expenditures.narrative}</p>
+                <p style="margin: 5px 0 0 0;">{analysis.expenditure_analysis.narrative}</p>
                 <p style="font-size: 11px; color: #666; margin: 10px 0 0 0; text-align: right;">
                     <em>Analysis by AI</em>
                 </p>
@@ -292,12 +292,12 @@ def _build_analysis_section_plain_text(analysis: FullAnalysisResult | None) -> l
             ["", "Industry Analysis:", f"  {analysis.industry.narrative}", "  [Analysis by AI]"]
         )
 
-    if analysis.unusual_expenditures and analysis.unusual_expenditures.narrative:
+    if analysis.expenditure_analysis and analysis.expenditure_analysis.narrative:
         lines.extend(
             [
                 "",
                 "Expenditure Analysis:",
-                f"  {analysis.unusual_expenditures.narrative}",
+                f"  {analysis.expenditure_analysis.narrative}",
                 "  [Analysis by AI]",
             ]
         )

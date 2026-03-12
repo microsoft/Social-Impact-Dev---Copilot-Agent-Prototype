@@ -43,7 +43,7 @@ class Operation(StrEnum):
     ANALYSIS_DONOR_SIZE = "analysis_donor_size"
     ANALYSIS_FUNDING_SOURCES = "analysis_funding_sources"
     ANALYSIS_INDUSTRY = "analysis_industry"
-    ANALYSIS_UNUSUAL_EXPENDITURES = "analysis_unusual_expenditures"
+    ANALYSIS_EXPENDITURE = "analysis_expenditure"
     ANALYSIS_GROUPED_DONATIONS = "analysis_grouped_donations"
     ANALYSIS_SUMMARY = "analysis_summary"
 

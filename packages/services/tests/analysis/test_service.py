@@ -77,11 +77,11 @@ class TestFullAnalysisResult:
                 stats={},
                 narrative="Funding sources narrative",
             ),
-            unusual_expenditures=AnalysisResult(
-                feature="unusual_expenditures",
+            expenditure_analysis=AnalysisResult(
+                feature="expenditure_analysis",
                 data={},
                 stats={},
-                narrative="Unusual expenditures narrative",
+                narrative="Expenditure analysis narrative",
             ),
             industry=AnalysisResult(
                 feature="industry",
@@ -104,7 +104,7 @@ class TestFullAnalysisResult:
         assert "**Geography:** Geography narrative" in combined
         assert "**Donor Size:** Donor size narrative" in combined
         assert "**Funding Sources:** Funding sources narrative" in combined
-        assert "**Unusual Expenditures:** Unusual expenditures narrative" in combined
+        assert "**Expenditure Analysis:** Expenditure analysis narrative" in combined
         assert "**Industry Analysis:** Industry narrative" in combined
         assert "**Grouped Donations:** Grouped donations narrative" in combined
         # Check sections are separated by double newlines
@@ -166,8 +166,8 @@ class TestFullAnalysisResult:
                 stats={"individuals_pct": 80.0, "pacs_pct": 20.0},
                 narrative="",
             ),
-            unusual_expenditures=AnalysisResult(
-                feature="unusual_expenditures",
+            expenditure_analysis=AnalysisResult(
+                feature="expenditure_analysis",
                 data={},
                 stats={"flagged_count": 5, "flagged_total": 10000},
                 narrative="",
@@ -192,7 +192,7 @@ class TestFullAnalysisResult:
         assert stats["geography"]["in_state_pct"] == 60.0
         assert stats["donor_size"]["small_pct"] == 25.0
         assert stats["funding_sources"]["individuals_pct"] == 80.0
-        assert stats["unusual_expenditures"]["flagged_count"] == 5
+        assert stats["expenditure_analysis"]["flagged_count"] == 5
         assert stats["industry"]["top_industry"] == "Tech"
         assert stats["grouped_donations"]["groups_found"] == 3
 
@@ -243,7 +243,7 @@ class TestOpenAIAnalysisService:
         assert service._geography_analyzer is None
         assert service._donor_size_analyzer is None
         assert service._funding_source_analyzer is None
-        assert service._unusual_expenditures_analyzer is None
+        assert service._expenditure_analyzer is None
         assert service._industry_analyzer is None
         assert service._grouped_donations_analyzer is None
         assert service._summary_analyzer is None
@@ -427,7 +427,7 @@ class TestOpenAIAnalysisService:
         assert result.geography is not None
         assert result.donor_size is not None
         assert result.funding_sources is not None
-        assert result.unusual_expenditures is not None
+        assert result.expenditure_analysis is not None
         assert result.industry is not None
         assert result.grouped_donations is not None
 
@@ -548,7 +548,7 @@ class TestExtractOnly:
         assert "geography" in result
         assert "donor_size" in result
         assert "funding_sources" in result
-        assert "unusual_expenditures" in result
+        assert "expenditure_analysis" in result
         assert "industry" in result
         assert "grouped_donations" in result
 

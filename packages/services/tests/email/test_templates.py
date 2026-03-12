@@ -50,7 +50,7 @@ def make_test_analysis(
     donor_size_stats=None,
     funding_sources_stats=None,
     industry_narrative=None,
-    unusual_expenditures_narrative=None,
+    expenditure_analysis_narrative=None,
     grouped_donations_narrative=None,
 ):
     """Create a test FullAnalysisResult with the given data."""
@@ -96,13 +96,13 @@ def make_test_analysis(
         )
         if industry_narrative
         else None,
-        unusual_expenditures=AnalysisResult(
-            feature="unusual_expenditures",
+        expenditure_analysis=AnalysisResult(
+            feature="expenditure_analysis",
             data={},
             stats={},
-            narrative=unusual_expenditures_narrative or "",
+            narrative=expenditure_analysis_narrative or "",
         )
-        if unusual_expenditures_narrative
+        if expenditure_analysis_narrative
         else None,
         grouped_donations=AnalysisResult(
             feature="grouped_donations",
@@ -239,28 +239,28 @@ class TestBuildDetailedAnalysisHtml:
         assert "Donation Patterns" in result
         assert "Notable same-day donation patterns" in result
 
-    def test_unusual_expenditures_narrative(self):
-        """Test with unusual expenditures narrative."""
+    def test_expenditure_analysis_narrative(self):
+        """Test with expenditure analysis narrative."""
         analysis = make_test_analysis(
-            unusual_expenditures_narrative="Travel and resort expenditures detected."
+            expenditure_analysis_narrative="Top spending went to media and fundraising."
         )
         result = _build_detailed_analysis_html(analysis)
         assert "Detailed Analysis" in result
         assert "Expenditure Analysis" in result
-        assert "Travel and resort expenditures detected" in result
+        assert "Top spending went to media and fundraising" in result
 
     def test_all_narratives(self):
         """Test with all narratives."""
         analysis = make_test_analysis(
             industry_narrative="Industry analysis text.",
-            unusual_expenditures_narrative="Unusual spending detected.",
+            expenditure_analysis_narrative="Primary spending on media.",
             grouped_donations_narrative="Donation patterns text.",
         )
         result = _build_detailed_analysis_html(analysis)
         assert "Industry/Employer Analysis" in result
         assert "Industry analysis text" in result
         assert "Expenditure Analysis" in result
-        assert "Unusual spending detected" in result
+        assert "Primary spending on media" in result
         assert "Donation Patterns" in result
         assert "Donation patterns text" in result
 
@@ -391,7 +391,7 @@ class TestBuildAnalysisSectionPlainText:
             donor_size_stats={"small_pct": 15.0, "big_pct": 85.0},
             funding_sources_stats={"individuals_pct": 80.0, "pacs_pct": 20.0},
             industry_narrative="Tech sector dominates.",
-            unusual_expenditures_narrative="Resort expenditures flagged.",
+            expenditure_analysis_narrative="Resort expenditures flagged.",
             grouped_donations_narrative="Same-day patterns found.",
         )
         result = _build_analysis_section_plain_text(analysis)

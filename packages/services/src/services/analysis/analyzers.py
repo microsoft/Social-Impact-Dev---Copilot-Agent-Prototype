@@ -11,7 +11,7 @@ Standard Statistics (no AI):
 
 Detailed AI Analysis:
 - IndustryAnalyzer (AI-powered)
-- UnusualExpendituresAnalyzer (AI-powered)
+- ExpenditureAnalyzer (AI-powered)
 - GroupedDonationsAnalyzer (AI-powered)
 - SummaryAnalyzer (AI-powered, compiled last with all data)
 """
@@ -26,14 +26,14 @@ from typing import TYPE_CHECKING, Protocol
 from openai import AzureOpenAI
 
 from .prompts import (
+    EXPENDITURE_ANALYSIS_SYSTEM_PROMPT,
+    EXPENDITURE_ANALYSIS_USER_TEMPLATE,
     GROUPED_DONATIONS_SYSTEM_PROMPT,
     GROUPED_DONATIONS_USER_TEMPLATE,
     INDUSTRY_SYSTEM_PROMPT,
     INDUSTRY_USER_TEMPLATE,
     SUMMARY_SYSTEM_PROMPT,
     SUMMARY_USER_TEMPLATE,
-    UNUSUAL_EXPENDITURES_SYSTEM_PROMPT,
-    UNUSUAL_EXPENDITURES_USER_TEMPLATE,
 )
 
 if TYPE_CHECKING:
@@ -379,10 +379,10 @@ class IndustryAnalyzer:
         return "Employer data available but AI analysis unavailable."
 
 
-class UnusualExpendituresAnalyzer:
-    """Analyzer for unusual/interesting expenditures (AI-powered)."""
+class ExpenditureAnalyzer:
+    """Analyzer for expenditure categorization and summary (AI-powered)."""
 
-    feature_name = "unusual_expenditures"
+    feature_name = "expenditure_analysis"
 
     def __init__(self) -> None:
         self._client: AzureOpenAI | None = None
@@ -398,64 +398,61 @@ class UnusualExpendituresAnalyzer:
         extraction: ExtractionResult,
         report: Filings,
     ) -> AnalysisResult:
-        """Analyze unusual expenditures and explain why they're noteworthy."""
+        """Analyze expenditures with categorization and spending breakdown."""
         stats = extraction.stats
         data = extraction.data
 
-        flagged_count = stats.get("flagged_count", 0)
-        flagged_total = stats.get("flagged_total", 0)
+        expenditure_count = stats.get("flagged_count", 0)
+        expenditure_total = stats.get("flagged_total", 0)
 
-        # Skip AI if no flagged expenditures
-        if flagged_count == 0:
+        # Skip AI if no expenditures
+        if expenditure_count == 0:
             return AnalysisResult(
                 feature=self.feature_name,
                 data=data,
                 stats=stats,
-                narrative="No unusual expenditures identified.",
+                narrative="No expenditure data available for this period.",
             )
 
         period = f"{report.coverage_start_date} to {report.coverage_end_date}"
         committee_name = report.committee_name
 
-        flagged = data.get("flagged_expenditures", [])[:15]
+        # Get expenditures for analysis (use all available, not just "flagged")
+        expenditures = data.get("flagged_expenditures", [])[:25]
         expenditures_list = (
             "\n".join(
                 f"- {e['payee']}: ${e['amount']:,.2f} - {e.get('purpose', 'No purpose listed')}"
-                for e in flagged
+                for e in expenditures
             )
             or "- None"
         )
-
-        keywords = data.get("keywords_used", [])
-        keywords_str = ", ".join(keywords[:10]) if keywords else "various"
 
         self._ensure_client()
         if self._client is None or self._deployment is None:
             raise ValueError("OpenAI client not initialized")
 
-        user_message = UNUSUAL_EXPENDITURES_USER_TEMPLATE.format(
+        user_message = EXPENDITURE_ANALYSIS_USER_TEMPLATE.format(
             committee_name=committee_name,
             report_period=period,
-            flagged_count=flagged_count,
-            flagged_total=flagged_total,
+            flagged_count=expenditure_count,
+            flagged_total=expenditure_total,
             expenditures_list=expenditures_list,
-            keywords=keywords_str,
         )
 
         try:
             response = self._client.chat.completions.create(
                 model=self._deployment,
                 messages=[
-                    {"role": "system", "content": UNUSUAL_EXPENDITURES_SYSTEM_PROMPT},
+                    {"role": "system", "content": EXPENDITURE_ANALYSIS_SYSTEM_PROMPT},
                     {"role": "user", "content": user_message},
                 ],
-                max_tokens=300,
+                max_tokens=350,
                 temperature=0.3,
             )
             narrative = response.choices[0].message.content or ""
-            logger.info(f"Generated unusual expenditures analysis for {committee_name}")
+            logger.info(f"Generated expenditure analysis for {committee_name}")
         except Exception as e:
-            logger.error(f"Failed to generate unusual expenditures analysis: {e}")
+            logger.error(f"Failed to generate expenditure analysis: {e}")
             narrative = self._generate_fallback(stats, data)
 
         return AnalysisResult(
@@ -466,10 +463,10 @@ class UnusualExpendituresAnalyzer:
         )
 
     def _generate_fallback(self, stats: dict, data: dict) -> str:
-        flagged = data.get("flagged_expenditures", [])[:3]
-        if flagged:
-            items = ", ".join(f"{e['payee']} (${e['amount']:,.0f})" for e in flagged)
-            return f"Unusual expenditures flagged: {items}."
+        expenditures = data.get("flagged_expenditures", [])[:3]
+        if expenditures:
+            items = ", ".join(f"{e['payee']} (${e['amount']:,.0f})" for e in expenditures)
+            return f"Top expenditures: {items}."
         return "Expenditure data available but AI analysis unavailable."
 
 
