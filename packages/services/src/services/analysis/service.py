@@ -515,6 +515,20 @@ class OpenAIAnalysisService:
             f"{fs.get('pacs_pct', 0):.1f}% PACs, {fs.get('parties_pct', 0):.1f}% parties"
         )
 
+        # Payment conduits (ActBlue/WinRed)
+        actblue_count = fs.get("actblue_count", 0)
+        actblue_pct = fs.get("actblue_pct", 0)
+        winred_count = fs.get("winred_count", 0)
+        winred_pct = fs.get("winred_pct", 0)
+
+        if actblue_count > 0 or winred_count > 0:
+            conduit_parts = []
+            if actblue_count > 0:
+                conduit_parts.append(f"ActBlue: {actblue_count} donations ({actblue_pct:.1f}%)")
+            if winred_count > 0:
+                conduit_parts.append(f"WinRed: {winred_count} donations ({winred_pct:.1f}%)")
+            lines.append(f"- Payment Processors: {', '.join(conduit_parts)}")
+
         return "\n".join(lines)
 
     def _get_cached_analysis(self, cache_path: str) -> AnalysisResult | None:
