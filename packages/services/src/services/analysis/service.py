@@ -587,33 +587,20 @@ class OpenAIAnalysisService:
         Returns:
             Dictionary with all extraction results.
         """
+        max_out = self._max_out_donors_extractor.extract(parsed_csv, report)
+        geography = self._geography_extractor.extract(parsed_csv, report)
+        donor_size = self._donor_size_extractor.extract(parsed_csv, report)
+        funding = self._funding_source_extractor.extract(parsed_csv, report)
+        expenditure = self._expenditure_extractor.extract(parsed_csv, report)
+        industry = self._industry_extractor.extract(parsed_csv, report)
+        grouped = self._grouped_donations_extractor.extract(parsed_csv, report)
+
         return {
-            "max_out_donors": {
-                "data": self._max_out_donors_extractor.extract(parsed_csv, report).data,
-                "stats": self._max_out_donors_extractor.extract(parsed_csv, report).stats,
-            },
-            "geography": {
-                "data": self._geography_extractor.extract(parsed_csv, report).data,
-                "stats": self._geography_extractor.extract(parsed_csv, report).stats,
-            },
-            "donor_size": {
-                "data": self._donor_size_extractor.extract(parsed_csv, report).data,
-                "stats": self._donor_size_extractor.extract(parsed_csv, report).stats,
-            },
-            "funding_sources": {
-                "data": self._funding_source_extractor.extract(parsed_csv, report).data,
-                "stats": self._funding_source_extractor.extract(parsed_csv, report).stats,
-            },
-            "expenditure_analysis": {
-                "data": self._expenditure_extractor.extract(parsed_csv, report).data,
-                "stats": self._expenditure_extractor.extract(parsed_csv, report).stats,
-            },
-            "industry": {
-                "data": self._industry_extractor.extract(parsed_csv, report).data,
-                "stats": self._industry_extractor.extract(parsed_csv, report).stats,
-            },
-            "grouped_donations": {
-                "data": self._grouped_donations_extractor.extract(parsed_csv, report).data,
-                "stats": self._grouped_donations_extractor.extract(parsed_csv, report).stats,
-            },
+            "max_out_donors": {"data": max_out.data, "stats": max_out.stats},
+            "geography": {"data": geography.data, "stats": geography.stats},
+            "donor_size": {"data": donor_size.data, "stats": donor_size.stats},
+            "funding_sources": {"data": funding.data, "stats": funding.stats},
+            "expenditure_analysis": {"data": expenditure.data, "stats": expenditure.stats},
+            "industry": {"data": industry.data, "stats": industry.stats},
+            "grouped_donations": {"data": grouped.data, "stats": grouped.stats},
         }
