@@ -61,6 +61,12 @@ class FullAnalysisResult:
     # All extracted stats for summary compilation
     all_stats: dict = field(default_factory=dict)
 
+    def get_summary_or_default(self, committee_name: str) -> str:
+        """Get summary text or a fallback message."""
+        if self.summary:
+            return self.summary
+        return f"New report filed by {committee_name}."
+
     def get_combined_narrative(self) -> str:
         """Get combined narrative from all analyses."""
         narratives = []
