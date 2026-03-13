@@ -5,6 +5,7 @@ import os
 
 import azure.functions as func
 from services import (
+    REPORT_JSON_FILENAME,
     AnalysisService,
     AzureBlobStorageService,
     AzureEmailService,
@@ -142,7 +143,7 @@ def process_new_report(event: func.EventGridEvent) -> None:
         return
 
     # Only process report.json files
-    if not blob_path.endswith("/report.json"):
+    if not blob_path.endswith(f"/{REPORT_JSON_FILENAME}"):
         logger.info(f"Ignoring non-report blob: {blob_path}")
         return
 

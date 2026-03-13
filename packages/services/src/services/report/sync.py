@@ -16,7 +16,7 @@ from fec_api_client import (
 )
 
 from ..instrumentation import Operation, OperationMetrics, track_operation
-from ..storage import BlobStorageService
+from ..storage import REPORT_JSON_FILENAME, BlobStorageService
 from .base import FormCSV
 from .constants import QUARTERLY_REPORT_TYPES, is_supported_form_type
 from .format import add_headers_to_csv, create_xlsx
@@ -66,8 +66,8 @@ class SyncService:
                     results[committee_id] = None
                     continue
 
-                base_path = self._get_report_path(committee_id, filing)
-                blob_path = f"{base_path}/report.json"
+                base_path = self._get_base_path(committee_id, filing)
+                blob_path = f"{base_path}/{REPORT_JSON_FILENAME}"
 
                 if self.blob_service.exists(blob_path):
                     logger.info(f"Report already synced, skipping: {blob_path}")
@@ -221,7 +221,7 @@ class SyncService:
             logger.error(f"Failed to fetch report for {committee_id}: {e}")
             return None
 
-    def _get_report_path(self, committee_id: str, filing: Filings) -> str:
+    def _get_base_path(self, committee_id: str, filing: Filings) -> str:
         """Build the base path for a report: {committee_id}/{year}-{report_type}."""
         report_year = filing.report_year or "unknown"
         report_type = filing.report_type or "unknown"
