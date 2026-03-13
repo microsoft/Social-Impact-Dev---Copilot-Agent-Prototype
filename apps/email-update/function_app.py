@@ -1,4 +1,5 @@
 import gc
+import json
 import logging
 import os
 
@@ -12,6 +13,7 @@ from services import (
     FullAnalysisResult,
     OpenAIAnalysisService,
     build_report_preview_html,
+    get_unsupported_form_notice,
     is_supported_form_type,
     parse_blob_path,
     parse_comma_list,
@@ -186,11 +188,8 @@ def process_new_report(event: func.EventGridEvent) -> None:
 
     # Run full analysis
     analysis = _run_analysis(blob_service, base_path, report)
-    summary_text = (
-        analysis.summary
-        if analysis and analysis.summary
-        else f"New report filed by {report.committee_name}."
-    )
+    summary_text = analysis.get_summary_or_default(report.committee_name) if analysis else f"New report filed by {report.committee_name}."
+    notice = get_unsupported_form_notice(report.form_type) if not analysis else None
 
     # Send email
     email_result = email_service.send_report_email(
@@ -200,6 +199,7 @@ def process_new_report(event: func.EventGridEvent) -> None:
         formatted_csv_url=formatted_csv_url,
         xlsx_url=xlsx_url,
         analysis=analysis,
+        notice=notice,
     )
 
     if email_result.success:
@@ -215,31 +215,12 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
     if not committee_id:
         return func.HttpResponse("Missing committee_id", status_code=400)
 
-    # Initialize storage service
+    # Initialize storage service and find latest report
     blob_service = AzureBlobStorageService(container_name=BLOB_CONTAINER_NAME)
-
-    # Find the latest report for this committee
-    try:
-        blobs = blob_service.list_blobs(prefix=f"{committee_id}/")
-        report_blobs = [b for b in blobs if b.endswith("/report.json")]
-        if not report_blobs:
-            return func.HttpResponse(
-                f"No reports found for committee {committee_id}", status_code=404
-            )
-
-        # Get the most recent (last alphabetically = most recent year-quarter)
-        latest_blob = sorted(report_blobs)[-1]
-        path_components = parse_blob_path(latest_blob)
-        base_path = path_components.base_path if path_components else ""
-
-        report_content = blob_service.download_bytes(latest_blob)
-        if not report_content:
-            return func.HttpResponse("Failed to read report", status_code=500)
-
-        report = Filings.from_json(report_content.decode("utf-8"))
-    except Exception as e:
-        logger.error(f"Failed to read report for {committee_id}: {e}")
-        return func.HttpResponse(f"Error reading report: {e}", status_code=500)
+    result = blob_service.find_latest_report(committee_id)
+    if not result:
+        return func.HttpResponse(f"No reports found for committee {committee_id}", status_code=404)
+    report, base_path = result
 
     # Build URLs for processed files (formatted CSV and XLSX)
     formatted_csv_url = None
@@ -252,11 +233,8 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
 
     # Run full analysis
     analysis = _run_analysis(blob_service, base_path, report)
-    summary_text = (
-        analysis.summary
-        if analysis and analysis.summary
-        else f"New report filed by {report.committee_name}."
-    )
+    summary_text = analysis.get_summary_or_default(report.committee_name) if analysis else f"New report filed by {report.committee_name}."
+    notice = get_unsupported_form_notice(report.form_type) if not analysis else None
 
     # Build HTML preview
     html_content = build_report_preview_html(
@@ -265,6 +243,7 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
         formatted_csv_url=formatted_csv_url,
         xlsx_url=xlsx_url,
         analysis=analysis,
+        notice=notice,
     )
 
     return func.HttpResponse(html_content, mimetype="text/html", status_code=200)
@@ -277,8 +256,6 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
 )
 def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
     """POST /api/send-test-email/{committee_id} - Manually trigger email for testing."""
-    import json
-
     committee_id = req.route_params.get("committee_id")
     if not committee_id:
         return func.HttpResponse("Missing committee_id", status_code=400)
@@ -302,30 +279,12 @@ def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
             status_code=400,
         )
 
-    # Initialize storage service
+    # Initialize storage service and find latest report
     blob_service = AzureBlobStorageService(container_name=BLOB_CONTAINER_NAME)
-
-    # Find the latest report for this committee
-    try:
-        blobs = blob_service.list_blobs(prefix=f"{committee_id}/")
-        report_blobs = [b for b in blobs if b.endswith("/report.json")]
-        if not report_blobs:
-            return func.HttpResponse(
-                f"No reports found for committee {committee_id}", status_code=404
-            )
-
-        latest_blob = sorted(report_blobs)[-1]
-        path_components = parse_blob_path(latest_blob)
-        base_path = path_components.base_path if path_components else ""
-
-        report_content = blob_service.download_bytes(latest_blob)
-        if not report_content:
-            return func.HttpResponse("Failed to read report", status_code=500)
-
-        report = Filings.from_json(report_content.decode("utf-8"))
-    except Exception as e:
-        logger.error(f"Failed to read report for {committee_id}: {e}")
-        return func.HttpResponse(f"Error reading report: {e}", status_code=500)
+    result = blob_service.find_latest_report(committee_id)
+    if not result:
+        return func.HttpResponse(f"No reports found for committee {committee_id}", status_code=404)
+    report, base_path = result
 
     # Build URLs for processed files
     formatted_csv_url = None
@@ -338,11 +297,8 @@ def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
 
     # Run full analysis
     analysis = _run_analysis(blob_service, base_path, report)
-    summary_text = (
-        analysis.summary
-        if analysis and analysis.summary
-        else f"New report filed by {report.committee_name}."
-    )
+    summary_text = analysis.get_summary_or_default(report.committee_name) if analysis else f"New report filed by {report.committee_name}."
+    notice = get_unsupported_form_notice(report.form_type) if not analysis else None
 
     # Send email
     try:
@@ -354,6 +310,7 @@ def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
             formatted_csv_url=formatted_csv_url,
             xlsx_url=xlsx_url,
             analysis=analysis,
+            notice=notice,
         )
 
         if email_result.success:
