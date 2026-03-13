@@ -40,7 +40,12 @@ from .extractors import (
     MaxOutDonor,
     MaxOutDonorsExtractor,
 )
-from .service import AnalysisService, FullAnalysisResult, OpenAIAnalysisService
+from .service import (
+    AnalysisService,
+    FullAnalysisResult,
+    OpenAIAnalysisService,
+    get_summary_text,
+)
 from .types import CandidateDetail, CommitteeDetail, QuarterlyReport
 
 __all__ = [
@@ -75,4 +80,5 @@ __all__ = [
     # Service
     "AnalysisService",
     "OpenAIAnalysisService",
+    "get_summary_text",
 ]

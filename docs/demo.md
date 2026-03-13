@@ -144,12 +144,11 @@ curl -X POST "http://localhost:7071/api/send-test-email/C00703975" \
 
 ## Sample Committee IDs
 
-| Committee ID | Name | Type |
-|--------------|------|------|
-| C00703975 | ACTBLUE | PAC |
-| C00618371 | WINRED | PAC |
-| C00401224 | DNC SERVICES CORP | Party |
-| C00075820 | REPUBLICAN NATIONAL COMMITTEE | Party |
+| Committee ID | Name | Office |
+|--------------|------|--------|
+| C00825851 | AARON BEAN FOR CONGRESS | House - FL |
+| C00614776 | MIKE GARCIA FOR CONGRESS | House - CA |
+| C00766097 | JOHN FETTERMAN FOR US SENATE | Senate - PA |
 
 Find more committee IDs on the [FEC website](https://www.fec.gov/data/committees/).
 

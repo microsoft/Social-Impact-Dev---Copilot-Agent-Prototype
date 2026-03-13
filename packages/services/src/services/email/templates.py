@@ -178,6 +178,18 @@ def _build_links_html(
     return "<br>".join(sections)
 
 
+def _build_notice_html(notice: str | None) -> str:
+    """Build HTML notice banner for warnings or info messages."""
+    if not notice:
+        return ""
+    return f"""
+    <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 12px 15px;
+                border-radius: 5px; margin-bottom: 15px; color: #856404;">
+        <strong>Note:</strong> {notice}
+    </div>
+    """
+
+
 def build_report_html(
     report: Filings,
     summary: str,
@@ -185,6 +197,7 @@ def build_report_html(
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
+    notice: str | None = None,
 ) -> str:
     """Build HTML content for report email.
 
@@ -194,11 +207,13 @@ def build_report_html(
         formatted_csv_url: Optional URL to formatted CSV.
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
+        notice: Optional notice message to display (e.g., unsupported form type).
     """
     financials = _build_financials_html(report)
     links = _build_links_html(report, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url)
     analysis_section = _build_analysis_section_html(analysis)
     detailed_section = _build_detailed_analysis_html(analysis)
+    notice_section = _build_notice_html(notice)
     period = format_period(report.coverage_start_date, report.coverage_end_date)
     display_name = report.committee_name
     report_type_display = format_report_type(report.report_type)
@@ -207,6 +222,8 @@ def build_report_html(
     return f"""<html>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
     <h2 style="color: #1a1a1a;">{display_name} - {report_type_display} Report</h2>
+
+    {notice_section}
 
     <div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
         <p><strong>Committee:</strong> {report.committee_name}</p>
@@ -322,6 +339,7 @@ def build_report_plain_text(
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
+    notice: str | None = None,
 ) -> str:
     """Build plain text content for report email.
 
@@ -331,6 +349,7 @@ def build_report_plain_text(
         formatted_csv_url: Optional URL to formatted CSV.
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
+        notice: Optional notice message to display.
     """
     display_name = report.committee_name
     report_type_display = format_report_type(report.report_type)
@@ -341,11 +360,19 @@ def build_report_plain_text(
         f"{display_name} - {report_type_display} Report",
         "=" * 50,
         "",
-        f"Committee: {report.committee_name}",
-        f"Report Period: {period}",
-        f"Filed: {filed_date}",
-        "",
     ]
+
+    if notice:
+        lines.extend([f"NOTE: {notice}", ""])
+
+    lines.extend(
+        [
+            f"Committee: {report.committee_name}",
+            f"Report Period: {period}",
+            f"Filed: {filed_date}",
+            "",
+        ]
+    )
 
     if report.total_receipts is not None:
         lines.append(f"Total Receipts: ${report.total_receipts:,.2f}")
@@ -392,6 +419,7 @@ def build_report_preview_html(
     formatted_csv_url: str | None = None,
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
+    notice: str | None = None,
 ) -> str:
     """Build HTML preview page for report (for browser viewing).
 
@@ -403,6 +431,7 @@ def build_report_preview_html(
         formatted_csv_url: Optional URL to formatted CSV.
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
+        notice: Optional notice message to display.
     """
     email_html = build_report_html(
         report,
@@ -410,6 +439,7 @@ def build_report_preview_html(
         formatted_csv_url=formatted_csv_url,
         xlsx_url=xlsx_url,
         analysis=analysis,
+        notice=notice,
     )
 
     return f"""<!DOCTYPE html>

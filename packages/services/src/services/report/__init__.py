@@ -7,6 +7,7 @@ from .constants import (
     SUPPORTED_REPORT_TYPES,
     ColumnType,
     HeaderDef,
+    get_unsupported_form_notice,
     is_supported_form_type,
     is_supported_report_type,
 )
@@ -39,6 +40,7 @@ __all__ = [
     "SyncService",
     "add_headers_to_csv",
     "create_xlsx",
+    "get_unsupported_form_notice",
     "is_supported_form_type",
     "is_supported_report_type",
     "parse_fec_csv",

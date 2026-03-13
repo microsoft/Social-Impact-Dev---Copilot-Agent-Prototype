@@ -57,6 +57,7 @@ class EmailService(Protocol):
         formatted_csv_url: str | None = None,
         xlsx_url: str | None = None,
         analysis: FullAnalysisResult | None = None,
+        notice: str | None = None,
     ) -> EmailResult: ...
 
 
@@ -139,6 +140,7 @@ class AzureEmailService:
         formatted_csv_url: str | None = None,
         xlsx_url: str | None = None,
         analysis: FullAnalysisResult | None = None,
+        notice: str | None = None,
     ) -> EmailResult:
         """Send an email summarizing a report.
 
@@ -149,6 +151,7 @@ class AzureEmailService:
             formatted_csv_url: Optional URL to formatted CSV with headers.
             xlsx_url: Optional URL to Excel download.
             analysis: Optional full analysis result with all features.
+            notice: Optional notice message to display (e.g., unsupported form type).
 
         Returns:
             EmailResult with success status and message ID or error.
@@ -172,6 +175,7 @@ class AzureEmailService:
                     formatted_csv_url=formatted_csv_url,
                     xlsx_url=xlsx_url,
                     analysis=analysis,
+                    notice=notice,
                 )
                 plain_text_content = build_report_plain_text(
                     report,
@@ -179,6 +183,7 @@ class AzureEmailService:
                     formatted_csv_url=formatted_csv_url,
                     xlsx_url=xlsx_url,
                     analysis=analysis,
+                    notice=notice,
                 )
 
             display_name = report.committee_name

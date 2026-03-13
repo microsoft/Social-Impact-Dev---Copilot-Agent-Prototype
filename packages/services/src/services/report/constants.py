@@ -49,6 +49,16 @@ def is_supported_form_type(form_type: str | None) -> bool:
     return base_type in SUPPORTED_FORM_TYPES if base_type else False
 
 
+def get_unsupported_form_notice(form_type: str | None) -> str | None:
+    """Get a notice message if form type is not supported, otherwise None."""
+    if is_supported_form_type(form_type):
+        return None
+    return (
+        f"This report uses form type {form_type}, which is not yet supported "
+        f"for detailed AI analysis. Only basic filing information is shown."
+    )
+
+
 # HDR columns (shared across all form types)
 HDR_COLUMNS: list[HeaderDef] = [
     ("Record Type", "text"),
