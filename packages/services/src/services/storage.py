@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from typing import Protocol
@@ -7,6 +8,13 @@ from urllib.parse import unquote
 
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient, ContentSettings
+from fec_api_client import Filings
+
+logger = logging.getLogger(__name__)
+
+# Constants
+REPORT_JSON_FILENAME = "report.json"
+UTF8 = "utf-8"
 
 
 @dataclass
@@ -164,3 +172,32 @@ class AzureBlobStorageService:
             return None
 
         return blob_url.split(container_marker, 1)[1]
+
+    def find_latest_report(self, committee_id: str) -> tuple[Filings, str] | None:
+        """Find and load the latest report for a committee.
+
+        Args:
+            committee_id: FEC committee ID.
+
+        Returns:
+            Tuple of (Filings report, base_path) or None if not found.
+        """
+        try:
+            blobs = self.list_blobs(prefix=f"{committee_id}/")
+            report_blobs = [b for b in blobs if b.endswith(f"/{REPORT_JSON_FILENAME}")]
+            if not report_blobs:
+                return None
+
+            latest_blob = sorted(report_blobs)[-1]
+            path_components = parse_blob_path(latest_blob)
+            base_path = path_components.base_path if path_components else ""
+
+            report_content = self.download_bytes(latest_blob)
+            if not report_content:
+                return None
+
+            report = Filings.from_json(report_content.decode(UTF8))
+            return (report, base_path)
+        except Exception as e:
+            logger.error(f"Failed to find/load report for {committee_id}: {e}")
+            return None
