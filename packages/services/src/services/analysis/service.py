@@ -43,6 +43,15 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_SUMMARY_TEMPLATE = "New report filed by {committee_name}."
+
+
+def get_summary_text(analysis: FullAnalysisResult | None, committee_name: str) -> str:
+    """Get summary from analysis or fallback message."""
+    if analysis:
+        return analysis.get_summary_or_default(committee_name)
+    return DEFAULT_SUMMARY_TEMPLATE.format(committee_name=committee_name)
+
 
 @dataclass
 class FullAnalysisResult:
@@ -65,7 +74,7 @@ class FullAnalysisResult:
         """Get summary text or a fallback message."""
         if self.summary:
             return self.summary
-        return f"New report filed by {committee_name}."
+        return DEFAULT_SUMMARY_TEMPLATE.format(committee_name=committee_name)
 
     def get_combined_narrative(self) -> str:
         """Get combined narrative from all analyses."""

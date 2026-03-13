@@ -14,6 +14,7 @@ from services import (
     FullAnalysisResult,
     OpenAIAnalysisService,
     build_report_preview_html,
+    get_summary_text,
     get_unsupported_form_notice,
     is_supported_form_type,
     parse_blob_path,
@@ -189,7 +190,7 @@ def process_new_report(event: func.EventGridEvent) -> None:
 
     # Run full analysis
     analysis = _run_analysis(blob_service, base_path, report)
-    summary_text = analysis.get_summary_or_default(report.committee_name) if analysis else f"New report filed by {report.committee_name}."
+    summary_text = get_summary_text(analysis, report.committee_name)
     notice = get_unsupported_form_notice(report.form_type) if not analysis else None
 
     # Send email
@@ -234,7 +235,7 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
 
     # Run full analysis
     analysis = _run_analysis(blob_service, base_path, report)
-    summary_text = analysis.get_summary_or_default(report.committee_name) if analysis else f"New report filed by {report.committee_name}."
+    summary_text = get_summary_text(analysis, report.committee_name)
     notice = get_unsupported_form_notice(report.form_type) if not analysis else None
 
     # Build HTML preview
@@ -298,7 +299,7 @@ def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
 
     # Run full analysis
     analysis = _run_analysis(blob_service, base_path, report)
-    summary_text = analysis.get_summary_or_default(report.committee_name) if analysis else f"New report filed by {report.committee_name}."
+    summary_text = get_summary_text(analysis, report.committee_name)
     notice = get_unsupported_form_notice(report.form_type) if not analysis else None
 
     # Send email

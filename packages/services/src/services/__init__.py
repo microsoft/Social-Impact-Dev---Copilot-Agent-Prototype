@@ -6,6 +6,7 @@ from .analysis import (
     AnalysisService,
     FullAnalysisResult,
     OpenAIAnalysisService,
+    get_summary_text,
 )
 from .email import (
     AzureEmailService,
@@ -76,6 +77,7 @@ __all__ = [
     "add_headers_to_csv",
     "build_report_preview_html",
     "create_xlsx",
+    "get_summary_text",
     "get_unsupported_form_notice",
     "is_supported_form_type",
     "is_supported_report_type",
