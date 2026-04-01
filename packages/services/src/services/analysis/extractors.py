@@ -22,15 +22,12 @@ import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
+from fec_api_client import Filings
+
+from ..report import FormCSV
 from ..utils import round_percentages
-
-if TYPE_CHECKING:
-    from fec_api_client import Filings
-
-    from ..report import FormCSV
-
 
 # =============================================================================
 # Column Indices

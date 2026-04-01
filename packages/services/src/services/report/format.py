@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import csv
 import io
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from openpyxl.worksheet.worksheet import Worksheet
+from openpyxl.worksheet.worksheet import Worksheet
 
 from .base import FormCSV
 from .constants import HeaderDef

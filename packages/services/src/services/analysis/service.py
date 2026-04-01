@@ -10,9 +10,11 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
 from ..instrumentation import Operation, track_operation
+from ..report import FormCSV
+from ..storage import BlobStorageService
 from .analyzers import (
     AnalysisResult,
     DonorSizeAnalyzer,
@@ -34,12 +36,6 @@ from .extractors import (
     MaxOutDonorsExtractor,
 )
 from .types import CandidateDetail, CommitteeDetail, QuarterlyReport
-
-if TYPE_CHECKING:
-    from fec_api_client import CommitteeDetail
-
-    from ..report import FormCSV
-    from ..storage import BlobStorageService
 
 logger = logging.getLogger(__name__)
 

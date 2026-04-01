@@ -21,10 +21,12 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
+from fec_api_client import Filings
 from openai import AzureOpenAI
 
+from .extractors import ExtractionResult
 from .prompts import (
     EXPENDITURE_ANALYSIS_SYSTEM_PROMPT,
     EXPENDITURE_ANALYSIS_USER_TEMPLATE,
@@ -35,12 +37,7 @@ from .prompts import (
     SUMMARY_SYSTEM_PROMPT,
     SUMMARY_USER_TEMPLATE,
 )
-
-if TYPE_CHECKING:
-    from fec_api_client import Filings
-
-    from .extractors import ExtractionResult
-    from .types import CandidateDetail, CommitteeDetail
+from .types import CandidateDetail, CommitteeDetail
 
 logger = logging.getLogger(__name__)
 
