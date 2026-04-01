@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
+from typing import Literal, Protocol, runtime_checkable
 
-if TYPE_CHECKING:
-    from .constants import HeaderDef
+from .constants import HeaderDef
 
 # Standard section names across form types
 SectionName = Literal["Summary", "Contributions", "Disbursements", "Header"]

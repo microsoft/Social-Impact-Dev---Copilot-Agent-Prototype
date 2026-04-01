@@ -3,20 +3,18 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import Any, Protocol
 
 from azure.communication.email import EmailClient
 from azure.identity import DefaultAzureCredential
 from fec_api_client import format_report_type
 
+from ..analysis import FullAnalysisResult
 from ..instrumentation import Operation, track_operation
 from .templates import (
     build_report_html,
     build_report_plain_text,
 )
-
-if TYPE_CHECKING:
-    from ..analysis import FullAnalysisResult
 
 logger = logging.getLogger(__name__)
 
