@@ -10,6 +10,7 @@ dependencies = [
     "httpx>=0.25.0",
     "openpyxl>=3.1.0",
     "cryptography==46.0.6",
+    "matplotlib>=3.7.0",
 ]
 
 [build-system]
