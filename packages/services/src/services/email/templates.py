@@ -178,6 +178,17 @@ def _build_links_html(
     return "<br>".join(sections)
 
 
+def _build_map_html(map_image_url: str | None) -> str:
+    """Build HTML block for the state distribution map image."""
+    if not map_image_url:
+        return ""
+    return f"""
+    <h3>Geographic Distribution</h3>
+    <img src="{map_image_url}" width="600" alt="Donations and expenditures by state"
+         style="display:block; max-width:100%; height:auto; border-radius:4px;" />
+    """
+
+
 def _build_notice_html(notice: str | None) -> str:
     """Build HTML notice banner for warnings or info messages."""
     if not notice:
@@ -198,6 +209,7 @@ def build_report_html(
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
     notice: str | None = None,
+    map_image_url: str | None = None,
 ) -> str:
     """Build HTML content for report email.
 
@@ -208,11 +220,13 @@ def build_report_html(
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
         notice: Optional notice message to display (e.g., unsupported form type).
+        map_image_url: Optional URL to pre-rendered state map PNG in blob storage.
     """
     financials = _build_financials_html(report)
     links = _build_links_html(report, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url)
     analysis_section = _build_analysis_section_html(analysis)
     detailed_section = _build_detailed_analysis_html(analysis)
+    map_section = _build_map_html(map_image_url)
     notice_section = _build_notice_html(notice)
     period = format_period(report.coverage_start_date, report.coverage_end_date)
     display_name = report.committee_name
@@ -242,6 +256,8 @@ def build_report_html(
     </div>
 
     {analysis_section}
+
+    {map_section}
 
     {detailed_section}
 
@@ -420,6 +436,7 @@ def build_report_preview_html(
     xlsx_url: str | None = None,
     analysis: FullAnalysisResult | None = None,
     notice: str | None = None,
+    map_image_url: str | None = None,
 ) -> str:
     """Build HTML preview page for report (for browser viewing).
 
@@ -432,6 +449,7 @@ def build_report_preview_html(
         xlsx_url: Optional URL to Excel file.
         analysis: Full analysis result with all features.
         notice: Optional notice message to display.
+        map_image_url: Optional URL to pre-rendered state map PNG.
     """
     email_html = build_report_html(
         report,
@@ -440,6 +458,7 @@ def build_report_preview_html(
         xlsx_url=xlsx_url,
         analysis=analysis,
         notice=notice,
+        map_image_url=map_image_url,
     )
 
     return f"""<!DOCTYPE html>

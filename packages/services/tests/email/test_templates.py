@@ -10,6 +10,7 @@ from services.email.templates import (
     _build_detailed_analysis_html,
     _build_financials_html,
     _build_links_html,
+    _build_map_html,
     build_report_html,
     build_report_plain_text,
     build_report_preview_html,
@@ -498,3 +499,31 @@ class TestBuildReportPreviewHtml:
         result = build_report_preview_html(report, "Summary", analysis=analysis)
 
         assert "Industry insights here" in result
+
+
+class TestBuildMapHtml:
+    def test_returns_empty_string_when_no_url(self):
+        assert _build_map_html(None) == ""
+
+    def test_embeds_url_in_img_tag(self):
+        result = _build_map_html("https://example.com/map.png")
+        assert "https://example.com/map.png" in result
+        assert "<img" in result
+
+    def test_map_appears_in_report_html(self):
+        report = make_test_report()
+        result = build_report_html(report, "Summary", map_image_url="https://example.com/map.png")
+        assert "https://example.com/map.png" in result
+
+    def test_no_map_in_report_html_when_url_absent(self):
+        report = make_test_report()
+        result = build_report_html(report, "Summary")
+        assert "state_map" not in result
+        assert "<img" not in result
+
+    def test_map_appears_in_preview_html(self):
+        report = make_test_report()
+        result = build_report_preview_html(
+            report, "Summary", map_image_url="https://example.com/map.png"
+        )
+        assert "https://example.com/map.png" in result
