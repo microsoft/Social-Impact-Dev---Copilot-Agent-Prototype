@@ -600,6 +600,7 @@ class ExpenditureExtractor:
         flagged: list[Expenditure] = []
         total_expenditures = 0.0
         expenditure_categories: dict[str, float] = defaultdict(float)
+        state_totals: dict[str, float] = defaultdict(float)
 
         # Compile regex patterns for efficiency
         patterns = [re.compile(kw, re.IGNORECASE) for kw in self.keywords]
@@ -618,6 +619,10 @@ class ExpenditureExtractor:
             state = _get_column(row, ScheduleBColumns.PAYEE_STATE)
 
             total_expenditures += amount
+
+            # Track by state
+            if state:
+                state_totals[state.upper()] += amount
 
             # Track by category
             if category:
@@ -662,6 +667,7 @@ class ExpenditureExtractor:
                     for e in flagged
                 ],
                 "categories": dict(expenditure_categories),
+                "state_totals": dict(state_totals),
                 "keywords_used": self.keywords,
             },
             stats={

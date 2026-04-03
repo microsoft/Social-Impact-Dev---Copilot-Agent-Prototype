@@ -17,6 +17,7 @@ from .email import (
     format_date,
     format_period,
 )
+from .map_renderer import generate_state_map_blob, render_state_map
 from .report import (
     F3_FORM_TYPE_COLUMNS,
     F3CSV,
@@ -82,7 +83,9 @@ __all__ = [
     "is_supported_form_type",
     "is_supported_report_type",
     "parse_blob_path",
+    "generate_state_map_blob",
     "parse_comma_list",
     "parse_fec_csv",
+    "render_state_map",
     "REPORT_JSON_FILENAME",
 ]

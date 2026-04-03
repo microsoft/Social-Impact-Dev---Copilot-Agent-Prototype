@@ -56,6 +56,7 @@ class EmailService(Protocol):
         xlsx_url: str | None = None,
         analysis: FullAnalysisResult | None = None,
         notice: str | None = None,
+        map_image_url: str | None = None,
     ) -> EmailResult: ...
 
 
@@ -139,6 +140,7 @@ class AzureEmailService:
         xlsx_url: str | None = None,
         analysis: FullAnalysisResult | None = None,
         notice: str | None = None,
+        map_image_url: str | None = None,
     ) -> EmailResult:
         """Send an email summarizing a report.
 
@@ -150,6 +152,7 @@ class AzureEmailService:
             xlsx_url: Optional URL to Excel download.
             analysis: Optional full analysis result with all features.
             notice: Optional notice message to display (e.g., unsupported form type).
+            map_image_url: Optional URL to pre-rendered state map PNG.
 
         Returns:
             EmailResult with success status and message ID or error.
@@ -174,6 +177,7 @@ class AzureEmailService:
                     xlsx_url=xlsx_url,
                     analysis=analysis,
                     notice=notice,
+                    map_image_url=map_image_url,
                 )
                 plain_text_content = build_report_plain_text(
                     report,

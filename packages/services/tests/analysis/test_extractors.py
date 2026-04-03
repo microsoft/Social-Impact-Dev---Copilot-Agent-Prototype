@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 from services.analysis.extractors import (
     DonorSizeExtractor,
+    ExpenditureExtractor,
     FundingSourceExtractor,
     GeographyExtractor,
     MaxOutDonorsExtractor,
@@ -1058,3 +1059,108 @@ class TestDonorSizeExtractor:
         # Only the individual contribution should be counted
         assert result.stats["total_count"] == 1
         assert result.stats["total"] == 50.0
+
+
+class TestExpenditureExtractor:
+    """Tests for ExpenditureExtractor, including per-state totals."""
+
+    @pytest.fixture
+    def extractor(self):
+        return ExpenditureExtractor()
+
+    @pytest.fixture
+    def mock_report(self):
+        return SimpleNamespace(committee_name="Test Committee")
+
+    def _make_disbursement_row(
+        self, amount: str, state: str = "CA", purpose: str = "CONSULTING"
+    ) -> list:
+        row = [""] * 30
+        row[0] = "SB21B"  # Form type
+        row[1] = "C00123456"  # Committee ID
+        row[5] = "ORG"  # Entity type
+        row[6] = "Acme Corp"  # Payee org name
+        row[14] = "Los Angeles"  # City
+        row[15] = state  # State
+        row[19] = "20240101"  # Date
+        row[20] = amount  # Amount
+        row[22] = purpose  # Purpose
+        return row
+
+    def test_state_totals_populated(self, extractor, mock_report):
+        parsed = F3CSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[],
+            disbursements=[
+                self._make_disbursement_row("1000.00", state="CA"),
+                self._make_disbursement_row("500.00", state="CA"),
+                self._make_disbursement_row("750.00", state="TX"),
+            ],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert "state_totals" in result.data
+        assert result.data["state_totals"]["CA"] == pytest.approx(1500.0)
+        assert result.data["state_totals"]["TX"] == pytest.approx(750.0)
+
+    def test_state_codes_uppercased(self, extractor, mock_report):
+        parsed = F3CSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[],
+            disbursements=[self._make_disbursement_row("200.00", state="ca")],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert "CA" in result.data["state_totals"]
+        assert "ca" not in result.data["state_totals"]
+
+    def test_empty_state_excluded_from_totals(self, extractor, mock_report):
+        parsed = F3CSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[],
+            disbursements=[self._make_disbursement_row("300.00", state="")],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert result.data["state_totals"] == {}
+
+    def test_total_expenditures_correct(self, extractor, mock_report):
+        parsed = F3CSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[],
+            disbursements=[
+                self._make_disbursement_row("400.00", state="NY"),
+                self._make_disbursement_row("600.00", state="FL"),
+            ],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert result.stats["total_expenditures"] == pytest.approx(1000.0)
+        assert result.data["state_totals"]["NY"] == pytest.approx(400.0)
+        assert result.data["state_totals"]["FL"] == pytest.approx(600.0)
+
+    def test_empty_disbursements(self, extractor, mock_report):
+        parsed = F3CSV(
+            version="8.5",
+            header=["HDR"],
+            summary=["F3"],
+            contributions=[],
+            disbursements=[],
+        )
+
+        result = extractor.extract(parsed, mock_report)
+
+        assert result.data["state_totals"] == {}
+        assert result.stats["total_expenditures"] == 0.0

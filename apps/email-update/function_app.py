@@ -14,6 +14,7 @@ from services import (
     FullAnalysisResult,
     OpenAIAnalysisService,
     build_report_preview_html,
+    generate_state_map_blob,
     get_summary_text,
     get_unsupported_form_notice,
     is_supported_form_type,
@@ -193,6 +194,13 @@ def process_new_report(event: func.EventGridEvent) -> None:
     summary_text = get_summary_text(analysis, report.committee_name)
     notice = get_unsupported_form_notice(report.form_type) if not analysis else None
 
+    # Generate state map (non-fatal if unavailable)
+    map_image_url = None
+    if analysis and BLOB_ACCOUNT_URL:
+        blob_path = generate_state_map_blob(analysis, blob_service, base_path)
+        if blob_path:
+            map_image_url = _build_blob_url(base_path, "state_map.png")
+
     # Send email
     email_result = email_service.send_report_email(
         recipients=recipients,
@@ -202,6 +210,7 @@ def process_new_report(event: func.EventGridEvent) -> None:
         xlsx_url=xlsx_url,
         analysis=analysis,
         notice=notice,
+        map_image_url=map_image_url,
     )
 
     if email_result.success:
@@ -238,6 +247,13 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
     summary_text = get_summary_text(analysis, report.committee_name)
     notice = get_unsupported_form_notice(report.form_type) if not analysis else None
 
+    # Generate state map (non-fatal if unavailable)
+    map_image_url = None
+    if analysis and BLOB_ACCOUNT_URL:
+        blob_path = generate_state_map_blob(analysis, blob_service, base_path)
+        if blob_path:
+            map_image_url = _build_blob_url(base_path, "state_map.png")
+
     # Build HTML preview
     html_content = build_report_preview_html(
         report,
@@ -246,6 +262,7 @@ def preview_summary(req: func.HttpRequest) -> func.HttpResponse:
         xlsx_url=xlsx_url,
         analysis=analysis,
         notice=notice,
+        map_image_url=map_image_url,
     )
 
     return func.HttpResponse(html_content, mimetype="text/html", status_code=200)
@@ -302,6 +319,13 @@ def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
     summary_text = get_summary_text(analysis, report.committee_name)
     notice = get_unsupported_form_notice(report.form_type) if not analysis else None
 
+    # Generate state map (non-fatal if unavailable)
+    map_image_url = None
+    if analysis and BLOB_ACCOUNT_URL:
+        blob_path = generate_state_map_blob(analysis, blob_service, base_path)
+        if blob_path:
+            map_image_url = _build_blob_url(base_path, "state_map.png")
+
     # Send email
     try:
         email_service: EmailService = AzureEmailService()
@@ -313,6 +337,7 @@ def send_test_email(req: func.HttpRequest) -> func.HttpResponse:
             xlsx_url=xlsx_url,
             analysis=analysis,
             notice=notice,
+            map_image_url=map_image_url,
         )
 
         if email_result.success:
