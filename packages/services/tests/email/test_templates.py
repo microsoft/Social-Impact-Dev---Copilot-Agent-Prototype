@@ -527,3 +527,38 @@ class TestBuildMapHtml:
             report, "Summary", map_image_url="https://example.com/map.png"
         )
         assert "https://example.com/map.png" in result
+
+    def test_map_suppressed_when_notice_set(self):
+        report = make_test_report()
+        result = build_report_html(
+            report,
+            "Summary",
+            notice="Unsupported form type",
+            map_image_url="https://example.com/map.png",
+        )
+        assert "https://example.com/map.png" not in result
+        assert "<img" not in result
+
+    def test_processed_links_suppressed_when_notice_set(self):
+        report = make_test_report()
+        result = build_report_html(
+            report,
+            "Summary",
+            notice="Unsupported form type",
+            formatted_csv_url="https://example.com/data.csv",
+            xlsx_url="https://example.com/data.xlsx",
+        )
+        assert "https://example.com/data.csv" not in result
+        assert "https://example.com/data.xlsx" not in result
+
+    def test_processed_links_suppressed_in_plain_text_when_notice_set(self):
+        report = make_test_report()
+        result = build_report_plain_text(
+            report,
+            "Summary",
+            notice="Unsupported form type",
+            formatted_csv_url="https://example.com/data.csv",
+            xlsx_url="https://example.com/data.xlsx",
+        )
+        assert "https://example.com/data.csv" not in result
+        assert "https://example.com/data.xlsx" not in result

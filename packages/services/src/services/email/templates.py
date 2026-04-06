@@ -184,7 +184,7 @@ def _build_map_html(map_image_url: str | None) -> str:
         return ""
     return f"""
     <h3>Geographic Distribution</h3>
-    <img src="{map_image_url}" width="600" alt="Donations and expenditures by state"
+    <img src="{map_image_url}" width="1200" alt="Donations and expenditures by state"
          style="display:block; max-width:100%; height:auto; border-radius:4px;" />
     """
 
@@ -223,10 +223,14 @@ def build_report_html(
         map_image_url: Optional URL to pre-rendered state map PNG in blob storage.
     """
     financials = _build_financials_html(report)
-    links = _build_links_html(report, formatted_csv_url=formatted_csv_url, xlsx_url=xlsx_url)
+    links = _build_links_html(
+        report,
+        formatted_csv_url=None if notice else formatted_csv_url,
+        xlsx_url=None if notice else xlsx_url,
+    )
     analysis_section = _build_analysis_section_html(analysis)
     detailed_section = _build_detailed_analysis_html(analysis)
-    map_section = _build_map_html(map_image_url)
+    map_section = _build_map_html(None if notice else map_image_url)
     notice_section = _build_notice_html(notice)
     period = format_period(report.coverage_start_date, report.coverage_end_date)
     display_name = report.committee_name
@@ -418,7 +422,7 @@ def build_report_plain_text(
         if report.csv_url:
             lines.append(f"  CSV: {report.csv_url}")
 
-    if formatted_csv_url or xlsx_url:
+    if not notice and (formatted_csv_url or xlsx_url):
         lines.extend(["", "Processed Data:"])
         if formatted_csv_url:
             lines.append(f"  CSV: {formatted_csv_url}")
