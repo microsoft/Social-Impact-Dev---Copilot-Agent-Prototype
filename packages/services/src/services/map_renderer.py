@@ -136,7 +136,7 @@ def _draw_tile_map(
             label,
             ha="center",
             va="center",
-            fontsize=4.2,
+            fontsize=10,
             fontweight="bold",
             color=text_color,
             linespacing=1.2,
@@ -146,14 +146,14 @@ def _draw_tile_map(
     ax.set_ylim(-_GRID_ROWS + 0.3, 0.7)
     ax.set_aspect("equal")
     ax.axis("off")
-    ax.set_title(title, fontsize=7, fontweight="bold", pad=3, color="#222222")
+    ax.set_title(title, fontsize=13, fontweight="bold", pad=5, color="#222222")
 
 
 def render_state_map(
     donation_state_totals: dict[str, float],
     expenditure_state_totals: dict[str, float],
     *,
-    width_px: int = 600,
+    width_px: int = 1200,
     dpi: int = 96,
 ) -> bytes:
     """Render a side-by-side US tile-grid map of donations vs expenditures by state.

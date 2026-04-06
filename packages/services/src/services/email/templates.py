@@ -184,7 +184,7 @@ def _build_map_html(map_image_url: str | None) -> str:
         return ""
     return f"""
     <h3>Geographic Distribution</h3>
-    <img src="{map_image_url}" width="600" alt="Donations and expenditures by state"
+    <img src="{map_image_url}" width="1200" alt="Donations and expenditures by state"
          style="display:block; max-width:100%; height:auto; border-radius:4px;" />
     """
 
