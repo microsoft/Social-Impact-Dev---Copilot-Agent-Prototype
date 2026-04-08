@@ -9,7 +9,7 @@ dependencies = [
     "openai>=1.0.0",
     "httpx>=0.25.0",
     "openpyxl>=3.1.0",
-    "cryptography==46.0.6",
+    "cryptography==46.0.7",
     "matplotlib>=3.7.0",
 ]
 
